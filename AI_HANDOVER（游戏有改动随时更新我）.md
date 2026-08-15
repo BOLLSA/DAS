@@ -360,7 +360,7 @@ decks.js → targeting.js → ui.js → ui-overlay.js → ai.js → network.js �
 11. 术语统一：「城池」（非基地）、「城池行」；教程文案不得出现旧术语。
 12. 版本号：改动发布时同步 index.html（3处）与 decks.js 标题。
 13. 发布前核对：每次发布前运行 `check.ps1`（语法检查）并更新本文档中的统计数字（代码行数/卡牌数/装备数/技能数），数字标注"约"字。
-14. 版本控制：项目已启用 Git（Dark Age Saga 目录），重要改动提交时写明变更摘要；`.gitignore` 已排除 `_check.log` 等临时文件。
+14. 版本控制：项目已启用 Git（Dark Age Saga 目录），远程仓库 `https://github.com/BOLLSA/DAS`（origin/main）。日常流程：`git add -A` → `git commit -m "改动说明"` → `git push`；本机 TLS 后端已设为 openssl（受限环境下 schannel 无法获取凭据）。重要改动提交时写明变更摘要；`.gitignore` 已排除 `_check.log` 等临时文件。
 
 ---
 
