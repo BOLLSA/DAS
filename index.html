@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="theme-color" content="#0f0a06">
+    <meta name="description" content="黑暗中世纪1.01 - 双人对战回合制战棋卡牌游戏">
+    <title>黑暗中世纪1.01 - 双人对战战棋</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="version-label">v1.01</div>
+<div class="game-container">
+    <div class="board-area"><div class="grid" id="gameGrid"></div></div>
+    <div class="right-panel">
+        <div class="info-bar">
+            <div class="player-card">&#128309; 蓝方 &nbsp; &#10084;&#65039;<span id="p0Hp">10</span> &nbsp; &#128176;<span id="p0Mana">3</span>/15 &nbsp; &#127183;<span id="p0HandCount">0</span>/6</div>
+            <div class="turn-indicator" id="turnText">&#128316; 蓝方回合</div>
+            <div class="player-card">&#128308; 红方 &nbsp; &#10084;&#65039;<span id="p1Hp">10</span> &nbsp; &#128176;<span id="p1Mana">3</span>/15 &nbsp; &#127183;<span id="p1HandCount">0</span>/6</div>
+        </div>
+        <div class="hand-area">
+            <div class="hand-title"><span>&#128220; 手牌</span>
+                <div><button class="test-mode-btn" id="testModeBtn">&#129514; 测试模式</button><button class="tutorial-btn" id="tutorialBtn">&#128214; 教程</button><button class="pokedex-btn" id="pokedexBtn">&#128214; 图鉴</button><button class="clear-hand-btn" id="clearHandBtn">&#10060; 取消选中 <kbd class="kbd-hint">ESC</kbd></button></div>
+            </div>
+            <div class="hand-cards" id="handCards"></div>
+        </div>
+        <div class="enemy-hand-area">
+            <div class="enemy-hand-title"><span>&#127192; 敌方手牌</span><span id="enemyHandCount">0</span></div>
+            <div class="enemy-hand-cards" id="enemyHandCards"></div>
+        </div>
+        <div class="prepool-area"><div>&#127136; 预牌堆 (回合结束选一张加入手牌)</div><div class="prepool-list" id="prepoolList"></div></div>
+        <div class="flex-row"><button id="endTurnBtn">&#9889; 结束回合 (喊"过")</button><button id="equipmentShopBtn">&#9876;&#65039; 装备商店</button><button id="resetGameBtn">&#128260; 重新开局</button></div>
+        <div class="shortcut-hints"><span><kbd class="kbd-hint">1-6</kbd>选手牌</span><span><kbd class="kbd-hint">Alt+E</kbd>技能</span><span><kbd class="kbd-hint">Alt+Q</kbd>弃牌/撤回</span><span><kbd class="kbd-hint">ESC</kbd>取消</span></div>
+        <div class="log" id="log"></div>
+    </div>
+</div>
+
+<!-- JS 模块加载顺序（依赖链：数据 → 状态 → 战斗 → 技能 → 流程 → 装备 → 目标 → UI → AI → 网络 → 入口）-->
+<script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script src="js/cards.js"></script>
+<script src="js/game-state.js"></script>
+<script src="js/battle-engine.js"></script>
+<script src="js/skill-charge.js"></script>
+<script src="js/skill-active.js"></script>
+<script src="js/skill-config.js"></script>
+<script src="js/game-flow.js"></script>
+<script src="js/equipment.js"></script>
+<script src="js/decks.js"></script>
+<script src="js/targeting.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/ui-overlay.js"></script>
+<script src="js/ai.js"></script>
+<script src="js/network.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>
