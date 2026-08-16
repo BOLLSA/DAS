@@ -219,12 +219,27 @@
     }
     async function hunterExecute(unit, col) {
         const enemySide = unit.side === SIDE_PLAYER0 ? SIDE_PLAYER1 : SIDE_PLAYER0;
-        let enemies = gameState.units.filter(u => u.col === col && u.side === enemySide);
+        // 只过滤存活真实单位（排除镜像幽灵与复活甲待复活尸体）
+        let enemies = gameState.units.filter(u => u.col === col && u.side === enemySide && u.life > 0 && !u.isMirror);
         if (enemies.length === 0) { addLog(`${unit.cardName} 死亡时本路无敌人，秒杀无效。`); return; }
         enemies.sort((a,b) => a.row - b.row);
         const options = enemies.map((e, idx) => `${idx+1}. ${e.cardName} (❤️${e.life}) 位于 ${ROW_NAMES[e.row]} ${COLS[e.col]}`);
         options.push("❌ 不杀");
-        const selectedIdx = await showSelect(options, `请${unit.side === SIDE_PLAYER0 ? "蓝方" : "红方"}玩家选择要秒杀的单位（或选"不杀"）`, { forceShow: true });
+        // 联机：秒杀目标由猎手拥有方决定（猎手多数死在对手回合，默认 gameState.turn 会路由到错误一方）
+        if (networkActive()) networkPromptSide = unit.side;
+        const selectedIdx = await showSelect(options, `请${unit.side === SIDE_PLAYER0 ? "蓝方" : "红方"}玩家选择要秒杀的单位（或选"不杀"）`, { forceShow: true, aiChoice: (opts) => {
+            // AI 拥有猎手时：优先秒杀威胁最高/生命最低的真实敌人，无可选则"不杀"
+            const realOpts = enemies.filter(e => e.absoluteImmunityTurns <= 0 && e.invincibleTurns <= 0);
+            if (realOpts.length === 0) return opts.length - 1;
+            let bestIdx = 0, bestScore = -Infinity;
+            for (let i = 0; i < enemies.length; i++) {
+                const e = enemies[i];
+                if (e.absoluteImmunityTurns > 0 || e.invincibleTurns > 0) continue;
+                const score = e.dmgValue * 3 + e.life;
+                if (score > bestScore) { bestScore = score; bestIdx = i; }
+            }
+            return bestIdx;
+        } });
         if (selectedIdx === -1 || selectedIdx === options.length-1) {
             addLog(`放弃选择，未进行秒杀。`);
             showToast(`🕊️ 放弃秒杀`);
@@ -339,7 +354,7 @@
     function findGuardToAbsorb(targetUnit, damageAmount) {
         if (targetUnit.cardName === "守卫") return null;
         const sameRowUnits = gameState.units.filter(u => u.row === targetUnit.row && u.side === targetUnit.side);
-        const guards = sameRowUnits.filter(u => u.cardName === "守卫" && u !== targetUnit);
+        const guards = sameRowUnits.filter(u => u.cardName === "守卫" && u !== targetUnit && u.life > 0 && !u.isMirror);
         if (guards.length === 0) return null;
         return guards[0];
     }
@@ -347,7 +362,7 @@
     function findShieldGuardToAbsorb(targetUnit, damageAmount) {
         if (targetUnit.cardName === "盾兵") return null;
         const sameColUnits = gameState.units.filter(u => u.col === targetUnit.col && u.side === targetUnit.side);
-        const shieldGuards = sameColUnits.filter(u => u.cardName === "盾兵" && u !== targetUnit);
+        const shieldGuards = sameColUnits.filter(u => u.cardName === "盾兵" && u !== targetUnit && u.life > 0 && !u.isMirror);
         if (shieldGuards.length === 0) return null;
         return shieldGuards[0];
     }
@@ -393,8 +408,8 @@
     async function tryYangYuhuanDefend(target, dmg) {
         // 用临时标记防止同一伤害被多次询问
         if (target._yangDefendChecked) return dmg;
+        if (target.cardName !== '血舞' || (target.extraAttacks || 0) <= 0) return dmg;  // 非血舞/无额外攻速：不询问也不置标记
         target._yangDefendChecked = true;
-        if (target.cardName !== '血舞' || (target.extraAttacks || 0) <= 0) return dmg;
         // AI 自动防御：有额外攻速且受伤时始终抵消
         if (target.side === aiSide) {
             if (target.extraAttacks > 0 && dmg > 0) {
@@ -928,7 +943,7 @@
             // 暴食者被动：击杀后回满血+永久物伤+1（禁疗则不回血，但仍增伤）
             if (source && source.cardName === "暴食者") {
                 if (!source.noHeal) {
-                    source.life = 4; // 回满
+                    source.life = source.maxLife || 4; // 回满（考虑甘泉/霜痕提升的生命上限）
                     addLog(`🍗 暴食者击杀敌方，生命回满，物伤永久+1（当前${source.dmgValue}）`);
                 } else {
                     addLog(`🍗 暴食者击杀敌方，但处于禁疗状态，无法回血（物伤永久+1）`);
@@ -1035,7 +1050,7 @@
         const maxRow = Math.max(oldSelfRow, oldMirrorRow);
         const pathTargets = gameState.units.filter(u => u.side !== unit.side && u.life > 0 && !u.isMirror && u.col === oldSelfCol && u.row >= minRow && u.row <= maxRow);
         for (let t of pathTargets) {
-            const source = { cardName: unit.cardName, side: unit.side, dmgType: "⚔️", id: unit.id, fromSkill: true };
+            const source = { cardName: unit.cardName, side: unit.side, dmgType: "⚔️", id: unit.id, life: unit.life, fromSkill: true };
             await applyDamageWithSource(t, 1, source, false, "⚔️");
         }
         let newSelfRow = oldMirrorRow;
@@ -1207,8 +1222,10 @@
                     applyShaLinCellBinding(attacker);
                 }
             }
-            // AOE：对目标格所有敌人造成伤害
-            const allTargets = getUnitsAt(attacker.row, attacker.col).filter(u => u.side !== attacker.side);
+            // AOE：对目标格所有敌人造成伤害（定身时未位移，仍按目标格结算而非原格）
+            const aoeRow = isSameCell || attacker.shaLinBindTurn <= 0 ? attacker.row : targetRow;
+            const aoeCol = isSameCell || attacker.shaLinBindTurn <= 0 ? attacker.col : targetCol;
+            const allTargets = getUnitsAt(aoeRow, aoeCol).filter(u => u.side !== attacker.side);
             if (allTargets.length === 0) { showToast(`目标格没有敌方单位`); return false; }
             // 循环外计算一次性加成（掠影自身伤害计算后叠加）
             let baseBonus = 0;
@@ -1443,7 +1460,8 @@
             const wantTransfer = await showConfirm("是否将本次伤害转移到敌方场上任意单位？（不可抵挡）");
             if (wantTransfer) {
                 let targets = [];
-                for (let u of gameState.units) { if (u.side !== attacker.side) targets.push({ type: 'unit', unit: u, name: `${u.cardName} (❤️${u.life})` }); }
+                // 只选存活真实单位（排除镜像幽灵与复活甲待复活尸体——镜像转移伤害为0）
+                for (let u of gameState.units) { if (u.side !== attacker.side && u.life > 0 && !u.isMirror) targets.push({ type: 'unit', unit: u, name: `${u.cardName} (❤️${u.life})` }); }
                 const options = targets.map((t, idx) => `${idx+1}. ${t.name}`);
                 // AI 智能选择：优先选血量最低的敌人（最大化击杀概率）
                 const aiChoice = (opts) => {

@@ -265,7 +265,7 @@
             cancelBtn.className = 'cancel-btn';
             cancelBtn.textContent = '取消等待';
             cancelBtn.style.cssText = 'cursor:pointer;margin-top:8px;';
-            cancelBtn.onclick = () => { waitOverlay.remove(); networkTeardown(); };
+            cancelBtn.onclick = () => { waitOverlay.remove(); networkCancelHostRoom(); };
             waitPanel.appendChild(cancelBtn);
             waitOverlay.appendChild(waitPanel);
             document.body.appendChild(waitOverlay);
@@ -643,12 +643,14 @@
                 pov.querySelector('#btnCopyCode').onclick = () => {
                     codeArea.select();
                     try {
-                        if (navigator.clipboard) {
-                            navigator.clipboard.writeText(codeArea.value);
+                        if (navigator.clipboard && navigator.clipboard.writeText) {
+                            navigator.clipboard.writeText(codeArea.value)
+                                .then(() => showToast('✅ 分享码已复制'))
+                                .catch(() => { if (document.execCommand('copy')) showToast('✅ 分享码已复制'); else showToast('请手动选择文本复制'); });
                         } else {
-                            document.execCommand('copy');
+                            if (document.execCommand('copy')) showToast('✅ 分享码已复制');
+                            else showToast('请手动选择文本复制');
                         }
-                        showToast('✅ 分享码已复制');
                     } catch (e) {
                         showToast('请手动选择文本复制');
                     }

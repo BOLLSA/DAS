@@ -201,9 +201,9 @@
             const unit = gameState.units.find(u => u.id === gameState.selectedUnitId);
             if (!unit || unit.side !== gameState.turn) { gameState.selectedUnitId = null; renderUI(); return; }
             const enemyBaseRow = unit.side === SIDE_PLAYER0 ? 0 : 4;
+            if (unit.cardName === "掠影" && row === enemyBaseRow && col === unit.col) { showToast(`掠影不可攻击敌方城池及其内的敌方`); gameState.selectedUnitId = null; renderUI(); return; }
             if (row === enemyBaseRow && col === unit.col && canAttackBase(unit)) { await attackBase(unit); gameState.selectedUnitId = null; renderUI(); return; }
             if (unit.shaLinBindTurn > 0) { showToast(`🪞 ${unit.cardName} 被纱琳定身，不能移动`); gameState.selectedUnitId = null; renderUI(); return; }
-            if (unit.cardName === "掠影" && row === enemyBaseRow && col === unit.col) { showToast(`掠影不可攻击敌方城池及其内的敌方`); gameState.selectedUnitId = null; renderUI(); return; }
             await tryMoveUnit(unit, row, col);
             gameState.selectedUnitId = null;
             renderUI();

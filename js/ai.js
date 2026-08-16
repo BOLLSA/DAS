@@ -480,9 +480,9 @@
         for (let cell of validCells) {
             const { row, col } = cell;
             const hasEnemy = gameState.units.some(u => u.row === row && u.col === col && u.side !== side && u.life > 0);
-            const canPlaceOnEnemy = ["掠影", "影舞姬"].includes(card.name);
+            const canPlaceOnEnemy = ["掠影", "影舞姬", "镜中人"].includes(card.name);
             if (hasEnemy && !canPlaceOnEnemy) continue;
-            if (card.name !== "护援兵" && !canAddUnit(row, col, side)) continue;
+            if (card.name !== "护援兵" && card.name !== "镜中人" && !canAddUnit(row, col, side)) continue;
             if (row === enemyCastleRow && !canPlaceOnEnemy) continue;
 
             let score = 0;
@@ -547,6 +547,8 @@
     // AI 估算伤害（简化版）
     function aiEstimateDamage(attacker, target) {
         let dmg = attacker.dmgValue;
+        // 弱化：本回合伤害无效（与实际 performAttack 一致）
+        if ((attacker.weakenedTurns || 0) > 0) return 0;
         if (attacker.tempAttackBonus > 0) dmg += attacker.tempAttackBonus;
         if (attacker.nextAttackBonus > 0) dmg += attacker.nextAttackBonus;
         const { bonus } = applyAifeiAura(attacker, true, attacker.dmgType);
@@ -597,20 +599,19 @@
     }
 
     // ========== 大师难度：敌方反击预判系统 ==========
-    // 预测某单位若位于 (row,col)，下回合敌方所有能打到它的单位造成的总伤害
+    // 预测某单位若位于 (row,col)，敌方下一回合能打到它的单位造成的总伤害
+    // 注意：不能读敌方 attacksLeftThisTurn/moved（描述的是敌方上一回合的残留状态）；
+    // 按敌方「下一回合」起始状态建模：attacksLeft = 1+extraAttacks，moved=false
     function aiMasterPredictIncomingDamage(unit, row, col) {
         let total = 0;
-        const enemies = gameState.units.filter(u => u.side !== unit.side && u.life > 0 && !u.isMirror);
+        const enemies = gameState.units.filter(u => u.side !== unit.side && u.life > 0 && !u.isMirror && (u.stun || 0) <= 0 && (u.shaLinBindTurn || 0) <= 0);
         for (let e of enemies) {
             const dist = Math.abs(e.row - row) + Math.abs(e.col - col);
-            // 当前能攻击到（含剩余攻击次数）
-            if ((e.attacksLeftThisTurn || 0) > 0 && dist <= (e.range || 1)) {
-                total += aiEstimateDamage(e, unit) * Math.min(e.attacksLeftThisTurn, 2);
-                continue;
-            }
-            // 敌方未行动（本回合没打过的）：下回合可移动1格再攻击
-            if (e.moved !== true && dist <= (e.range || 1) + 1) {
-                total += aiEstimateDamage(e, unit);
+            const eAtk = 1 + (e.extraAttacks || 0) + (e.riluoPlaced ? 1 : 0);  // 下回合攻击次数
+            if (dist <= (e.range || 1)) {
+                total += aiEstimateDamage(e, unit) * eAtk;  // 下回合可直接攻击到
+            } else if (dist <= (e.range || 1) + 1 && e.speed >= 1) {
+                total += aiEstimateDamage(e, unit);  // 移动1格后可攻击到（按1次保守估计）
             }
         }
         return total;
@@ -618,15 +619,15 @@
 
     // 大师：攻击某目标后，敌方对我方单位的反击伤害（用于评估交换是否划算）
     function aiMasterTradeEvaluation(unit, target) {
-        // 击杀目标则无反击；否则预测目标单位反击
+        // 击杀目标则无反击；否则预测目标单位下回合反击
         if (aiEstimateDamage(unit, target) >= target.life) return { kill: true, incoming: 0, net: Infinity };
         let incoming = 0;
-        if ((target.attacksLeftThisTurn || 0) > 0) {
-            incoming += aiEstimateDamage(target, unit) * Math.min(target.attacksLeftThisTurn, 2);
-        } else if (target.moved !== true) {
-            // 目标还没动过：下回合可能移动后反击
-            const dist = Math.abs(target.row - unit.row) + Math.abs(target.col - unit.col);
-            if (dist <= (target.range || 1) + 1) incoming += aiEstimateDamage(target, unit);
+        const dist = Math.abs(target.row - unit.row) + Math.abs(target.col - unit.col);
+        const targetAtk = 1 + (target.extraAttacks || 0) + (target.riluoPlaced ? 1 : 0);
+        if (dist <= (target.range || 1)) {
+            incoming += aiEstimateDamage(target, unit) * targetAtk;
+        } else if (dist <= (target.range || 1) + 1 && target.speed >= 1) {
+            incoming += aiEstimateDamage(target, unit);
         }
         const dealt = aiEstimateDamage(unit, target);
         return { kill: false, incoming, dealt, net: dealt - incoming };
@@ -703,12 +704,15 @@
         if (aiSkipAttackIds.has(unit.id)) return false;
 
         // 攻击本体：优先清理「可击杀」或「高悬赏」的敌方单位（悬赏单位击杀有赏金收益）
+        // 注：掠影不可攻击敌方城池（人类路径同样拦截），排除在外
+        // nearbyKillable 用与实际攻击一致的可达性：同列且距离≤range（非曼哈顿宽松判定，避免误判导致空过）
         const nearbyKillable = gameState.units.some(u =>
-            u.side === enemySide && u.life > 0 && !u.isMirror &&
-            Math.abs(u.row - unit.row) + Math.abs(u.col - unit.col) <= unit.range + 1 &&
+            u.side === enemySide && u.life > 0 && !u.isMirror && u.col === unit.col &&
+            (u.row - unit.row) * (unit.side === SIDE_PLAYER0 ? -1 : 1) >= 0 &&
+            (u.row - unit.row) * (unit.side === SIDE_PLAYER0 ? -1 : 1) <= unit.range &&
             (aiEstimateDamage(unit, u) >= u.life || (u.bountyLevel || 0) >= 2)
         );
-        if (canAttackBase(unit) && unit.cardName !== "大力士" && unit.cardName !== "骑士" && !nearbyKillable) {
+        if (canAttackBase(unit) && unit.cardName !== "大力士" && unit.cardName !== "骑士" && unit.cardName !== "掠影" && !nearbyKillable) {
             if (aiGameId !== myGameId) return false;
             if (gameState.nerdJamPending[unit.side]) {
                 gameState.nerdJamPending[unit.side] = false;
@@ -810,7 +814,7 @@
 
     // ========== AI 尝试移动（升级版）==========
     // 增加防守意识：保护关键单位、躲AOE
-    async function aiTryMove(unit) {
+    async function aiTryMove(unit, myGameId) {
         const side = unit.side;
         const forward = getForwardDelta(side);
         const cfg = aiCfg();
@@ -834,6 +838,8 @@
                     if (!sideLimit) {
                         const hasEnemy = gameState.units.some(u => u.row === blockRow && u.col === blockCol && u.side !== side && u.life > 0 && u.cardName !== "掠影");
                         if (!hasEnemy && canAddUnit(blockRow, blockCol, side)) {
+                            if (aiGameId !== myGameId) return false;
+                            if (aiGameId !== myGameId) return false;
                             if (await tryMoveUnit(unit, blockRow, blockCol)) return true;
                         }
                     }
@@ -877,7 +883,9 @@
                         }
                     }
                     if (aiDifficulty === 'easy' && Math.random() < cfg.skipActionRate) return false;
-                    if (await tryMoveUnit(unit, tr, unit.col)) return true;
+                    if (aiGameId !== myGameId) return false;
+                            if (aiGameId !== myGameId) return false;
+                            if (await tryMoveUnit(unit, tr, unit.col)) return true;
                 }
             }
         }
@@ -903,12 +911,16 @@
                     // 机车党：可主动走进敌方格触发碰撞伤害
                     if (unit.cardName !== "机车党") continue;
                     if (canAddUnit(r, c, side)) {
-                        if (await tryMoveUnit(unit, r, c)) return true;
+                        if (aiGameId !== myGameId) return false;
+                            if (aiGameId !== myGameId) return false;
+                            if (await tryMoveUnit(unit, r, c)) return true;
                     }
                     continue;
                 }
                 if (canAddUnit(r, c, side)) {
-                    if (await tryMoveUnit(unit, r, c)) return true;
+                    if (aiGameId !== myGameId) return false;
+                            if (aiGameId !== myGameId) return false;
+                            if (await tryMoveUnit(unit, r, c)) return true;
                 }
             }
         }
@@ -1028,6 +1040,19 @@
         if (!def) return false;
         if (def.targetType === "enemy" && enemyAlive.length === 0) return false;
         if (def.targetType === "friendly" && friendAlive.length === 0) return false;
+        // targetFilter 预检查：与 getSkillTargetableUnits 一致，避免技能空耗（如弱化师同列过滤）
+        if (def.targetFilter) {
+            const tf = def.targetFilter;
+            const pool = def.targetType === "friendly" ? friendAlive : enemyAlive;
+            const hasValid = pool.some(u => {
+                if (tf.sameColumn && u.col !== unit.col) return false;
+                if (tf.attackedOnly && !(gameState.attackedEnemyIds || []).includes(u.id)) return false;
+                if (tf.frontAdjacent) { const f = getForwardDelta(side); if (u.row !== unit.row + f || u.col !== unit.col) return false; }
+                if (tf.pullable && !canSirenPullTarget(unit, u)) return false;
+                return true;
+            });
+            if (!hasValid) return false;
+        }
         if (sk === 'sirenPull' && !enemyAlive.some(e => canSirenPullTarget(unit, e))) return false;
         if (sk === 'firemanDetonate' && enemyAlive.every(u => u.col !== unit.col)) return false;
         if (sk === 'witchBuff' && !friendAlive.some(u => Math.abs(u.row - unit.row) <= 1 && Math.abs(u.col - unit.col) <= 1)) return false;
@@ -1076,6 +1101,16 @@
             if (nearEnemy) return false;
         }
 
+        // ── 影舞姬飞扇：先确认同列前方3格内确有可攻击敌人，避免空放后 awaitingGlide 残留卡死 AI 回合 ──
+        if (sk === 'shadowFan') {
+            const forward = getForwardDelta(side);
+            const hasFanTarget = gameState.units.some(u =>
+                u.side !== side && u.life > 0 && !u.isMirror && u.absoluteImmunityTurns <= 0 &&
+                u.col === unit.col && (u.row - unit.row) * forward > 0 && (u.row - unit.row) * forward <= 3
+            );
+            if (!hasFanTarget) return false;
+        }
+
         if (aiGameId !== myGameId) return false;
         if (gameState.nerdJamPending[unit.side]) {
             gameState.nerdJamPending[unit.side] = false;
@@ -1090,6 +1125,7 @@
 
         await useSelectedUnitSkill(unit);
         await aiSleep(50);
+        if (aiGameId !== myGameId) { clearSkillTarget(); return false; }  // 异步安全：await 后复查
 
         // 处理需要选目标的声明式技能
         let attempts = 0;
@@ -1163,6 +1199,7 @@
             await aiSleep(30);
             break;
         }
+        if (aiGameId !== myGameId) { clearSkillTarget(); return false; }  // 异步安全：目标派发循环结束后复查
 
         // 尝试确认需要确认按钮的技能
         if (gameState.awaitingSkillTarget) {
@@ -1173,6 +1210,11 @@
                 clearSkillTarget();
             }
             renderUI();
+        }
+        // 影舞姬：技能收尾会产生滑步提示，AI 直接跳过滑步（避免 awaitingGlide 残留卡死 endTurn）
+        if (gameState.awaitingGlide && (unit.cardName === "影舞姬")) {
+            gameState.awaitingGlide = false;
+            gameState.glideUnitId = null;
         }
         // 检测技能是否真正生效
         let skillActuallyUsed = unit.skillUsedThisTurn !== skillUsedBefore || (unit.skillCooldown || 0) !== skillCdBefore;
@@ -1415,24 +1457,37 @@
             for (let unit of myUnits) {
                 if (aiGameId !== myGameId) return;
                 if (unit.stun > 0 || unit.isCharging || unit.superCharging || unit.isSweepCharging || unit.motCharging) continue;
+                // 技能（骑士优先：秒杀应先用技能再普攻，否则普攻消耗攻击次数后秒杀 preCheck 拒绝）
+                {
+                    const _cardDef = CARD_LIBRARY.find(c => c.name === unit.cardName);
+                    const _skDef = _cardDef && _cardDef.skill ? SKILL_DEFS[_cardDef.skill] : null;
+                    const _ignoresBlind = _skDef && _skDef.ignoresBlind;
+                    const trySkillFirst = _cardDef && _cardDef.skill === 'knightExecute' && !unit.knightSkillUsed && unit.attacksLeftThisTurn > 0;
+                    if (trySkillFirst || unit.attacksLeftThisTurn <= 0) {
+                        if (!unit.skillUsedThisTurn && !unit._aiSkillTried && unit.silenced <= 0 && unit.skillCooldown <= 0 && ((unit.eagleEyeTurns || 0) <= 0 || !!_ignoresBlind)) {
+                            if (await aiTrySkill(unit, myGameId)) { acted = true; await aiSleep(300); break; }
+                        }
+                    }
+                }
+                if (aiGameId !== myGameId) return;
                 // 攻击
                 if (unit.attacksLeftThisTurn > 0) {
                     if (await aiTryAttack(unit, myGameId)) { acted = true; await aiSleep(300); break; }
                 }
                 if (aiGameId !== myGameId) return;
-                // 技能
+                // 骑士秒杀未用且仍有攻击次数：普攻后补一次技能尝试
                 {
-                    const _cardDef = CARD_LIBRARY.find(c => c.name === unit.cardName);
-                    const _skDef = _cardDef && _cardDef.skill ? SKILL_DEFS[_cardDef.skill] : null;
-                    const _ignoresBlind = _skDef && _skDef.ignoresBlind;
-                    if (!unit.skillUsedThisTurn && !unit._aiSkillTried && unit.silenced <= 0 && unit.skillCooldown <= 0 && ((unit.eagleEyeTurns || 0) <= 0 || !!_ignoresBlind)) {
-                        if (await aiTrySkill(unit, myGameId)) { acted = true; await aiSleep(300); break; }
+                    const _cardDef2 = CARD_LIBRARY.find(c => c.name === unit.cardName);
+                    if (_cardDef2 && _cardDef2.skill === 'knightExecute' && !unit.knightSkillUsed && unit.attacksLeftThisTurn > 0) {
+                        if (!unit.skillUsedThisTurn && !unit._aiSkillTried && unit.silenced <= 0 && unit.skillCooldown <= 0 && ((unit.eagleEyeTurns || 0) <= 0)) {
+                            if (await aiTrySkill(unit, myGameId)) { acted = true; await aiSleep(300); break; }
+                        }
                     }
                 }
                 if (aiGameId !== myGameId) return;
                 // 移动
                 if (!unit.moved && (unit.movesLeftThisTurn || 0) > 0) {
-                    if (await aiTryMove(unit)) { acted = true; await aiSleep(200); break; }
+                    if (await aiTryMove(unit, myGameId)) { acted = true; await aiSleep(200); break; }
                 }
             }
         }
@@ -1476,6 +1531,19 @@
             clearSkillTarget();
             gameState.selectedCardIdx = -1;
             gameState.selectedUnitId = null;
+            // 兜底：异常也强制过回合，避免回合永久卡在 AI 侧
+            try {
+                if (aiGameId === myGameId && gameState.turn === aiSide && !aiActing) {
+                    await endTurn();
+                }
+            } catch(e2) {
+                console.error('AI 回合兜底结束回合也失败:', e2);
+                gameState.turn = 1 - aiSide;
+                gameState.nerdJamPending[gameState.turn] = false;
+                gameState.selectedCardIdx = -1;
+                gameState.selectedUnitId = null;
+                renderUI();
+            }
         } finally {
             if (aiGameId === myGameId) {
                 aiActing = false;

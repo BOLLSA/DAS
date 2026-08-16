@@ -22,7 +22,7 @@
             s.src = PEERJS_CDN;
             s.async = true;
             let settled = false;
-            const done = (ok) => { if (!settled) { settled = true; resolve(ok); } };
+            const done = (ok) => { if (!settled) { settled = true; if (!ok) peerJSPromise = null; resolve(ok); } };  // 失败不缓存，允许下次重试
             s.onload = () => done(typeof Peer !== 'undefined');
             s.onerror = () => done(false);
             setTimeout(() => done(typeof Peer !== 'undefined'), timeoutMs); // 超时兜底（不阻塞等待）
@@ -167,7 +167,10 @@
     function networkSendAction(a) {
         if (!networkActive()) return;
         if (networkIsHost()) { networkHandleAction(a); }
-        else { try { networkState.conn.send({ t: 'action', a }); } catch (e) {} }
+        else {
+            if (!networkState.conn || !networkState.conn.open) return;  // 连接已关闭则不发送（避免静默丢失点击后误判已转发）
+            try { networkState.conn.send({ t: 'action', a }); } catch (e) {}
+        }
     }
     function networkHandleAction(a) {
         networkReplaying = true;
@@ -185,9 +188,9 @@
                     if (u) handleUnitClick(u);
                     break;
                 }
-                case 'skill': { const u = gameState.units.find(x => x.id === a.id); if (u) useSelectedUnitSkill(u); break; }
+                case 'skill': { const u = gameState.units.find(x => x.id === a.id); if (u) useSelectedUnitSkill(u, a.skillName || null); break; }
                 case 'endTurn': {
-                    if (a.confirmed !== undefined || a.prepick !== undefined) endTurn({ confirmed: a.confirmed, prepick: a.prepick });
+                    if (a.confirmed !== undefined || a.prepick !== undefined || a.discardIdx !== undefined) endTurn({ confirmed: a.confirmed, prepick: a.prepick, discardIdx: a.discardIdx });
                     else endTurn();
                     break;
                 }
@@ -224,8 +227,15 @@
             if (!networkActive()) { resolve(-1); return; }
             const id = Date.now() + '-' + Math.random();
             networkState.pendingPrompts = networkState.pendingPrompts || {};
-            networkState.pendingPrompts[id] = resolve;
-            try { networkState.conn.send({ t: 'prompt', id, payload }); } catch (e) { resolve(-1); }
+            // 超时兜底：客机 40s 未响应则按取消处理（防止 isModalOpen 永久卡死）
+            const timer = setTimeout(() => {
+                if (networkState && networkState.pendingPrompts && networkState.pendingPrompts[id]) {
+                    delete networkState.pendingPrompts[id];
+                    resolve(-1);
+                }
+            }, 40000);
+            networkState.pendingPrompts[id] = (v) => { clearTimeout(timer); resolve(v); };
+            try { networkState.conn.send({ t: 'prompt', id, payload }); } catch (e) { clearTimeout(timer); resolve(-1); }
         });
     }
     async function networkOnPrompt(msg) {
@@ -242,6 +252,19 @@
     // ========== 连接生命周期 ==========
     function networkTeardown() {
         if (networkPollTimer) { clearInterval(networkPollTimer); networkPollTimer = null; }
+        // 结算挂起的远程弹窗（按取消处理），避免 await 永久挂起
+        if (networkState && networkState.pendingPrompts) {
+            for (const key of Object.keys(networkState.pendingPrompts)) {
+                try { networkState.pendingPrompts[key](-1); } catch (e) {}
+            }
+            networkState.pendingPrompts = {};
+        }
+        // 清理残留的远程弹窗 DOM（避免遮挡后续界面）
+        try {
+            document.querySelectorAll('.custom-modal, .prepick-overlay, .discard-overlay').forEach(el => { if (el.parentNode) el.parentNode.removeChild(el); });
+        } catch (e) {}
+        // 先摘除 close 处理器再关闭连接：主动退出（conn.close 同步触发 close）不会误报「对方已断开连接」
+        try { if (networkState && networkState.conn && networkState.conn.off) networkState.conn.off('close'); } catch (e) {}
         try { if (networkState && networkState.conn) networkState.conn.close(); } catch (e) {}
         try { if (networkState && networkState.peer) networkState.peer.destroy(); } catch (e) {}
         networkState = null;
@@ -258,7 +281,8 @@
         if (cb) cb();
     }
 
-    // 主机：创建房间并等待客机连接，返回 Promise（连接建立时 resolve）
+    // 主机：创建房间并等待客机连接，返回 Promise（连接建立时 resolve；可被 networkCancelHostRoom 取消）
+    let networkHostCancelFn = null;
     function networkHostRoom(roomId) {
         return new Promise((resolve, reject) => {
             networkTeardown();  // 清理可能残留的旧连接
@@ -266,7 +290,15 @@
             const peer = new Peer(peerId, { debug: 1 });
             const state = { role: 'host', conn: null, hostSide: 0, logBuffer: [], pendingPrompts: {}, roomId, peer };
             networkState = state;
-            const timeout = setTimeout(() => { try { peer.destroy(); } catch (e) {} reject(new Error('等待对方加入超时')); }, 120000);
+            let settled = false;
+            const done = (ok, err) => { if (!settled) { settled = true; clearTimeout(timeout); if (networkHostCancelFn === cancelFn) networkHostCancelFn = null; if (ok) resolve(); else reject(err || new Error('已取消')); } };
+            const timeout = setTimeout(() => { try { peer.destroy(); } catch (e) {} done(false, new Error('等待对方加入超时')); }, 120000);
+            // 取消句柄：外部调用后立即拒绝并销毁 peer
+            const cancelFn = () => {
+                try { peer.destroy(); } catch (e) {}
+                done(false, new Error('已取消'));
+            };
+            networkHostCancelFn = cancelFn;
             peer.on('open', () => {
                 addLog(`🌐 房间已创建，房间码：${roomId}（等待对方加入...）`);
             });
@@ -275,16 +307,21 @@
                 state.conn = conn;
                 conn.on('open', () => {
                     networkPollTimer = setInterval(() => { if (networkDirty) { networkDirty = false; networkPushState(); } }, 200);
-                    resolve();
+                    done(true);
                 });
                 conn.on('data', (data) => networkOnData(state, data));
                 conn.on('close', () => networkDisconnect('对方已断开连接'));
             });
             peer.on('error', (err) => {
                 clearTimeout(timeout);
-                reject(new Error('无法创建房间（信令服务不可用？错误：' + (err.type || err.message || '') + '）'));
+                done(false, new Error('无法创建房间（信令服务不可用？错误：' + (err.type || err.message || '') + '）'));
             });
         });
+    }
+
+    // 取消创建房间等待（立即终结 networkHostRoom 的 Promise）
+    function networkCancelHostRoom() {
+        try { if (networkHostCancelFn) networkHostCancelFn(); } catch (e) {}
     }
 
     // 客机：加入房间，返回 Promise（收到 init 快照后 resolve）

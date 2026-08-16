@@ -498,7 +498,7 @@
                 if (f.stun > 0) { f.stun = 0; f.stunnedBy = null; cleared.push('眩晕'); }
                 if (f.eagleEyeTurns > 0) { f.eagleEyeTurns = 0; cleared.push('致盲'); }
                 if (f.silenced > 0) { f.silenced = 0; cleared.push('沉默'); }
-                if (f.shaLinBindTurn > 0) { f.shaLinBindTurn = 0; f.shaLinBindRow = null; f.shaLinBindCol = null; cleared.push('定身'); }
+                if (f.shaLinBindTurn > 0) { f.shaLinBindTurn = 0; f.shaLinBindRow = -1; f.shaLinBindCol = -1; cleared.push('定身'); }
                 if (f.weakenedTurns > 0) { f.weakenedTurns = 0; cleared.push('弱化'); }
                 if (f.plagueInfected) { f.plagueInfected = false; cleared.push('鼠疫'); }
                 if (cleared.length > 0) addLog(`${f.cardName} 被火人同列庇护，${cleared.join('、')}解除！`);
@@ -865,7 +865,9 @@
             if (selectedIndex === -1 || selectedIndex < 0 || selectedIndex >= prepool.length) { addLog("结束回合已取消。"); return; }
             let selectedCard = prepool.splice(selectedIndex, 1)[0];
             if (gameState.players[cur].hand.length >= gameState.players[cur].handMax) {
-                const discardIdx = await discardForNewCard(cur, selectedCard);
+                let discardIdx;
+                if (preselected && typeof preselected.discardIdx === 'number') discardIdx = preselected.discardIdx;  // 联机客机乐观流程已本地选好弃牌
+                else discardIdx = await discardForNewCard(cur, selectedCard);
                 if (discardIdx === -1) { addLog(`放弃获得 ${selectedCard.name}`); } 
                 else { discardCard(cur, discardIdx); gameState.players[cur].hand.push(selectedCard); addLog(`获得 ${selectedCard.name}`); showToast(`🃏 获得 ${selectedCard.name}`); }
             } else { gameState.players[cur].hand.push(selectedCard); addLog(`获得 ${selectedCard.name}`); showToast(`🃏 获得 ${selectedCard.name}`); }

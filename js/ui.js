@@ -400,7 +400,7 @@
                     btn.className = 'skill-btn';
                     // 按钮文本从 SKILL_DEFS 自动生成
                     btn.innerText = getSkillBtnText(selectedUnit, cardDef.skill);
-                    btn.onclick = () => { if (networkForward({ type: 'skill', id: selectedUnit.id })) return; useSelectedUnitSkill(selectedUnit); };
+                    btn.onclick = () => { if (networkForward({ type: 'skill', id: selectedUnit.id, skillName: cardDef.skill })) return; useSelectedUnitSkill(selectedUnit, cardDef.skill); };
                     btn.style.position = 'fixed';
                     btn.style.bottom = '16px';
                     btn.style.right = '16px';
@@ -451,7 +451,7 @@
                     btn2.id = 'dynamicSkillBtn2';
                     btn2.className = 'skill-btn';
                     btn2.innerText = getSkillBtnText(selectedUnit, cardDef.skill2);
-                    btn2.onclick = () => { if (networkForward({ type: 'skill', id: selectedUnit.id })) return; useSelectedUnitSkill(selectedUnit, cardDef.skill2); };
+                    btn2.onclick = () => { if (networkForward({ type: 'skill', id: selectedUnit.id, skillName: cardDef.skill2 })) return; useSelectedUnitSkill(selectedUnit, cardDef.skill2); };
                     btn2.style.position = 'fixed';
                     btn2.style.bottom = '60px';
                     btn2.style.right = '16px';
@@ -612,7 +612,7 @@
 
     document.getElementById('endTurnBtn').onclick = async () => {
         if (aiActing) { showToast('🤖 AI 正在行动，请稍候'); return; }
-        // 远程联机客机：乐观弹窗（确认+预牌本地完成），选择随指令一次直达主机，避免多次往返
+        // 远程联机客机：乐观弹窗（确认+预牌+满手牌弃牌本地完成），选择随指令一次直达主机，避免多次往返
         if (networkIsGuest() && gameState.turn === networkMySide()) {
             const confirmed = await showConfirmLocal("是否结束当前回合？");
             if (!confirmed) { addLog("结束回合已取消。"); return; }
@@ -622,6 +622,12 @@
                 const prepick = await showPrepickPanelLocal(prepool);
                 if (prepick === -1) { addLog("结束回合已取消。"); return; }
                 action.prepick = prepick;
+                // 手牌已满时（预牌将补入手牌触发弃牌），本地先选弃牌，随指令发送给主机（避免弃牌弹窗开在主机端）
+                if (gameState.players[gameState.turn].hand.length >= gameState.players[gameState.turn].handMax) {
+                    const selectedCard = prepool[prepick];
+                    const discardIdx = await discardForNewCardLocal(gameState.turn, selectedCard);
+                    action.discardIdx = discardIdx;
+                }
             }
             // 预牌堆为空时不带 prepick，主机补牌后走正常转发弹窗
             networkSendAction(action);

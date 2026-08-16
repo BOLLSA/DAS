@@ -553,6 +553,8 @@
                 u.eagleEyeTurns = 0;
                 u.weakenedTurns = 0;
                 u._killRewardDone = false;  // 击杀奖励防重入标记：复活后重置（复活甲拦截时已置位）
+                u.bountyLevel = 0;          // 复活重置悬赏等级（避免反复兑现赏金）
+                if (gameState.killStreakMap) delete gameState.killStreakMap[u.id];  // 复活重置连杀计数
                 u.shieldValue = 0;
                 u.nativeShieldValue = 0;
                 u.externalShieldSources = {};

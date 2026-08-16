@@ -242,8 +242,15 @@
                 if (side >= 0) stats.cardsPlayed[side]++;
                 break;
             case 'unit_death':
-                // 击杀方为当前回合方，被击杀方为对方
-                if (side >= 0) { stats.unitsKilled[side]++; stats.unitsLost[1 - side]++; }
+                // 从日志解析受害者方与击杀方（避免自爆/献祭等把损失记到对方头上）
+                {
+                    const victimM = event.msg.match(/（(蓝方|红方)）被消灭/);
+                    const killerM = event.msg.match(/被(蓝方|红方)/);
+                    const victimSide = victimM ? (victimM[1] === '蓝方' ? 0 : 1) : -1;
+                    const killerSide = killerM ? (killerM[1] === '蓝方' ? 0 : 1) : -1;
+                    if (victimSide >= 0) stats.unitsLost[victimSide]++;
+                    if (killerSide >= 0) stats.unitsKilled[killerSide]++;
+                }
                 break;
             case 'base_damage':
                 if (side >= 0) {
@@ -297,7 +304,11 @@
     }
     function killAllAssimilators(side) {
         const all = gameState.units.filter(u => u.isAssimilator && u.side === side);
-        for (let a of [...all]) { a._assimilatorCleanup = true; removeUnit(a.id, a.row, a.col, a.side); }
+        for (let a of [...all]) {
+            a._killRewardDone = true;  // 共享池归零时全部同化者视为一次击杀，防止 AOE 循环重复结算奖励
+            a._assimilatorCleanup = true;
+            removeUnit(a.id, a.row, a.col, a.side);
+        }
         gameState.assimilatorHp[side] = 0;
         gameState.assimilatorMaxHp[side] = 0;
     }
@@ -334,6 +345,20 @@
         const unit = gameState.units[idx];
         // 悬赏机制：爆牌/主动移除悬赏单位，另一方获得赏金
         if (typeof grantBountyOnRemoval === 'function') grantBountyOnRemoval(unit);
+        // 与 removeUnit 对齐的清理：删除连杀记录；镜中人被爆牌时同步移除其镜像；清空指向该单位的蓄力锁定
+        if (gameState.killStreakMap) delete gameState.killStreakMap[unitId];
+        if (unit.cardName === "镜中人") {
+            const mirror = getMirrorOf(unit);
+            if (mirror) {
+                const mIdx = gameState.units.findIndex(u => u.id === mirror.id);
+                if (mIdx !== -1) gameState.units.splice(mIdx, 1);
+                addLog(`🪞 ${unit.cardName} 被移除，镜像消失`);
+            }
+        }
+        for (let u of gameState.units) {
+            if (u.isCharging && u.chargeTargetId === unitId) { u.isCharging = false; u.chargeTargetId = null; }
+            if (u.superCharging && u.superChargeTargetId === unitId) { u.superCharging = false; u.superChargeTargetId = null; }
+        }
         gameState.units.splice(idx, 1);
         // 同化者被移除：共享池和上限-3
         if (unit.isAssimilator && !unit._assimilatorCleanup) {
@@ -348,6 +373,24 @@
     }
 
     async function discardForNewCard(side, newCard) {
+        if (gameState.isModalOpen) return -1;
+        // AI 自动弃牌：丢弃价值最低的牌
+        if (aiActing && side === aiSide && typeof aiSelectDiscard === 'function') {
+            const idx = aiSelectDiscard(side, newCard);
+            if (idx >= 0) { addLog(`🤖 AI 弃掉了 ${gameState.players[side].hand[idx].name} 以腾出空间`); }
+            return idx;
+        }
+        // 联机：满手牌弃牌由手牌拥有方（side）决定——主机端若决策方是远程玩家则转发弹窗给客机
+        if (typeof networkShouldForwardPrompt === 'function' && networkShouldForwardPrompt(side)) {
+            const options = gameState.players[side].hand.map((c, idx) => `${idx + 1}. ${c.name} (费${c.cost})`);
+            options.push("放弃获得新牌");
+            const sel = await networkRequestPrompt({ kind: 'select', options, title: `手牌已满，请选择一张弃掉以加入 ${newCard.name}`, opts: {} });
+            return (sel === undefined || sel === null || sel === -1 || sel >= options.length - 1) ? -1 : sel;
+        }
+        return await discardForNewCardLocal(side, newCard);
+    }
+
+    async function discardForNewCardLocal(side, newCard) {
         if (gameState.isModalOpen) return -1;
         // AI 自动弃牌：丢弃价值最低的牌
         if (aiActing && side === aiSide && typeof aiSelectDiscard === 'function') {

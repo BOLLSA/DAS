@@ -99,7 +99,7 @@
             icon: "🦅", label: "致盲", targetType: "enemy", cooldown: 0,
             desc: "致盲敌方，下一个敌方回合技能失效",
             effects: [
-                { type: "debuff", debuff: "eagleEyeTurns", turns: 2 }
+                { type: "debuff", debuff: "eagleEyeTurns", turns: 2, checkFireImmune: true }
             ]
         },
         drunkardInvincible: {
@@ -131,8 +131,9 @@
             icon: "🔥", label: "自爆", targetType: "self", cooldown: 0,
             desc: "自爆对本列所有敌方造成1法伤",
             preCheck: (unit) => {
-                const has = gameState.units.some(u => u.side !== unit.side && u.col === unit.col && u.life > 0);
-                if (!has) { showToast(`同列没有敌方单位，无法自爆`); return false; }
+                // 与 damage 效果的目标过滤一致：同列必须有可命中的敌人（排除绝对免疫/镜像），避免自爆打空
+                const has = gameState.units.some(u => u.side !== unit.side && u.col === unit.col && u.life > 0 && !u.isMirror && (u.absoluteImmunityTurns || 0) <= 0);
+                if (!has) { showToast(`同列没有可命中的敌方单位，无法自爆`); return false; }
                 return true;
             },
             effects: [
@@ -736,9 +737,10 @@
             const forward = getForwardDelta(caster.side);
             let target = null, bestDist = Infinity;
             for (let u of gameState.units) {
-                if (u.side === caster.side || u.life <= 0 || u.col !== caster.col) continue;
+                // 与 targetFilter.shadowFanRange 筛选一致：排除镜像/绝对免疫/同格(d>0)
+                if (u.side === caster.side || u.life <= 0 || u.isMirror || (u.absoluteImmunityTurns || 0) > 0 || u.col !== caster.col) continue;
                 const d = (u.row - caster.row) * forward;
-                if (d >= 0 && d <= 3 && d < bestDist) { bestDist = d; target = u; }
+                if (d > 0 && d <= 3 && d < bestDist) { bestDist = d; target = u; }
             }
             if (!target) {
                 addLog(`🪭 ${caster.cardName} 飞扇空放（无目标）`);
@@ -1093,6 +1095,12 @@
                     lastDamageDealer = { name: caster.cardName, side: caster.side };
                     t.life = 0;
                     removeUnit(t.id, t.row, t.col, t.side);
+                    // 复活甲拦截：单位未被移除（pendingRevive），标记击杀奖励防重入，防止后续伤害绕过复活甲直接移除
+                    if (gameState.units.some(u => u.id === t.id && u.pendingRevive)) {
+                        t._killRewardDone = true;
+                        lastDamageDealer = null;
+                        addLog(`💀 ${t.cardName} 的复活甲拦截了秒杀，将在下个我方回合复活`);
+                    }
                     break;
                 }
                 case "assimilate": {
@@ -1462,9 +1470,9 @@
         if (!caster) { clearSkillTarget(); renderUI(); return; }
         const def = SKILL_DEFS[gameState.declarativeSkillName];
         if (!def) { clearSkillTarget(); renderUI(); return; }
-        // 检查是否需要至少选一个
+        // 检查是否需要至少选一个（sacrifice/witchProtect/setScapegoat/号角兵等 maxSelect>0 的群体技能均不可空放）
         const selectedIds = gameState.declarativeSelected || [];
-        if (selectedIds.length === 0 && def.effects.some(e => e.type === "sacrifice" || e.type === "witchProtect")) {
+        if (selectedIds.length === 0 && (def.effects.some(e => e.type === "sacrifice" || e.type === "witchProtect") || (def.maxSelect > 0))) {
             showToast(`请至少选择一个目标`);
             return;
         }
@@ -1479,6 +1487,7 @@
                 finishDeclarativeSkill(caster, def);
             } catch(e) {
                 console.error('declarative multi skill error:', e);
+                caster.skillUsedThisTurn = false;  // 异常路径重置技能标记（与 SKILL_CANCELLED 一致）
                 clearSkillTarget();
                 renderUI();
             }

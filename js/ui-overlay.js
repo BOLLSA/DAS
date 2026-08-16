@@ -376,7 +376,8 @@
             requiresAction: true, allowedActions: ['place'],
             highlightCells: () => [{ row: 4, col: 1 }],
             highlightIds: () => ['handCards'],
-            check: (st) => gameState.units.filter(u => u.side === 0 && u.life > 0).length > st.snapshot.p0Count
+            // 士兵必须放在中间列（col1），否则后续步骤只能直线前进、无法攻击同列固定的弓箭手
+            check: (st) => gameState.units.some(u => u.side === 0 && u.cardName === "士兵" && u.life > 0 && u.col === 1)
         },
         {
             icon: '🚶', title: '第二步：移动',
@@ -889,6 +890,8 @@
         else if (!e.altKey && !e.ctrlKey && !e.shiftKey && !e.metaKey && /^Digit[1-6]$/.test(e.code)) {
             // 技能选择目标期间，禁止选取手牌
             if (gameState.awaitingSkillTarget) { showToast(`正在选择技能目标，请先完成或取消`); return; }
+            // 联机：非自己回合只读，禁止选中对方手牌
+            if (typeof networkActive === 'function' && networkActive() && gameState.turn !== networkMySide()) return;
             // 1~6 数字键直接选取对应手牌
             const idx = parseInt(e.code.replace('Digit', '')) - 1;
             const hand = gameState.players[gameState.turn].hand;
@@ -905,8 +908,9 @@
             }
         }
         else if (e.code === 'Escape' && !e.altKey && !e.ctrlKey && !e.metaKey) {
-            // ESC 跳过滑步
+            // ESC 跳过滑步（联机：转发给主机执行）
             if (gameState.awaitingGlide) {
+                if (typeof networkForward === 'function' && networkForward({ type: 'skipGlide' })) return;
                 gameState.awaitingGlide = false;
                 gameState.glideUnitId = null;
                 addLog("跳过滑步。");
@@ -915,6 +919,7 @@
             }
             // ESC 取消镜中人攻击
             if (gameState.awaitingMirrorAttack) {
+                if (typeof networkForward === 'function' && networkForward({ type: 'cancelMirrorAttack' })) return;
                 gameState.awaitingMirrorAttack = false;
                 gameState.mirrorAttackUnitId = null;
                 addLog("取消攻击。");
@@ -929,6 +934,7 @@
             }
             // ESC 取消技能选择或手牌选择
             if (gameState.awaitingSkillTarget) {
+                if (typeof networkForward === 'function' && networkForward({ type: 'cancelSkill' })) return;
                 const caster = gameState.units.find(u => u.id === gameState.skillCasterId);
                 if (caster) caster.skillUsedThisTurn = false;
                 clearSkillTarget();
@@ -944,10 +950,17 @@
 
     // ========== 奴隶变形选择（拼音排序 + 搜索）==========
     async function showSlaveTransformSelect() {
-        const candidates = CARD_LIBRARY.filter(c => c.name !== "奴隶");
+        // 只允许变形为可上场的正常战斗单位（排除手牌功能卡：护盾/无中生有/鼠疫）
+        const candidates = CARD_LIBRARY.filter(c => c.name !== "奴隶" && c.name !== "护盾" && c.name !== "无中生有" && c.name !== "鼠疫" && (c.life || 0) > 0);
         candidates.sort((a, b) => a.name.localeCompare(b.name, 'zh'));  // 按拼音排序
+        // AI 自动选择：选费用最高/战力最强的候选（AI 不应弹窗等人类）
+        if (aiActing && typeof aiSide === 'number' && aiSide >= 0) {
+            const sorted = [...candidates].sort((a, b) => (b.dmgValue * 3 + b.life * 2 + b.cost * 2) - (a.dmgValue * 3 + a.life * 2 + a.cost * 2));
+            return sorted[0] || null;
+        }
 
         return new Promise((resolve) => {
+            gameState.isModalOpen = true;  // 弹窗期间屏蔽快捷键（Alt+Q 弃牌等）
             const overlay = document.createElement('div');
             overlay.className = 'mode-select-overlay';
             const panel = document.createElement('div');
@@ -990,7 +1003,7 @@
                     item.innerHTML = `<span>${card.name}</span><span style="margin-left:auto; font-size:11px; color:#c8b48a;">💰${card.cost} ❤️${card.life} ${card.dmgType}${card.dmgValue} 📏${card.range}</span>`;
                     item.onmouseenter = () => item.style.background = 'rgba(212,168,71,0.15)';
                     item.onmouseleave = () => item.style.background = 'rgba(255,255,255,0.05)';
-                    item.onclick = () => { overlay.remove(); document.removeEventListener('keydown', escHandler); resolve(card); };
+                    item.onclick = () => { overlay.remove(); gameState.isModalOpen = false; document.removeEventListener('keydown', escHandler); resolve(card); };
                     listDiv.appendChild(item);
                 });
             }
@@ -998,6 +1011,7 @@
 
             const close = () => {
                 overlay.remove();
+                gameState.isModalOpen = false;
                 document.removeEventListener('keydown', escHandler);
                 resolve(null);
             };
@@ -1006,9 +1020,9 @@
             document.addEventListener('keydown', escHandler);
 
             render('');
-            searchInput.focus();
             overlay.appendChild(panel);
             document.body.appendChild(overlay);
+            searchInput.focus();  // 挂载后再聚焦
         });
     }
 
@@ -1192,7 +1206,8 @@
             if (!tacticGroups[e.tactic]) tacticGroups[e.tactic] = { count: 0, side: e.side, firstTurn: e.turnCount, lastTurn: e.turnCount, msgs: [] };
             const g = tacticGroups[e.tactic];
             g.count++;
-            g.side = e.side;
+            // 阵营只取首次触发方（避免双方都触发的战术被最后一方覆盖归因）
+            if (g.count === 1) g.side = e.side;
             if (e.turnCount < g.firstTurn) g.firstTurn = e.turnCount;
             if (e.turnCount > g.lastTurn) g.lastTurn = e.turnCount;
             if (g.msgs.length < 3) g.msgs.push(e.msg);

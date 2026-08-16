@@ -168,8 +168,10 @@
         if (newRow < 0 || newRow > 4) return false;
         const isForbiddenCastle = (caster.side === SIDE_PLAYER0 && newRow === 4) || (caster.side === SIDE_PLAYER1 && newRow === 0);
         if (isForbiddenCastle) return false;
-        const hasAlly = gameState.units.some(u => u.row === newRow && u.col === targetUnit.col && u.side === caster.side);
+        const hasAlly = gameState.units.some(u => u.row === newRow && u.col === targetUnit.col && u.side === caster.side && !u.isMirror && u.life > 0);
         if (hasAlly) return false;
+        // 拉拽目标格须有容量（每格每方上限2），避免把敌方格塞成同方3单位
+        if (!canAddUnit(newRow, targetUnit.col, caster.side)) return false;
         return true;
     }
 
@@ -721,7 +723,7 @@
                 addLog(`  ${t.cardName} 处于绝对免疫，免疫横扫伤害`);
                 continue;
             }
-            const source = { cardName: unit.cardName, side: unit.side, dmgType: "⚔️", id: unit.id, fromSkill: true };
+            const source = { cardName: unit.cardName, side: unit.side, dmgType: "⚔️", row: unit.row, col: unit.col, id: unit.id, fromSkill: true };
             await applyDamageWithSource(t, 3, source, true, "⚔️");
             // 追踪伤害统计
             if (gameState.matchStats?.unitDamage) {
@@ -754,7 +756,7 @@
                 addLog(`  ${t.cardName} 处于绝对免疫，免疫爆炸伤害`);
                 continue;
             }
-            const source = { cardName: unit.cardName, side: unit.side, dmgType: "🔮", id: unit.id, fromSkill: true };
+            const source = { cardName: unit.cardName, side: unit.side, dmgType: "🔮", row: unit.row, col: unit.col, id: unit.id, fromSkill: true };
             await applyDamageWithSource(t, 1, source, false, "🔮");
         }
     }
@@ -899,11 +901,12 @@
 
             // 击杀刷新：若造成击杀，本回合普攻次数刷新
             if (killedCount > 0) {
-                const refreshVal = 1 + (caster.extraAttacks || 0);
+                const refreshVal = 1 + (caster.extraAttacks || 0) + (caster.riluoPlaced ? 1 : 0);
                 caster.attacksLeftThisTurn = Math.max(caster.attacksLeftThisTurn, refreshVal);
                 addLog(`🔱 ${caster.cardName} 击杀敌人，攻击次数刷新至 ${caster.attacksLeftThisTurn}！`);
                 showToast(`🔱 击杀刷新攻击！`);
             }
+            renderUI();  // 刷新后更新棋盘上的攻击次数显示
             return;
         }
 

@@ -1,4 +1,4 @@
-﻿// ========== 主动技能辅助函数 ==========
+// ========== 主动技能辅助函数 ==========
 // 所有技能逻辑已迁移至 SKILL_DEFS 声明式配置（见 skill-config.js）
 // 本文件仅保留无法声明化的全局辅助函数：
 //   consumeNerdJamPending - 四眼仔行动干扰消费
@@ -26,7 +26,7 @@
                 if(u.silenced > 0) { u.silenced = 0; cleared.push('沉默'); }
                 if(u.weakenedTurns > 0) { u.weakenedTurns = 0; cleared.push('弱化'); }
                 if(u.eagleEyeTurns > 0) { u.eagleEyeTurns = 0; cleared.push('致盲'); }
-                if(u.shaLinBindTurn > 0) { u.shaLinBindTurn = 0; u.shaLinBindRow = null; u.shaLinBindCol = null; cleared.push('定身'); }
+                if(u.shaLinBindTurn > 0) { u.shaLinBindTurn = 0; u.shaLinBindRow = -1; u.shaLinBindCol = -1; cleared.push('定身'); }
                 if(u.plagueInfected) { u.plagueInfected = false; cleared.push('鼠疫'); }
                 if(cleared.length > 0) addLog(`${u.cardName} 被净化：${cleared.join('、')}`);
             }
