@@ -1008,7 +1008,6 @@ button:active {
     background: rgba(0,0,0,0.82);
     display: flex; justify-content: center; align-items: center;
     z-index: 3000;
-    backdrop-filter: blur(6px);
     animation: overlayFadeIn 0.2s ease;
 }
 
@@ -1360,8 +1359,6 @@ button:active {
     position: fixed;
     top: 0; left: 0; right: 0; bottom: 0;
     background: rgba(0,0,0,0.6);
-    backdrop-filter: blur(4px);
-    -webkit-backdrop-filter: blur(4px);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1699,9 +1696,9 @@ button:active {
     background: rgba(0,0,0,0.85);
     display: flex; align-items: center; justify-content: center;
     z-index: 1000;
-    backdrop-filter: blur(6px);
     animation: overlayFadeIn 0.2s ease;
 }
+/* 不使用 backdrop-filter：全屏模糊在低端设备/大棋盘上重绘开销大，是界面卡顿来源之一；深色遮罩已足够区分层级 */
 
 .mode-select-panel {
     background:
@@ -2006,7 +2003,6 @@ button:active {
     background: rgba(0,0,0,0.85);
     display: flex; align-items: center; justify-content: center;
     z-index: 1100;
-    backdrop-filter: blur(6px);
     animation: overlayFadeIn 0.2s ease;
 }
 
@@ -2263,7 +2259,6 @@ button:active {
     background: rgba(0,0,0,0.82);
     display: flex; align-items: center; justify-content: center;
     z-index: 1200;
-    backdrop-filter: blur(6px);
     animation: overlayFadeIn 0.2s ease;
 }
 
@@ -2307,7 +2302,6 @@ button:active {
     background: rgba(0,0,0,0.9);
     display: flex; justify-content: center; align-items: center;
     z-index: 4000;
-    backdrop-filter: blur(8px);
     animation: overlayFadeIn 0.2s ease;
 }
 

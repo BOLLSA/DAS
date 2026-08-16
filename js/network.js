@@ -10,6 +10,26 @@
     let networkOnDisconnect = null; // 断线回调（main.js 注入，返回模式选择）
 
     const NETWORK_PREFIX = 'das-101-';
+    const PEERJS_CDN = 'https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js';
+    let peerJSPromise = null;       // 按需加载 PeerJS 的 Promise（缓存，避免重复注入）
+
+    // 按需动态加载 PeerJS（仅点击「远程联机」时调用）：避免 CDN 慢/不可达时同步阻塞整个页面启动
+    function loadPeerJS(timeoutMs = 15000) {
+        if (typeof Peer !== 'undefined') return Promise.resolve(true);
+        if (peerJSPromise) return peerJSPromise;
+        peerJSPromise = new Promise((resolve) => {
+            const s = document.createElement('script');
+            s.src = PEERJS_CDN;
+            s.async = true;
+            let settled = false;
+            const done = (ok) => { if (!settled) { settled = true; resolve(ok); } };
+            s.onload = () => done(typeof Peer !== 'undefined');
+            s.onerror = () => done(false);
+            setTimeout(() => done(typeof Peer !== 'undefined'), timeoutMs); // 超时兜底（不阻塞等待）
+            document.head.appendChild(s);
+        });
+        return peerJSPromise;
+    }
 
     function networkActive() { return !!networkState && !!networkState.conn; }
     function networkIsHost() { return !!networkState && networkState.role === 'host'; }

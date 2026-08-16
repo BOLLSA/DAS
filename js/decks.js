@@ -110,9 +110,11 @@
     }
 
     async function showOnlineSetup() {
-        // 联机组件（PeerJS CDN）未加载时的兜底提示
-        if (typeof Peer === 'undefined') {
-            showToast('🌐 联机组件加载失败，请检查网络后刷新页面');
+        // 按需加载 PeerJS（首次点击联机时才从 CDN 注入，成功前显示加载提示）
+        showToast('🌐 正在加载联机组件…');
+        const peerLoaded = await loadPeerJS();
+        if (!peerLoaded) {
+            showToast('🌐 联机组件加载失败，请检查网络后重试');
             return null;
         }
         // 第一步：创建 or 加入

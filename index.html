@@ -37,7 +37,7 @@
 </div>
 
 <!-- JS 模块加载顺序（依赖链：数据 → 状态 → 战斗 → 技能 → 流程 → 装备 → 目标 → UI → AI → 网络 → 入口）-->
-<script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<!-- PeerJS 不在此同步加载：改为点击「远程联机」时按需动态注入（network.js loadPeerJS），避免 CDN 慢/不可达时阻塞整个页面启动 -->
 <script src="js/cards.js"></script>
 <script src="js/game-state.js"></script>
 <script src="js/battle-engine.js"></script>

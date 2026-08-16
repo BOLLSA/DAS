@@ -10,7 +10,7 @@
 | 项目 | 说明 |
 |------|------|
 | 游戏名 | 黑暗中世纪 1.01（Dark Age Saga 1.01） |
-| 入口文件 | `index.html`（加载 15 个 JS 文件 + 1 个 CSS 文件 + PeerJS CDN） |
+| 入口文件 | `index.html`（加载 15 个 JS 文件 + 1 个 CSS 文件；PeerJS 按需动态加载，见 §12.1） |
 | 类型 | 回合制战棋卡牌游戏 |
 | 模式 | 全卡池对战 / 自定义卡组 / 人机对战（简单/普通/困难）/ 远程联机 / 新手教程 |
 | 语言 | 纯前端 HTML + Vanilla JS（无框架、无构建工具、无 ES Module） |
@@ -28,7 +28,7 @@
 
 ```
 Dark Age Saga/
-├── index.html                  ← HTML 骨架 + JS 加载顺序（15个文件 + PeerJS CDN）+ 版本角标 v1.01
+├── index.html                  ← HTML 骨架 + JS 加载顺序（15个文件，PeerJS 按需加载）+ 版本角标 v1.01
 ├── css/
 │   └── style.css               ← 全部样式（含教程高亮 .tutorial-glow、联机按钮）
 ├── js/
@@ -59,12 +59,12 @@ Dark Age Saga/
 ### JS 文件加载顺序（index.html 中定义，不可调整）
 
 ```
-PeerJS CDN → cards.js → game-state.js → battle-engine.js → skill-charge.js →
+cards.js → game-state.js → battle-engine.js → skill-charge.js →
 skill-active.js → skill-config.js → game-flow.js → equipment.js →
 decks.js → targeting.js → ui.js → ui-overlay.js → ai.js → network.js → main.js
 ```
 
-注意：**equipment.js 在 game-flow.js 之后加载**（旧文档描述有误）。跨文件调用只发生在运行时（函数声明全局提升），加载顺序只影响顶层立即执行代码。PeerJS 从 jsdelivr CDN 引入，加载失败时联机入口会提示（`typeof Peer === 'undefined'` 检查）。
+注意：**equipment.js 在 game-flow.js 之后加载**（旧文档描述有误）。跨文件调用只发生在运行时（函数声明全局提升），加载顺序只影响顶层立即执行代码。**PeerJS 不随页面同步加载**：`index.html` 无 PeerJS 标签，首次点击「远程联机」时由 `loadPeerJS()`（network.js）动态注入 CDN 脚本（15s 超时兜底、失败 toast 提示）——避免 CDN 慢/不可达时阻塞整个页面启动（曾导致模式选择界面卡顿）。
 
 ---
 
@@ -248,8 +248,9 @@ decks.js → targeting.js → ui.js → ui-overlay.js → ai.js → network.js �
 
 - 模式选择页「🌐 远程联机」→ `showOnlineSetup()`（decks.js）：房主**选择卡组模式（全卡池/预设卡组）与阵营（蓝方先手/红方后手）**后创建房间（6位房间码，支持一键复制，peer id 前缀 `das-101-`）；加入者输入房间码连接。
 - **主机权威**：房主运行全部游戏逻辑；客机只渲染状态 + 发送操作指令。双方使用房主选择的同一套卡组。
-- 依赖：PeerJS CDN（jsdelivr）+ PeerJS 免费信令服务器（0.peerjs.com）。加载失败时入口提示（`typeof Peer === 'undefined'` 检查）。
+- 依赖：PeerJS **按需加载**（`loadPeerJS()` 动态注入 jsdelivr CDN 脚本，15s 超时兜底；首次点击联机时加载，失败 toast 提示）+ PeerJS 免费信令服务器（0.peerjs.com）。
 - 所有核心在 `js/network.js`，全局状态 `networkState`（hostSide 由房主选择，通过 init 消息同步给客机）。
+- 性能注意：全屏 overlay（模式选择/图鉴/商店/教程/复盘等）**不使用 backdrop-filter 全屏模糊**（低端设备重绘开销大，曾导致界面卡顿）；仅小面积元素（tooltip/toast）保留 blur。
 
 ### 12.2 消息协议（DataChannel reliable）
 
@@ -443,6 +444,7 @@ node --check js/main.js
 | 远程联机 | PeerJS P2P 主机权威：房间码匹配、指令转发、弹窗远程选择、装备远程购买、断线回退 |
 | 凝血之刃 | 费用 3→2 |
 | 枷锁猎手复活 | 复活甲复活重新获得自带2护盾 |
+| 启动性能优化 | PeerJS 改为按需动态加载（不再同步阻塞页面启动）；全屏 overlay 移除 backdrop-filter 全屏模糊 |
 
 ---
 
