@@ -251,6 +251,7 @@
             attacksLeftThisTurn: 0,
             weakenedEnemies: [],
             eagleEyeTargets: [],
+            eagleEyeTurns: 0, // 致盲剩余回合（须显式初始化，避免 undefined 与 <= 比较出错）
             windSkillUsed: false,
             cupidPair: null, // 共生死绑定：{ partnerId, partnerSide }
             cupidUseCount: 0, // 技能使用次数（最多2次）

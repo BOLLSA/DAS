@@ -1425,7 +1425,7 @@
                     const _cardDef = CARD_LIBRARY.find(c => c.name === unit.cardName);
                     const _skDef = _cardDef && _cardDef.skill ? SKILL_DEFS[_cardDef.skill] : null;
                     const _ignoresBlind = _skDef && _skDef.ignoresBlind;
-                    if (!unit.skillUsedThisTurn && !unit._aiSkillTried && unit.silenced <= 0 && unit.skillCooldown <= 0 && (unit.eagleEyeTurns <= 0 || _ignoresBlind)) {
+                    if (!unit.skillUsedThisTurn && !unit._aiSkillTried && unit.silenced <= 0 && unit.skillCooldown <= 0 && ((unit.eagleEyeTurns || 0) <= 0 || !!_ignoresBlind)) {
                         if (await aiTrySkill(unit, myGameId)) { acted = true; await aiSleep(300); break; }
                     }
                 }

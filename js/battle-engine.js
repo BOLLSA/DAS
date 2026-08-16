@@ -290,6 +290,7 @@
                 knightSkillUsed: false, halberdierSkillUsed: false, halberdierCharging: false, nerdJamUsed: false, nerdJamActive: false, speed: unit.speed, movesLeftThisTurn: 0, displacedByAllySkillThisTurn: false,
                 shieldAvailable: false, transformUsed: false, auraBuff: false, silenced: 0, disabled: false, hornRecoveryTurns: 0, hornPendingHeal: 0, isSweepCharging: false,
                 shieldValue: 0, nativeShieldValue: 0, externalShieldSources: {},
+                eagleEyeTargets: [], eagleEyeTurns: 0,
                 bartenderUseCount: 0, drunkardInvincibleUsed: false, bountyLevel: 0
             };
             addUnit(newUnit);
@@ -317,7 +318,7 @@
                 nextAttackBonus: 0, superCharging: false, superChargeTurnsLeft: 0, superChargeTargetId: null, superChargeIsBase: false, superChargeBaseSide: null,
                 knightSkillUsed: false, speed: card.speed, movesLeftThisTurn: Math.round(card.speed * 100) / 100, displacedByAllySkillThisTurn: false,
                 shieldValue: 0, nativeShieldValue: 0, externalShieldSources: {}, absoluteImmunityTurns: 0, reviveTimesLeft: unit.reviveTimesLeft - 1, extraAttacks: (CARD_LIBRARY.find(c => c.name === unit.cardName) || {}).extraAttacks || 0, attacksLeftThisTurn: 0,
-                weakenedEnemies: [], eagleEyeTargets: [], windSkillUsed: false,
+                weakenedEnemies: [], eagleEyeTargets: [], eagleEyeTurns: 0, windSkillUsed: false,
                 transformUsed: false, auraBuff: false, silenced: 0, disabled: false, hornRecoveryTurns: 0, hornPendingHeal: 0, isSweepCharging: false,
                 cupidPair: null, cupidUseCount: 0, shaLinBindTurn: 0, shaLinBindRow: -1, shaLinBindCol: -1, shaLinUseCount: 0, zhongyiHealUsed: false,
                 scapegoatUsed: false, scapegoatProtectorId: null, feijiBonusGiven: 0, feizheBonusGiven: 0, flagBearerProtectTurn: 0, witchProtectReduce: 0, witchProtectorId: null,

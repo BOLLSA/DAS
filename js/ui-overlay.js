@@ -480,7 +480,7 @@
             isSweepCharging: false, hornRecoveryTurns: 0, hornPendingHeal: 0,
             shieldValue: 0, nativeShieldValue: 0, externalShieldSources: {}, absoluteImmunityTurns: 0, reviveTimesLeft: 0,
             bountyLevel: 0,
-            extraAttacks: (card.extraAttacks || 0), attacksLeftThisTurn: 0, weakenedEnemies: [], eagleEyeTargets: [], windSkillUsed: false,
+            extraAttacks: (card.extraAttacks || 0), attacksLeftThisTurn: 0, weakenedEnemies: [], eagleEyeTargets: [], eagleEyeTurns: 0, windSkillUsed: false,
             cupidPair: null, cupidUseCount: 0, shaLinBindTurn: 0, shaLinBindRow: -1, shaLinBindCol: -1, shaLinUseCount: 0,
             zhongyiHealUsed: false, scapegoatUsed: false, scapegoatProtectorId: null, feijiBonusGiven: 0, feizheBonusGiven: 0,
             flagBearerProtectTurn: 0, witchProtectReduce: 0, witchProtectorId: null, plagueInfected: false, plagueOwnerSide: null,
