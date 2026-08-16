@@ -1,7 +1,7 @@
 # 黑暗中世纪 (Dark Age Saga 1.01) — 项目交接文档
 
-> 供下一位 AI 快速接手并安全规划代码修改，最后更新：2026-08（1.01 正式版）
-> 基于上一版交接文档全面重写：新增机车党、新手引导教程、护盾来源系统、替伤防御结算、麻木者禁疗、无敌免疫秒杀、远程联机等
+> 供下一位 AI 快速接手并安全规划代码修改，最后更新：2026-08（1.01 单位改名版）
+> 基于上一版交接文档全面重写：新增机车党、新手引导教程、护盾来源系统、替伤防御结算、麻木者禁疗、无敌免疫秒杀、远程联机等；1.01 末期完成 8 个单位改名（详见「Dark Age Saga更新日志.md」）
 
 ---
 
@@ -15,7 +15,7 @@
 | 模式 | 全卡池对战 / 自定义卡组 / 人机对战（简单/普通/困难）/ 远程联机 / 新手教程 |
 | 语言 | 纯前端 HTML + Vanilla JS（无框架、无构建工具、无 ES Module） |
 | 测试环境 | Chrome / Edge 最新版 + 移动端 viewport，未适配 IE / 旧版 Safari |
-| 内容规模 | 75 张卡牌 / 14 件装备 / 40 个技能定义，总代码量约 13,600 行（JS 约 11,300 + CSS 约 2,300，含 HTML 约 13,700） |
+| 内容规模 | 75 张卡牌 / 14 件装备 / 40 个技能定义，总代码量约 13,700 行（JS 约 11,300 + CSS 约 2,330 + HTML 约 60） |
 | 版本号位置 | `index.html`（title/meta/角标 v1.01）+ `decks.js` 模式选择标题 |
 
 !!!重要提醒：修改时不要误改导致地图单位卡片渲染错误而无法显示!!!!
@@ -28,7 +28,7 @@
 
 ```
 Dark Age Saga/
-├── index.html                  ← HTML 骨架 + JS 加载顺序（15个文件 + PeerJS CDN）
+├── index.html                  ← HTML 骨架 + JS 加载顺序（15个文件 + PeerJS CDN）+ 版本角标 v1.01
 ├── css/
 │   └── style.css               ← 全部样式（含教程高亮 .tutorial-glow、联机按钮）
 ├── js/
@@ -40,14 +40,20 @@ Dark Age Saga/
 │   ├── skill-config.js         ← SKILL_DEFS（40技能）+ 效果执行器 + 秒杀/kill效果
 │   ├── game-flow.js            ← tryMoveUnit / placeUnit / startTurn / endTurn / 机车党蓄力结算 / 弹窗远程转发
 │   ├── equipment.js            ← EQUIPMENT_LIBRARY（14件装备）+ 商店 + 复活 + AI购买 + 远程购买
-│   ├── decks.js                ← PRESET_DECKS / resetGame / 模式选择 / 卡组构建 / showOnlineSetup
+│   ├── decks.js                ← PRESET_DECKS（5套）/ resetGame / 模式选择 / 卡组构建 / showOnlineSetup
 │   ├── targeting.js            ← 技能目标过滤 / handleCellClick（联机指令转发）/ dispatchSkillTarget
 │   ├── ui.js                   ← renderUI 核心渲染 / handleUnitClick（联机共用入口）
 │   ├── ui-overlay.js           ← 图鉴 / 教程（静态+新手引导）/ 测试 / 复盘 / MVP / 快捷键
 │   ├── ai.js                   ← AI 控制器（决策/评估/移动/技能）
 │   ├── network.js              ← 远程联机网络层（PeerJS P2P 主机权威）
 │   └── main.js                 ← startGame 入口（含教程/联机分支）
-└── AI_HANDOVER（游戏有改动随时更新我）.md  ← 本文档
+├── check.ps1                   ← 发布前语法检查（15 个 JS 文件 node --check）
+├── publish.ps1                 ← 正式版发布脚本（干净拷贝到桌面 DAS 正式版本目录）
+├── serve.ps1                   ← 简易 HTTP 服务器（TcpListener，局域网联机调试用，端口 8080）
+├── AI_HANDOVER（游戏有改动随时更新我）.md  ← 本文档
+├── Dark Age Saga更新日志.md      ← 独立更新日志（每次改动明细，与本文档分开维护）
+├── README.md                   ← 仓库简介（DAS 历史版本说明）
+└── .gitignore                  ← 排除 _check.log / *.log 等临时文件
 ```
 
 ### JS 文件加载顺序（index.html 中定义，不可调整）
@@ -95,11 +101,11 @@ decks.js → targeting.js → ui.js → ui-overlay.js → ai.js → network.js �
 | `braceShield` | 反击兵「蓄势反击」护盾（独立字段，优先消耗） |
 | `magicShieldValue` | 暗影纱法术护盾（只挡法伤） |
 
-### 4.2 外来护盾规则（72）
+### 4.2 外来护盾规则（护援兵）
 
-- 72 瞬移：对同格友方和自己 +2 外来护盾。
-- **每个 72 来源独立上限 2**：同一 72 反复释放刷新为 2，不同 72 各自可叠加（如枷锁猎手自带2 + 72A外来2 + 72B外来2 = 总6）。
-- 外来护盾被消耗后，同一 72 再次释放可补回 2。
+- 护援兵瞬移：对同格友方和自己 +2 外来护盾。
+- **每个护援兵来源独立上限 2**：同一护援兵反复释放刷新为 2，不同护援兵各自可叠加（如枷锁猎手自带2 + 护援兵A外来2 + 护援兵B外来2 = 总6）。
+- 外来护盾被消耗后，同一护援兵再次释放可补回 2。
 
 ### 4.3 护盾消耗顺序（applyDamageWithSource）
 
@@ -133,7 +139,7 @@ decks.js → targeting.js → ui.js → ui-overlay.js → ai.js → network.js �
 12. **守卫/盾兵替伤** → 替伤者自身防御结算（见第六章）
 13. 法伤减免（爱妃光环/魔女庇护）
 14. 旗手庇护（替伤者）
-15. 西施定身增伤+1
+15. 纱琳定身增伤+1
 16. 麻木者被动（每次只减1）
 17. 替罪羊替死
 18. 护身符（免疫致死）
@@ -149,7 +155,7 @@ decks.js → targeting.js → ui.js → ui-overlay.js → ai.js → network.js �
 ```
 碎镜减伤 → 虚无之衣 → 绝对免疫 → 无敌 → 蓄势护盾 → 护盾(外来→自带，含枷锁破盾) → 暗影纱 → 手牌护盾
 ```
-- 全部挡下则结束；剩余伤害才继续后续（西施增伤/麻木者/替罪羊/护身符/绫罗/扣血）。
+- 全部挡下则结束；剩余伤害才继续后续（纱琳增伤/麻木者/替罪羊/护身符/绫罗/扣血）。
 - 真伤不触发替伤（`!effectiveUnblockable` 内）。
 - 守卫/盾兵自身不再触发替伤（findGuardToAbsorb/findShieldGuardToAbsorb 排除同名卡），无递归风险。
 
@@ -175,7 +181,7 @@ decks.js → targeting.js → ui.js → ui-overlay.js → ai.js → network.js �
 真伤不跳过：绝对免疫 / 无敌 / 麻木者 / 旗手庇护（免疫类效果）。
 统一入口：`applyDamageWithSource(target, amount, source, true, dmgType)`。
 
-真伤来源：戟兵普通攻击与横扫(3真伤)、追刃追击、超雄献祭、卤蛋伤害转移、断脊（物伤非真伤，注意区分）。
+真伤来源：戟兵普通攻击与横扫(3真伤)、追刃追击、超雄献祭、巫师伤害转移、断脊（物伤非真伤，注意区分）。
 
 ---
 
@@ -251,7 +257,7 @@ decks.js → targeting.js → ui.js → ui-overlay.js → ai.js → network.js �
 |------|------|------|
 | `init` | 主机→客机 | 开局快照（gameState + lastDamageDealer + infiniteManaEnabled）+ hostSide + 日志 |
 | `action` | 客机→主机 | 操作指令：cellClick（带 cardIdx/unitId）/ unitClick / skill / endTurn / shop / pop / discard / riluoReturn / mirrorAttack / mirrorSwap / equipSkill / confirmSkill / cancelSkill / skipGlide / cancelMirrorAttack |
-| `state` | 主机→客机 | 状态快照 + 日志增量 + 棋盘特效（浮动伤害/受击闪白/攻击闪白/光束，客机重放）。（主机 renderUI 后 dirty 标记，**0ms 微任务即时推送 + 200ms 轮询兜底**；快照经精简：手牌/牌堆/预牌堆卡对象压缩为 `{n,d,db,dt}` 由 CARD_LIBRARY 本地恢复、matchEvents 剔除、**isModalOpen 恒置 false**（弹窗互斥锁是本地 UI 状态，跨端同步会挡住对方端弹窗——曾导致卤蛋转移选择等连续弹窗第二步被自动取消），实测体积 -81%） |
+| `state` | 主机→客机 | 状态快照 + 日志增量 + 棋盘特效（浮动伤害/受击闪白/攻击闪白/光束，客机重放）。（主机 renderUI 后 dirty 标记，**0ms 微任务即时推送 + 200ms 轮询兜底**；快照经精简：手牌/牌堆/预牌堆卡对象压缩为 `{n,d,db,dt}` 由 CARD_LIBRARY 本地恢复、matchEvents 剔除、**isModalOpen 恒置 false**（弹窗互斥锁是本地 UI 状态，跨端同步会挡住对方端弹窗——曾导致巫师转移选择等连续弹窗第二步被自动取消），实测体积 -81%） |
 | `fx` | 主机→客机 | **即时提示**（toast/连杀特效）：主机 `networkToast` 立即发送，客机 `networkReplayFx` 重放——不依赖快照循环，延迟更低 |
 | `prompt`/`answer` | 双向 | 远程弹窗请求/应答（kind: confirm/select/prepick） |
 | `gameover`/`bye` | 双向 | 游戏结束通知 / 主动退出 |
@@ -295,13 +301,13 @@ decks.js → targeting.js → ui.js → ui-overlay.js → ai.js → network.js �
 | 红方初始费（后手） | 4 |
 | 费用上限 | 15 |
 | 每回合加费 | 1（第6大回合起 +2） |
-| 皇帝修正 | 未受伤费-1，受伤费+1 |
+| 国王修正 | 未受伤费-1，受伤费+1 |
 
 ---
 
 ## 十四、回合流程 startTurn 关键顺序（不能打乱）
 
-1. 皇帝征税费用修正
+1. 国王征税费用修正
 2. 重置 attackedEnemyIds
 3. 四眼仔行动干扰检测
 4. 费用+1（第6大回合后+2）
@@ -317,9 +323,9 @@ decks.js → targeting.js → ui.js → ui-overlay.js → ai.js → network.js �
 14. 单位状态刷新（蓄力已结算的单位跳过攻击次数重置——chargeResolved）
 15. **机车党蓄力结算**（控制中断 / 弹窗继续或释放 / 释放回合移速+3N）
 16. 武器商攻速翻倍
-17. 全局状态递减（沉默/致盲/无敌/冷却/绝对免疫/号角/弱化/西施定身/旗手庇护）
-18. 锦衣卫手牌禁用递减
-19. 西施定身格递减
+17. 全局状态递减（沉默/致盲/无敌/冷却/绝对免疫/号角/弱化/纱琳定身/旗手庇护）
+18. 禁卫手牌禁用递减
+19. 纱琳定身格递减
 
 ---
 
@@ -331,8 +337,8 @@ decks.js → targeting.js → ui.js → ui-overlay.js → ai.js → network.js �
 4. **伤害类型分类**：canApplyBonus 物伤/法伤加成适用性（dmgValue=0 不受加成）。
 5. **武器商攻速翻倍**：recheckAllWeaponSmithBuffs 在每次攻击/移动/技能后调用。
 6. **四眼仔行动干扰**：新自主行动类型必须在入口调用 consumeNerdJamPending。
-7. **西施定身格**：位移后必须 applyXishiCellBinding。
-8. **控制检查顺序**：绝对免疫 → 霸体 → 火人同列免疫 → 西施定身 → 横扫蓄力。
+7. **纱琳定身格**：位移后必须 applyShaLinCellBinding。
+8. **控制检查顺序**：绝对免疫 → 霸体 → 火人同列免疫 → 纱琳定身 → 横扫蓄力。
 9. **真伤跳过链**：见第八章，不要破坏。
 10. **秒杀防御检查顺序**：见第七章，新增秒杀来源必须按该顺序加检查。
 11. **护盾初始化同步点**：见 4.4，新增单位创建路径必须初始化护盾字段。
@@ -403,7 +409,7 @@ node --check js/main.js
 
 1. VS Code Live Server 打开 index.html。
 2. 全卡池双人对战完整一局：放置/移动/攻击/技能/结束回合/攻击城池。
-3. 人机对战（简单+困难）：重点观察机车党、枷锁猎手、72、反击兵、麻木者、酒鬼。
+3. 人机对战（简单+困难）：重点观察机车党、枷锁猎手、护援兵、反击兵、麻木者、酒鬼。
 4. 测试模式（🧪）快速添加手牌验证改动。
 5. 装备商店：14 件装备购买/穿戴/效果触发；凝血之刃 2 费。
 6. 新手教程完整走一遍（含回顾、拦截、S10 商店、完成退出）。
@@ -411,7 +417,7 @@ node --check js/main.js
 
 ### 17.3 重点回归清单
 
-- [ ] 外来护盾先于自带护盾消耗；72 按来源独立上限2。
+- [ ] 外来护盾先于自带护盾消耗；护援兵按来源独立上限2。
 - [ ] 枷锁猎手：破盾免疫仅由自带护盾破碎触发；秒杀破盾；复活重新获得护盾。
 - [ ] 真伤无视护盾与减伤，但仍被绝对免疫/无敌/麻木者/旗手庇护拦截。
 - [ ] 守卫/盾兵替伤时自身护盾与减伤正常结算。
@@ -426,7 +432,7 @@ node --check js/main.js
 
 | 变更 | 说明 |
 |------|------|
-| 护盾来源系统 | 外来/自带分离，按来源（72）独立上限2，外来先消耗 |
+| 护盾来源系统 | 外来/自带分离，按来源（护援兵）独立上限2，外来先消耗 |
 | 真伤修正 | 真伤正确无视所有护盾（含暗影纱） |
 | 秒杀统一 | 四条秒杀路径统一防御检查顺序；补齐斩月/kill 的枷锁猎手与麻木者检查 |
 | 无敌修正 | 无敌（酒鬼）免疫秒杀，无敌结束后延迟死亡 |
@@ -437,3 +443,11 @@ node --check js/main.js
 | 远程联机 | PeerJS P2P 主机权威：房间码匹配、指令转发、弹窗远程选择、装备远程购买、断线回退 |
 | 凝血之刃 | 费用 3→2 |
 | 枷锁猎手复活 | 复活甲复活重新获得自带2护盾 |
+
+---
+
+## 二十、更新日志
+
+- 每次改动的明细记录在独立文件 **`Dark Age Saga更新日志.md`**（与本文档分开维护，最新改动在最上方）。
+- 最近一次：**8 个单位改名**（国王/禁卫/参谋/暴食者/旋斧人/巫师/护援兵/纱琳，含英文标识同步），详见更新日志顶部。
+- 注意：改名涉及英文标识（如 `shaLinBind`、`huYuanBingTeleport`、`kingCostMod`、`hasCanMou`、`applyShaLinCellBinding`、`jinWeiDisable` 等），联机快照与本地逻辑共用同一套标识，改动时需保持一致。
