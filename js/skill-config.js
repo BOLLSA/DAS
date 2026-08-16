@@ -136,7 +136,8 @@
                 return true;
             },
             effects: [
-                { type: "damage", value: 1, dmgType: "🔮", unblockable: true, target: "columnEnemies" },
+                // 卡牌描述为「1法伤」（无真伤/不可抵挡字样），不走 unblockable：血舞/手牌护盾/护盾/替伤等正常抵挡
+                { type: "damage", value: 1, dmgType: "🔮", target: "columnEnemies" },
                 { type: "selfDestruct" }
             ]
         },
