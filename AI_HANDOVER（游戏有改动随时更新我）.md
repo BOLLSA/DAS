@@ -437,3 +437,4 @@ node --check js/main.js
 | 远程联机 | PeerJS P2P 主机权威：房间码匹配、指令转发、弹窗远程选择、装备远程购买、断线回退 |
 | 凝血之刃 | 费用 3→2 |
 | 枷锁猎手复活 | 复活甲复活重新获得自带2护盾 |
+| 单位改名 | 皇帝→国王、锦衣卫→禁卫、军师→参谋、饿饿→暴食者、哭哭→旋斧人、卤蛋→巫师、72→护援兵、西施→纱琳（英文标识同步：king/jinWei/canMou/baoShiZhe/xuanFuRen/wizard/huYuanBing/shaLin） |
