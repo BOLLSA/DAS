@@ -50,6 +50,7 @@ Dark Age Saga/
 ├── check.ps1                   ← 发布前语法检查（15 个 JS 文件 node --check）
 ├── publish.ps1                 ← 正式版发布脚本（干净拷贝到桌面 DAS 正式版本目录）
 ├── serve.ps1                   ← 简易 HTTP 服务器（TcpListener，局域网联机调试用，端口 8080）
+├── RELEASE_CHECKLIST.md        ← 发布前检查清单（调试痕迹/快照安全/回归项，发布前逐项核对）
 ├── AI_HANDOVER（游戏有改动随时更新我）.md  ← 本文档
 ├── Dark Age Saga更新日志.md      ← 独立更新日志（每次改动明细，与本文档分开维护）
 ├── README.md                   ← 仓库简介（DAS 历史版本说明）
@@ -381,7 +382,7 @@ decks.js → targeting.js → ui.js → ui-overlay.js → ai.js → network.js �
 10. 卡牌注册同步：cards.js / skill-config.js / game-flow.js / decks.js（预选卡组 g2 池）/ ai.js / 图鉴描述必须同步。
 11. 术语统一：「城池」（非基地）、「城池行」；教程文案不得出现旧术语。
 12. 版本号：改动发布时同步 index.html（3处）与 decks.js 标题。
-13. 发布前核对：每次发布前运行 `check.ps1`（语法检查）并更新本文档中的统计数字（代码行数/卡牌数/装备数/技能数），数字标注"约"字。
+13. 发布前核对：每次发布前运行 `check.ps1`（语法检查）并按 **`RELEASE_CHECKLIST.md`**（发布前检查清单）逐项核对——含调试痕迹清理（showToast/console.log/debugger）、关键词残留、联机快照安全、测试面板限制、完整回归、文档同步。更新本文档中的统计数字（代码行数/卡牌数/装备数/技能数），数字标注"约"字。
 14. 版本控制：项目已启用 Git（Dark Age Saga 目录），远程仓库 `https://github.com/BOLLSA/DAS`（origin/main）。日常流程：`git add -A` → `git commit -m "改动说明"` → `git push`；本机 TLS 后端已设为 openssl（受限环境下 schannel 无法获取凭据）。重要改动提交时写明变更摘要；`.gitignore` 已排除 `_check.log` 等临时文件。
 15. 正式版发布：当一次更新完全成熟后，运行 `publish.ps1 -FolderName "<文件夹名>"` 把干净拷贝（**不含 .git**）发布到 `C:\Users\WhereIt\Desktop\DAS\正式版本\1.01\` 下，并同步更新 DAS 根目录的交接文档。**文件夹命名规则：`Dark Age Saga` + 本次改动一句话总结**（如 "Dark Age Saga单位改名与界面卡顿优化"）。脚本会拒绝覆盖已存在的同名文件夹；发布前先跑 `check.ps1` 并完成一轮手动回归。
 
