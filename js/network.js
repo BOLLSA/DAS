@@ -320,6 +320,9 @@
             case 'init': {
                 // 客机收到开局快照
                 state.hostSide = data.hostSide;
+                // 同步卡池模式信息（customDecks/gameMode），供客机本地计算卡池视图
+                if (data.cd !== undefined) customDecks = data.cd;
+                if (data.gm !== undefined) gameMode = data.gm;
                 networkApplyState(data.s, data.logs || [], data.effects || []);
                 if (state._resolveInit) { const r = state._resolveInit; state._resolveInit = null; r(data); }
                 break;

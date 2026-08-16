@@ -83,7 +83,7 @@ decks.js → targeting.js → ui.js → ui-overlay.js → ai.js → network.js �
 | `decks.js` | `PRESET_DECKS` / `resetGame` / `showGameModeSelect` / `showAISetup` / `showDeckBuilder` | 5 套预选卡组 + 游戏重置 + 模式选择 |
 | `targeting.js` | `getSkillTargetableUnits` / `handleCellClick` / `dispatchSkillTarget` | 目标过滤 + 棋盘点击分发 |
 | `ui.js` | `renderUI` | 全量渲染（末尾挂载教程高亮 applyTutorialHighlight） |
-| `ui-overlay.js` | `showPokedex` / `showPokedexDetail` / `showTutorial` / `startBeginnerTutorial` / `BEGINNER_TUTORIAL_STEPS` / `tutorialAllowAction` / `tutorialBlock` / `openTestPanel` / `onGlobalKeydown` / `showMatchRecap` / `calculateMVP` | 图鉴 / 教程（静态速查 + 新手引导）/ 教程白名单 / 测试 / 快捷键 |
+| `ui-overlay.js` | `showPokedex` / `showPokedexDetail` / `showCardPool` / `buildCardPoolMap` / `showTutorial` / `startBeginnerTutorial` / `BEGINNER_TUTORIAL_STEPS` / `tutorialAllowAction` / `tutorialBlock` / `openTestPanel` / `onGlobalKeydown` / `showMatchRecap` / `calculateMVP` | 图鉴 / 卡池 / 教程（静态速查 + 新手引导）/ 教程白名单 / 测试 / 快捷键 |
 | `ai.js` | `aiTakeTurn` / `aiPlaceCards` / `aiUseUnits` / `aiTryAttack` / `aiTryMove` / `aiTrySkill` / `aiEstimateDamage` | AI 决策全链路 |
 | `main.js` | `startGame` | 入口（模式选择 → 新手教程 / 各模式 → resetGame） |
 
@@ -294,7 +294,19 @@ decks.js → targeting.js → ui.js → ui-overlay.js → ai.js → network.js �
 
 ---
 
-## 十三、费用系统
+## 十三、卡池查看（游戏主界面）
+
+- 入口：主界面手牌区「📚 卡池」按钮 → `showCardPool()`（ui-overlay.js）。
+- **卡池 = 完整牌池 − 占用**，动态计算（`buildCardPoolMap(side)`）：
+  - 占用 = 手牌 + 预牌堆 + 场上单位（镜像幽灵 `isMirror` 不占用；**死亡/爆牌移除的单位自动回到卡池**，无需额外状态）。
+  - 全卡池模式（`customDecks === null`）：双方共享一个卡池，完整牌池 = CARD_LIBRARY 按 grade 上限（1级×1 / 2级×2 / 3级×3）。
+  - 预设/自定义卡组（`customDecks !== null`）：分我方/敌方卡池，完整牌池 = 该方 `customDecks[p0/p1]` 按 grade 上限；面板顶部可切换「🔵我方 / 🔴敌方」。
+- 交互：按 CARD_LIBRARY 已有顺序排序，支持等级筛选（全部/1/2/3级）与名称搜索；显示每张卡剩余张数（0 张置灰）；点击卡片看详情。
+- 联机：init 消息额外携带 `cd`（customDecks）与 `gm`（gameMode），客机据此本地计算卡池；后续 state 快照不包含这两者（独立全局变量）。
+
+---
+
+## 十四、费用系统
 
 | 配置 | 值 |
 |------|------|
@@ -306,7 +318,7 @@ decks.js → targeting.js → ui.js → ui-overlay.js → ai.js → network.js �
 
 ---
 
-## 十四、回合流程 startTurn 关键顺序（不能打乱）
+## 十五、回合流程 startTurn 关键顺序（不能打乱）
 
 1. 国王征税费用修正
 2. 重置 attackedEnemyIds
@@ -330,7 +342,7 @@ decks.js → targeting.js → ui.js → ui-overlay.js → ai.js → network.js �
 
 ---
 
-## 十五、绝对不能乱改的地方
+## 十六、绝对不能乱改的地方
 
 1. **异步竞态 `aiGameId`**：递增计数器，AI 所有异步函数携带 myGameId 并在 await 后检查。
 2. **弹窗 AI 自动响应**：showConfirm/showSelect/showPrepickPanel 的 aiActing 检查。
@@ -352,7 +364,7 @@ decks.js → targeting.js → ui.js → ui-overlay.js → ai.js → network.js �
 
 ---
 
-## 十六、开发约束
+## 十七、开发约束
 
 1. 最小化修改原则：每次只改必要行数。
 2. 无框架：不能使用 import/export 或 npm 包。
@@ -372,7 +384,7 @@ decks.js → targeting.js → ui.js → ui-overlay.js → ai.js → network.js �
 
 ---
 
-## 十七、用户工作习惯
+## 十八、用户工作习惯
 
 - 中文交流，助手以中文回复。
 - 修改前先确认规则和逻辑约束。
@@ -385,9 +397,9 @@ decks.js → targeting.js → ui.js → ui-overlay.js → ai.js → network.js �
 
 ---
 
-## 十八、修改后的验证方法
+## 十九、修改后的验证方法
 
-### 17.1 语法检查（必做）
+### 19.1 语法检查（必做）
 
 ```bash
 node --check js/cards.js
@@ -406,7 +418,7 @@ node --check js/ai.js
 node --check js/main.js
 ```
 
-### 17.2 功能验证（必做）
+### 19.2 功能验证（必做）
 
 1. VS Code Live Server 打开 index.html。
 2. 全卡池双人对战完整一局：放置/移动/攻击/技能/结束回合/攻击城池。
@@ -416,7 +428,7 @@ node --check js/main.js
 6. 新手教程完整走一遍（含回顾、拦截、S10 商店、完成退出）。
 7. 图鉴：75 张卡描述与实际机制一致（被动/主动分区正确）。
 
-### 17.3 重点回归清单
+### 19.3 重点回归清单
 
 - [ ] 外来护盾先于自带护盾消耗；护援兵按来源独立上限2。
 - [ ] 枷锁猎手：破盾免疫仅由自带护盾破碎触发；秒杀破盾；复活重新获得护盾。
@@ -429,7 +441,7 @@ node --check js/main.js
 
 ---
 
-## 十九、1.01 版本主要变更记录
+## 二十、1.01 版本主要变更记录
 
 | 变更 | 说明 |
 |------|------|
@@ -445,10 +457,11 @@ node --check js/main.js
 | 凝血之刃 | 费用 3→2 |
 | 枷锁猎手复活 | 复活甲复活重新获得自带2护盾 |
 | 启动性能优化 | PeerJS 改为按需动态加载（不再同步阻塞页面启动）；全屏 overlay 移除 backdrop-filter 全屏模糊 |
+| 卡池查看 | 主界面「📚 卡池」：全卡池共享 / 预设卡组分我方敌方，动态计算（死亡单位自动回池），等级筛选+搜索 |
 
 ---
 
-## 二十、更新日志
+## 二十一、更新日志
 
 - 每次改动的明细记录在独立文件 **`Dark Age Saga更新日志.md`**（与本文档分开维护，最新改动在最上方）。
 - 最近一次：**8 个单位改名**（国王/禁卫/参谋/暴食者/旋斧人/巫师/护援兵/纱琳，含英文标识同步），详见更新日志顶部。

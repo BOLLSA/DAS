@@ -68,6 +68,142 @@
         closeBtn.onclick = () => overlay.remove();
     }
 
+    // ========== 卡池查看（游戏主界面） ==========
+    // 卡池 = 完整牌池 - 占用（手牌 + 预牌堆 + 场上单位）；死亡/爆牌移除的单位自动回到卡池（动态计算）
+    // 全卡池模式（customDecks===null）：双方共享一个卡池，完整牌池 = CARD_LIBRARY 按 grade 上限（1级×1/2级×2/3级×3）
+    // 预设/自定义卡组：分我方/敌方卡池，完整牌池 = 该方 customDecks[p0/p1] 按 grade 上限
+    function buildCardPoolMap(side) {
+        const gradeLimit = { 1: 1, 2: 2, 3: 3 };
+        const pool = new Map(); // 卡名 -> { card, count }
+        let names = null;
+        if (customDecks) {
+            names = side === 0 ? customDecks.p0 : customDecks.p1;
+        }
+        for (const card of CARD_LIBRARY) {
+            if (names && !names.includes(card.name)) continue;
+            const limit = gradeLimit[card.grade] || 1;
+            const entry = pool.get(card.name);
+            if (entry) entry.count += limit;
+            else pool.set(card.name, { card, count: limit });
+        }
+        // 扣减占用：手牌 / 预牌堆 / 场上单位（镜像幽灵实体不占用卡池）
+        const sides = customDecks ? [side] : [0, 1];
+        const consume = (name) => {
+            const entry = pool.get(name);
+            if (entry && entry.count > 0) entry.count--;
+        };
+        for (const s of sides) {
+            for (const c of gameState.players[s].hand) consume(c.name);
+            for (const c of gameState.players[s].prepool) consume(c.name);
+            for (const u of gameState.units) if (u.side === s && !u.isMirror) consume(u.cardName);
+        }
+        return pool;
+    }
+
+    function showCardPool() {
+        const overlay = document.createElement('div');
+        overlay.className = 'pokedex-overlay';
+        const panel = document.createElement('div');
+        panel.className = 'pokedex-panel';
+        panel.innerHTML = `
+            <h2>📚 卡池</h2>
+            <div class="pokedex-controls">
+                <button data-grade="all" class="active">全部</button>
+                <button data-grade="1">⭐ 1级</button>
+                <button data-grade="2">⭐⭐ 2级</button>
+                <button data-grade="3">⭐⭐⭐ 3级</button>
+                <input type="text" class="pokedex-search" placeholder="🔍 搜索名称" id="poolSearch">
+            </div>
+            <div class="pool-summary" id="poolSummary"></div>
+            <div class="pokedex-grid" id="poolGrid"></div>
+            <button class="prepick-cancel" style="margin-top:15px;">关闭</button>
+        `;
+        overlay.appendChild(panel);
+        document.body.appendChild(overlay);
+
+        const sharedPool = !customDecks;
+        // 预设/自定义卡组：上方加「我方/敌方」切换（本地玩家视角；联机按自己阵营显示）
+        let currentSide = 0; // 默认我方
+        if (!sharedPool) {
+            const mySide = (typeof networkMySide === 'function' && networkMySide() >= 0) ? networkMySide() : gameState.turn;
+            currentSide = mySide;
+            const toggle = document.createElement('div');
+            toggle.className = 'pool-side-toggle';
+            toggle.innerHTML = `<button data-side="0" class="${currentSide === 0 ? 'active' : ''}">🔵 我方卡池</button><button data-side="1" class="${currentSide === 1 ? 'active' : ''}">🔴 敌方卡池</button>`;
+            panel.insertBefore(toggle, panel.querySelector('.pokedex-controls'));
+            toggle.querySelectorAll('[data-side]').forEach(btn => {
+                btn.onclick = () => {
+                    toggle.querySelectorAll('[data-side]').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    currentSide = parseInt(btn.getAttribute('data-side'), 10);
+                    renderPool();
+                };
+            });
+        }
+
+        let currentGrade = 'all';
+        let searchTerm = '';
+        function renderPool() {
+            const gridDiv = panel.querySelector('#poolGrid');
+            const summaryDiv = panel.querySelector('#poolSummary');
+            const pool = buildCardPoolMap(currentSide);
+            let entries = [...pool.values()].filter(e => {
+                if (currentGrade !== 'all' && e.card.grade != currentGrade) return false;
+                if (searchTerm && !e.card.name.toLowerCase().includes(searchTerm.toLowerCase())) return false;
+                return true;
+            });
+            // 排序按 CARD_LIBRARY 已有顺序
+            const order = new Map(CARD_LIBRARY.map((c, i) => [c.name, i]));
+            entries.sort((a, b) => (order.get(a.card.name) ?? 0) - (order.get(b.card.name) ?? 0));
+            // 汇总：剩余总数 / 种类数
+            let totalLeft = 0, totalKinds = 0;
+            for (const e of pool.values()) { totalLeft += e.count; if (e.count > 0) totalKinds++; }
+            const leftKinds = [...pool.values()].filter(e => e.count > 0).length;
+            summaryDiv.innerHTML = sharedPool
+                ? `双方共享卡池：剩余 <b>${totalLeft}</b> 张 / <b>${leftKinds}</b> 种`
+                : `当前查看 <b>${currentSide === 0 ? '🔵 我方' : '🔴 敌方'}</b> 卡池：剩余 <b>${totalLeft}</b> 张 / <b>${leftKinds}</b> 种`;
+            gridDiv.innerHTML = '';
+            if (entries.length === 0) {
+                gridDiv.innerHTML = '<div style="color:#8a7a66;padding:20px;text-align:center;">无符合条件的卡牌</div>';
+                return;
+            }
+            entries.forEach(e => {
+                const card = e.card;
+                const cardDiv = document.createElement('div');
+                cardDiv.className = 'pokedex-card' + (e.count <= 0 ? ' pool-empty' : '');
+                const gradeLabel = card.grade === 1 ? '传说' : card.grade === 2 ? '史诗' : '普通';
+                const gradeIcon = '⭐'.repeat(card.grade || 1);
+                cardDiv.innerHTML = `
+                    <div class="pokedex-card-header">
+                        <b>${card.name}</b>
+                        <span class="pokedex-grade-tag grade-${card.grade}">${gradeIcon} ${gradeLabel}</span>
+                    </div>
+                    <div class="pokedex-card-stats">💰${card.cost} ❤️${card.life} ⚔️${card.dmgType}${card.dmgValue} 📏${card.range} 🏃${card.speed}${card.extraAttacks ? ' ×' + (1 + card.extraAttacks) : ''}</div>
+                    <div class="pool-count ${e.count <= 0 ? 'zero' : ''}">剩余 ${e.count} 张</div>
+                `;
+                cardDiv.onclick = () => showPokedexDetail(card, overlay);
+                gridDiv.appendChild(cardDiv);
+            });
+        }
+        const gradeBtns = panel.querySelectorAll('[data-grade]');
+        gradeBtns.forEach(btn => {
+            btn.onclick = () => {
+                gradeBtns.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                currentGrade = btn.getAttribute('data-grade');
+                renderPool();
+            };
+        });
+        const searchInput = panel.querySelector('#poolSearch');
+        searchInput.oninput = (e) => {
+            searchTerm = e.target.value;
+            renderPool();
+        };
+        renderPool();
+        const closeBtn = panel.querySelector('.prepick-cancel');
+        closeBtn.onclick = () => overlay.remove();
+    }
+
     function showPokedexDetail(card, parentOverlay) {
         const existing = document.querySelector('.pokedex-detail-overlay');
         if (existing) existing.remove();

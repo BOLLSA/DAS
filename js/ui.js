@@ -642,6 +642,7 @@
     };
     document.getElementById('clearHandBtn').onclick = () => { gameState.selectedCardIdx = -1; addLog("已取消手牌选中"); renderUI(); };
     document.getElementById('pokedexBtn').onclick = () => showPokedex();
+    document.getElementById('poolBtn').onclick = () => showCardPool();
     document.getElementById('tutorialBtn').onclick = () => showTutorial();
     document.getElementById('testModeBtn').onclick = () => openTestPanel();
     document.getElementById('equipmentShopBtn').onclick = () => {

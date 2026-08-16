@@ -75,9 +75,9 @@
             networkState.hostSide = setup.hostSide;
             addLog(`🌐 联机开始！你是${setup.hostSide === 0 ? '蓝方（先手）' : '红方（后手）'}（房主）。`);
             showToast(`🌐 联机开始`);
-            // 推送开局快照
+            // 推送开局快照（含卡池模式信息：客机据此计算卡池视图）
             const logs = (networkState.logBuffer || []).splice(0);
-            try { networkState.conn.send({ t: 'init', s: networkSerializeState(), hostSide: setup.hostSide, logs }); } catch (e) {}
+            try { networkState.conn.send({ t: 'init', s: networkSerializeState(), hostSide: setup.hostSide, logs, cd: customDecks, gm: gameMode }); } catch (e) {}
             // 等待联机结束（断线/退出/游戏结束回调）
             await new Promise((resolve) => { networkOnDisconnect = resolve; });
             networkOnDisconnect = null;
