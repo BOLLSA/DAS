@@ -315,6 +315,7 @@ decks.js → targeting.js → ui.js → ui-overlay.js → ai.js → network.js �
 | 费用上限 | 15 |
 | 每回合加费 | 1（第6大回合起 +2） |
 | 国王修正 | 未受伤费-1，受伤费+1 |
+| 悬赏赏金 | 悬赏单位被移除时，另一方获得悬赏等级对应费用（1/2/3/4 费，上限封顶） |
 
 ---
 
@@ -361,6 +362,7 @@ decks.js → targeting.js → ui.js → ui-overlay.js → ai.js → network.js �
 15. **联机指令链路**：新增玩家操作入口时，客机回合必须走 `networkSendAction`（handleCellClick/handleUnitClick/各按钮/快捷键），主机 `networkHandleAction` 增加对应重放分支；弹窗一律走 showConfirm/showSelect/showPrepickPanel（自动转发远程），不要绕过它们。
 16. **联机弹窗决策方**：防御类弹窗（手牌护盾/血舞）必须先用 `networkPromptSide = target.side` 覆盖默认决策方。
 17. **弹窗函数结构**：showConfirm/showSelect/showPrepickPanel 已拆为「转发检查 + Local 实现」，本地调用 Local 版本时要确保不走网络转发（防止递归）。
+18. **悬赏机制同步点**：新单位创建路径（placeUnit/createMirrorUnit/复活甲复活/猫九命复活/教程演示单位）必须初始化 `bountyLevel: 0`；新移除路径（绕过 removeUnit/popUnit 直接 splice）必须调用 `grantBountyOnRemoval`；连杀统计集中在 applyDamageWithSource 的 killStreakMap 更新处，悬赏等级判定在此处统一升级。
 
 ---
 
@@ -458,6 +460,7 @@ node --check js/main.js
 | 枷锁猎手复活 | 复活甲复活重新获得自带2护盾 |
 | 启动性能优化 | PeerJS 改为按需动态加载（不再同步阻塞页面启动）；全屏 overlay 移除 backdrop-filter 全屏模糊 |
 | 卡池查看 | 主界面「📚 卡池」：全卡池共享 / 预设卡组分我方敌方，动态计算（死亡单位自动回池），等级筛选+搜索 |
+| 悬赏机制 | 3/5/7/9 连杀进入 1/2/3/4 级悬赏（牌面💰xN），被移除（死亡/自爆/弃牌等）时另一方获得对应费赏金 |
 
 ---
 

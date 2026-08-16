@@ -3,6 +3,16 @@
 // Lines: 765-1586 (from original Dark Age Saga.html)
 
     // ========== ⚔️ 战斗引擎（攻击/伤害/死亡） ==========
+    // ── 悬赏机制：悬赏单位被移除时，另一方获得对应费用 ──
+    function grantBountyOnRemoval(unit) {
+        const level = unit.bountyLevel || 0;
+        if (level <= 0 || unit.isMirror) return;  // 无悬赏或镜像幽灵不发赏金
+        const rewardSide = 1 - unit.side;
+        const p = gameState.players[rewardSide];
+        p.mana = Math.min(p.manaMax, p.mana + level);
+        addLog(`💰 悬赏兑现！${unit.cardName}（${level}级悬赏）被移除，${rewardSide === 0 ? "蓝方" : "红方"}获得 ${level} 费赏金！`);
+        showToast(`💰 悬赏 +${level}费`);
+    }
     function removeUnit(unitId, deathRow, deathCol, deathSide) {
         // 修复：防止循环递归（A 死→触发 B 死→B 也在处理中时跳过）
         if (processingDeathIds.has(unitId)) return null;
@@ -27,6 +37,9 @@
             addLog(`🪞 ${unit.cardName} 死亡，镜像消失`);
         }
         delete gameState.killStreakMap[unitId];
+        // ── 悬赏机制：悬赏单位被移除（死亡/自爆/同化/无敌结束死亡等），另一方获得赏金 ──
+        // 镜像幽灵无悬赏（bountyLevel 恒 0）；复活甲拦截/猫九命复活路径不经过此处（拦截时未 splice）
+        grantBountyOnRemoval(unit);
         processingDeathIds.add(unitId);
         gameState.units.splice(idx, 1);
         // 同化者被移除：共享池和上限-3（放在 splice 之后，避免 killAllAssimilators 递归时旧下标二次 splice）
@@ -277,7 +290,7 @@
                 knightSkillUsed: false, halberdierSkillUsed: false, halberdierCharging: false, nerdJamUsed: false, nerdJamActive: false, speed: unit.speed, movesLeftThisTurn: 0, displacedByAllySkillThisTurn: false,
                 shieldAvailable: false, transformUsed: false, auraBuff: false, silenced: 0, disabled: false, hornRecoveryTurns: 0, hornPendingHeal: 0, isSweepCharging: false,
                 shieldValue: 0, nativeShieldValue: 0, externalShieldSources: {},
-                bartenderUseCount: 0, drunkardInvincibleUsed: false
+                bartenderUseCount: 0, drunkardInvincibleUsed: false, bountyLevel: 0
             };
             addUnit(newUnit);
             addLog(`${unit.cardName} 在己方城池复活！`);
@@ -308,7 +321,7 @@
                 transformUsed: false, auraBuff: false, silenced: 0, disabled: false, hornRecoveryTurns: 0, hornPendingHeal: 0, isSweepCharging: false,
                 cupidPair: null, cupidUseCount: 0, shaLinBindTurn: 0, shaLinBindRow: -1, shaLinBindCol: -1, shaLinUseCount: 0, zhongyiHealUsed: false,
                 scapegoatUsed: false, scapegoatProtectorId: null, feijiBonusGiven: 0, feizheBonusGiven: 0, flagBearerProtectTurn: 0, witchProtectReduce: 0, witchProtectorId: null,
-                bartenderUseCount: 0, drunkardInvincibleUsed: false
+                bartenderUseCount: 0, drunkardInvincibleUsed: false, bountyLevel: 0
             };
             gameState.units.push(newUnit);
             addLog(`${unit.cardName} 原地复活！剩余复活次数 ${newUnit.reviveTimesLeft}`);
@@ -936,6 +949,14 @@
                     gameState.killStreakMap[source.id] = ks;
                 }
                 if (ks.count >= 2) showKillStreak(ks.unitName, ks.count);
+                // ── 悬赏机制：3/5/7/9 连杀进入 1/2/3/4 级悬赏状态 ──
+                const bountyForStreak = ks.count >= 9 ? 4 : ks.count >= 7 ? 3 : ks.count >= 5 ? 2 : ks.count >= 3 ? 1 : 0;
+                if (bountyForStreak > (source.bountyLevel || 0)) {
+                    source.bountyLevel = bountyForStreak;
+                    addLog(`💰 悬赏！${source.cardName} 达成 ${ks.count} 连杀，进入 ${bountyForStreak} 级悬赏状态！`);
+                    showToast(`💰 悬赏 ${bountyForStreak} 级`);
+                    renderUI();
+                }
             }
         }
         // ── 装备：霜痕（攻击后冰冻命中的敌人，AOE全冰冻） ──

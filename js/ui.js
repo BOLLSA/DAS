@@ -247,9 +247,11 @@
                         if (unit.braceActive) chargeTag = '<span class="charge-tag charge-sweep">蓄势</span>';
                         if (unit.isMirror) chargeTag = '<span class="charge-tag charge-sweep">镜像</span>';
                         if (unit.isAssimilator) chargeTag = '<span class="charge-tag charge-sweep">同化</span>';
+                        // 悬赏标记（3/5/7/9连杀进入悬赏，被移除时对方获得赏金）
+                        const bountyTag = (unit.bountyLevel || 0) > 0 ? `<span class="bounty-tag" title="${unit.bountyLevel}级悬赏：被移除时对方获得${unit.bountyLevel}费">💰x${unit.bountyLevel}</span>` : '';
                         // 移动次数
                         const moveCount = (unit.cardName === "骑士" || unit.movesLeftThisTurn > 1) && unit.movesLeftThisTurn > 0 ? `<span class="move-count">${parseFloat(unit.movesLeftThisTurn.toFixed(2))}</span>` : '';
-                        unitDiv.innerHTML = `<div class="unit-top"><span class="unit-name">${unit.cardName}</span>${chargeTag}</div><div class="hp-bar"><div class="hp-fill" style="width:${hpPct}%;background:${hpColor};"></div><span class="hp-text">❤${unit.life}</span></div>${shieldDisplay}<div class="unit-mid"><span class="dmg-stat">${unit.dmgType}${unit.dmgValue}</span><span class="range-stat">📏${unit.range}</span></div><div class="unit-bot"><span class="act-move">${moveIcon}</span>${moveCount}${atkIcon}</div>${statusIcons ? `<div class="status-bar">${statusIcons}</div>` : ''}`;
+                        unitDiv.innerHTML = `<div class="unit-top"><span class="unit-name">${unit.cardName}</span>${chargeTag}${bountyTag}</div><div class="hp-bar"><div class="hp-fill" style="width:${hpPct}%;background:${hpColor};"></div><span class="hp-text">❤${unit.life}</span></div>${shieldDisplay}<div class="unit-mid"><span class="dmg-stat">${unit.dmgType}${unit.dmgValue}</span><span class="range-stat">📏${unit.range}</span></div><div class="unit-bot"><span class="act-move">${moveIcon}</span>${moveCount}${atkIcon}</div>${statusIcons ? `<div class="status-bar">${statusIcons}</div>` : ''}`;
                         unitDiv.onclick = (e) => { e.stopPropagation(); handleUnitClick(unit); };
                         unitDiv.oncontextmenu = (e) => {
                             e.preventDefault(); e.stopPropagation();

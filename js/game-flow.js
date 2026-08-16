@@ -244,6 +244,7 @@
             shieldValue: 0,
             nativeShieldValue: 0,
             externalShieldSources: {},
+            bountyLevel: 0, // 悬赏等级：0=无悬赏，1-4=悬赏状态（3/5/7/9连杀进入），被移除时对方获得对应费
             absoluteImmunityTurns: 0,
             reviveTimesLeft: 0,
             extraAttacks: (card.extraAttacks || 0),

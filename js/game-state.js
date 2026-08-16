@@ -314,6 +314,7 @@
             knightSkillUsed: false, halberdierSkillUsed: false, halberdierCharging: false, nerdJamUsed: false, nerdJamActive: false,
             displacedByAllySkillThisTurn: false, silenced: 0, transformUsed: false, isSweepCharging: false,
             hornRecoveryTurns: 0, hornPendingHeal: 0, shieldValue: 0, nativeShieldValue: 0, externalShieldSources: {}, absoluteImmunityTurns: 0,
+            bountyLevel: 0, // 悬赏等级（镜像恒0）
             extraAttacks: 0, weakenedEnemies: [], eagleEyeTargets: [], windSkillUsed: false,
             cupidPair: null, cupidUseCount: 0, shaLinBindTurn: 0, shaLinBindRow: -1, shaLinBindCol: -1, shaLinUseCount: 0,
             zhongyiHealUsed: false, scapegoatUsed: false, scapegoatProtectorId: null, feijiBonusGiven: 0, feizheBonusGiven: 0,
@@ -330,6 +331,8 @@
         const idx = gameState.units.findIndex(u => u.id === unitId);
         if (idx === -1) return;
         const unit = gameState.units[idx];
+        // 悬赏机制：爆牌/主动移除悬赏单位，另一方获得赏金
+        if (typeof grantBountyOnRemoval === 'function') grantBountyOnRemoval(unit);
         gameState.units.splice(idx, 1);
         // 同化者被移除：共享池和上限-3
         if (unit.isAssimilator && !unit._assimilatorCleanup) {
