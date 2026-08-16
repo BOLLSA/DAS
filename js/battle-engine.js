@@ -719,9 +719,10 @@
             return;
         }
         // 纱琳定身增伤：加入伤害总量后再结算护盾（护盾吸收含增伤，护盾恰好挡满基础伤害时增伤仍生效）
-        if (actualTarget.shaLinBindTurn > 0) {
+        // 注意：此处替伤尚未发生，目标就是 target（actualTarget 在第 773 行才声明，不可提前引用）
+        if (target.shaLinBindTurn > 0) {
             amount += 1;
-            addLog(`🪞 ${actualTarget.cardName} 被纱琳定身，受到的伤害+1`);
+            addLog(`🪞 ${target.cardName} 被纱琳定身，受到的伤害+1`);
         }
         // ── 反击兵蓄势护盾：优先吸收，每吸收1点 → counterBonus+1 ──
         if ((target.braceShield || 0) > 0 && !isUnblockable) {
