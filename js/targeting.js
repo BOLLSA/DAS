@@ -191,7 +191,6 @@
                     const isEnemyCastleRow = row === enemyCastleRow;
                     if (row !== ownRow && (!nearBarracks || isEnemyCastleRow)) { showToast(`只能在你方的城池行（${ROW_NAMES[ownRow]}）或军营周围放置，不可在敌方城池行放置`); gameState.selectedCardIdx = -1; renderUI(); return; }
                 }
-                showToast(`放置: ${card.name} → ${ROW_NAMES[row]}${COLS[col]} (side=${gameState.turn})`);
                 await placeUnit(gameState.turn, card, row, col, gameState.selectedCardIdx);
                 renderUI();
                 return;
