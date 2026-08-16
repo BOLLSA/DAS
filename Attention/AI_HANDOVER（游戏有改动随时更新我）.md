@@ -47,15 +47,18 @@ Dark Age Saga/
 │   ├── ai.js                   ← AI 控制器（决策/评估/移动/技能）
 │   ├── network.js              ← 远程联机网络层（PeerJS P2P 主机权威）
 │   └── main.js                 ← startGame 入口（含教程/联机分支）
-├── check.ps1                   ← 发布前语法检查（15 个 JS 文件 node --check）
-├── publish.ps1                 ← 正式版发布脚本（干净拷贝到桌面 DAS 正式版本目录）
-├── serve.ps1                   ← 简易 HTTP 服务器（TcpListener，局域网联机调试用，端口 8080）
-├── RELEASE_CHECKLIST.md        ← 发布前检查清单（调试痕迹/快照安全/回归项，发布前逐项核对）
-├── AI_HANDOVER（游戏有改动随时更新我）.md  ← 本文档
-├── Dark Age Saga更新日志.md      ← 独立更新日志（每次改动明细，与本文档分开维护）
-├── README.md                   ← 仓库简介（DAS 历史版本说明）
-└── .gitignore                  ← 排除 _check.log / *.log 等临时文件
+└── Attention/                  ← 非游戏内容（文档 + 开发脚本），与 js/ 并列
+    ├── check.ps1               ← 发布前语法检查（15 个 JS 文件 node --check；内部定位父目录为游戏根）
+    ├── publish.ps1             ← 正式版发布脚本（干净拷贝到桌面 DAS 正式版本目录；内部定位父目录为游戏根）
+    ├── serve.ps1               ← 简易 HTTP 服务器（TcpListener，局域网联机调试用，端口 8080）
+    ├── RELEASE_CHECKLIST.md    ← 发布前检查清单（调试痕迹/快照安全/回归项，发布前逐项核对）
+    ├── AI_HANDOVER（游戏有改动随时更新我）.md  ← 本文档
+    ├── Dark Age Saga更新日志.md  ← 独立更新日志（每次改动明细，与本文档分开维护）
+    ├── README.md               ← 仓库简介（DAS 历史版本说明）
+    └── .gitignore              ← 排除 _check.log / *.log 等临时文件
 ```
+
+> 说明：`Attention/` 存放全部非游戏内容（文档、开发/发布脚本、清单），游戏运行时只依赖 `index.html` + `css/` + `js/`。开发脚本通过 `Split-Path -Parent $PSScriptRoot` 定位游戏根目录，从任意位置调用均可。发布副本保留 `Attention/`（文档随行），发布前检查清单见 `Attention/RELEASE_CHECKLIST.md`。
 
 ### JS 文件加载顺序（index.html 中定义，不可调整）
 

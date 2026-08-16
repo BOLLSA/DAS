@@ -1,9 +1,10 @@
 # ========== 黑暗中世纪 · 语法检查脚本 ==========
 # 逐个检查全部 JS 文件（需安装 Node.js），每次修改后一键执行
-# 用法：在项目根目录运行  ./check.ps1  或  powershell -File check.ps1
+# 用法：在 Attention 目录运行  ./check.ps1  （或 powershell -File Attention/check.ps1）
+# 注意：脚本位于 Attention/ 子目录，游戏根目录为其父目录
 
 $ErrorActionPreference = 'Continue'
-Set-Location -Path $PSScriptRoot   # 切换到脚本所在目录，保证相对路径可用
+Set-Location -Path (Split-Path -Parent $PSScriptRoot)   # 切换到游戏根目录（Attention 的父目录），保证相对路径可用
 $files = @(
     'js/cards.js',
     'js/game-state.js',
