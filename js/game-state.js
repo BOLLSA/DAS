@@ -27,7 +27,7 @@
         turn: 0,
         players: [
             { hp: 10, mana: 3, hand: [], deck: [], prepool: [], handMax: 6, manaMax: 15 },
-            { hp: 10, mana: 4, hand: [], deck: [], prepool: [], handMax: 6, manaMax: 15 }
+            { hp: 10, mana: 3, hand: [], deck: [], prepool: [], handMax: 6, manaMax: 15 }
         ],
         units: [],
         selectedCardIdx: -1,

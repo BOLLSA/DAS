@@ -838,7 +838,7 @@
             turn: 0,
             players: [
                 { hp: 10, mana: 3, hand: p0.hand, deck: p0.deck, prepool: p0.prepool, handMax: 6, manaMax: 15 },
-                { hp: 10, mana: 4, hand: p1.hand, deck: p1.deck, prepool: p1.prepool, handMax: 6, manaMax: 15 }
+                { hp: 10, mana: 3, hand: p1.hand, deck: p1.deck, prepool: p1.prepool, handMax: 6, manaMax: 15 }
             ],
             units: [],
             selectedCardIdx: -1,
@@ -903,7 +903,7 @@
         lastDamageDealer = null;
         infiniteManaEnabled = false;
         aiGameId++; aiActing = false; // 重置 AI 执行状态，防止旧回合继续
-        addLog("=== 游戏开始！蓝方先手（3费），红方后手（4费），费用上限15 ===");
+        addLog("=== 游戏开始！双方初始各3费，费用上限15 ===");
         await startTurn(0);
         renderUI();
     }
