@@ -410,6 +410,7 @@
             const easyBtn = mkDiffBtn('😊 简单', 'easy');
             const normalBtn = mkDiffBtn('😎 普通', 'normal');
             const hardBtn = mkDiffBtn('😤 困难', 'hard');
+            const masterBtn = mkDiffBtn('👑 大师', 'master');
             function updateDiffBtns() {
                 easyBtn.style.background = chosenDiff === 'easy' ? 'linear-gradient(135deg,#3a7d3a,#2c6e2c)' : '#3a2a1f';
                 easyBtn.style.color = '#f9eec1';
@@ -417,6 +418,8 @@
                 normalBtn.style.color = '#f9eec1';
                 hardBtn.style.background = chosenDiff === 'hard' ? 'linear-gradient(135deg,#a85040,#8b3c2c)' : '#3a2a1f';
                 hardBtn.style.color = '#f9eec1';
+                masterBtn.style.background = chosenDiff === 'master' ? 'linear-gradient(135deg,#6a2ca0,#4a1a78)' : '#3a2a1f';
+                masterBtn.style.color = '#f9eec1';
             }
             updateDiffBtns();
             panel.appendChild(diffRow);

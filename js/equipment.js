@@ -742,7 +742,7 @@
         const side = aiSide;
         if (side < 0) return;
         const cfg = aiCfg();
-        const buyRate = side === aiSide ? (aiDifficulty === 'easy' ? 0.15 : aiDifficulty === 'normal' ? 0.40 : 0.70) : 0;
+        const buyRate = side === aiSide ? (aiDifficulty === 'easy' ? 0.15 : aiDifficulty === 'normal' ? 0.40 : aiDifficulty === 'hard' ? 0.70 : 1.0) : 0;
         if (Math.random() > buyRate) return;
 
         const shop = gameState.equipmentShop[side] || [];

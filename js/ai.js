@@ -23,9 +23,11 @@
     const AI_DIFFICULTY_CONFIG = {
         easy:   { comboRate: 0,    focusFire: false, manaPlan: false, defense: false, skillUseRate: 0.4, mistakeRate: 0.35, skipActionRate: 0.25 },
         normal: { comboRate: 0.6,  focusFire: true,  manaPlan: false, defense: false, skillUseRate: 0.85, mistakeRate: 0.10, skipActionRate: 0.05 },
-        hard:   { comboRate: 0.9,  focusFire: true,  manaPlan: true,  defense: true,  skillUseRate: 0.95, mistakeRate: 0.02, skipActionRate: 0.0  }
+        hard:   { comboRate: 0.9,  focusFire: true,  manaPlan: true,  defense: true,  skillUseRate: 0.95, mistakeRate: 0.02, skipActionRate: 0.0  },
+        master: { comboRate: 1.0,  focusFire: true,  manaPlan: true,  defense: true,  skillUseRate: 1.0,  mistakeRate: 0,    skipActionRate: 0.0,  predict: true }  // 大师：全参数拉满 + 敌方反击预判
     };
     function aiCfg() { return AI_DIFFICULTY_CONFIG[aiDifficulty] || AI_DIFFICULTY_CONFIG.normal; }
+    function aiIsMaster() { return aiDifficulty === 'master'; }
 
     // AI 计算卡牌费用（含国王征税、狂战士等修正）
     function aiGetCardCost(side, card) {
@@ -518,6 +520,13 @@
                 }
             }
 
+            // ── 大师预判：评估此位置下回合受敌方反击伤害，脆弱关键单位避开火力 ──
+            if (aiIsMaster() && (card.life <= 4 || ["费机", "武器商", "国王", "参谋", "调酒师"].includes(card.name))) {
+                const incoming = aiMasterPredictIncomingDamage({ ...card, side }, row, col);
+                if (incoming >= card.life) score -= 40;      // 会被集火击杀的位置
+                else if (incoming > 0) score -= incoming * 5; // 受火力按伤害减分
+            }
+
             // ── 武器商combo：优先放在已有三刀/双刀同格 ──
             if (card.name === "武器商") {
                 const allies = getUnitsAt(row, col).filter(u => u.side === side);
@@ -585,6 +594,42 @@
             dmg = Math.max(0, dmg - target.magicShieldValue);
         }
         return dmg;
+    }
+
+    // ========== 大师难度：敌方反击预判系统 ==========
+    // 预测某单位若位于 (row,col)，下回合敌方所有能打到它的单位造成的总伤害
+    function aiMasterPredictIncomingDamage(unit, row, col) {
+        let total = 0;
+        const enemies = gameState.units.filter(u => u.side !== unit.side && u.life > 0 && !u.isMirror);
+        for (let e of enemies) {
+            const dist = Math.abs(e.row - row) + Math.abs(e.col - col);
+            // 当前能攻击到（含剩余攻击次数）
+            if ((e.attacksLeftThisTurn || 0) > 0 && dist <= (e.range || 1)) {
+                total += aiEstimateDamage(e, unit) * Math.min(e.attacksLeftThisTurn, 2);
+                continue;
+            }
+            // 敌方未行动（本回合没打过的）：下回合可移动1格再攻击
+            if (e.moved !== true && dist <= (e.range || 1) + 1) {
+                total += aiEstimateDamage(e, unit);
+            }
+        }
+        return total;
+    }
+
+    // 大师：攻击某目标后，敌方对我方单位的反击伤害（用于评估交换是否划算）
+    function aiMasterTradeEvaluation(unit, target) {
+        // 击杀目标则无反击；否则预测目标单位反击
+        if (aiEstimateDamage(unit, target) >= target.life) return { kill: true, incoming: 0, net: Infinity };
+        let incoming = 0;
+        if ((target.attacksLeftThisTurn || 0) > 0) {
+            incoming += aiEstimateDamage(target, unit) * Math.min(target.attacksLeftThisTurn, 2);
+        } else if (target.moved !== true) {
+            // 目标还没动过：下回合可能移动后反击
+            const dist = Math.abs(target.row - unit.row) + Math.abs(target.col - unit.col);
+            if (dist <= (target.range || 1) + 1) incoming += aiEstimateDamage(target, unit);
+        }
+        const dealt = aiEstimateDamage(unit, target);
+        return { kill: false, incoming, dealt, net: dealt - incoming };
     }
 
     // ========== AI 尝试攻击（升级版）==========
@@ -729,8 +774,24 @@
         if (taunted && taunted.side !== side) enemies = [taunted];
 
         // ── 使用升级版目标选择 ──
-        const target = aiSelectAttackTarget(unit, enemies);
+        let target = aiSelectAttackTarget(unit, enemies);
         if (!target) return false;
+
+        // ── 大师预判：交换评估（攻击后自己被反击的伤害 > 造成的伤害且无法击杀 → 换更安全目标） ──
+        if (aiIsMaster()) {
+            const trade = aiMasterTradeEvaluation(unit, target);
+            if (!trade.kill && trade.incoming > 0 && trade.dealt < trade.incoming && unit.life - trade.incoming <= 0) {
+                // 这次攻击会让自己被反杀且不划算：找净收益更好的目标
+                let bestAlt = null, bestNet = -Infinity;
+                for (let e of enemies) {
+                    if (e.id === target.id) continue;
+                    const t2 = aiMasterTradeEvaluation(unit, e);
+                    const net = t2.kill ? 1000 : t2.dealt - t2.incoming;
+                    if (net > bestNet) { bestNet = net; bestAlt = e; }
+                }
+                if (bestAlt && bestNet > trade.dealt - trade.incoming) target = bestAlt;
+            }
+        }
 
         // 简单难度随机跳过
         const cfg = aiCfg();
@@ -789,7 +850,7 @@
                 // 机车党：前方有敌方也主动走进（触发碰撞伤害）
                 const canEnter = unit.cardName === "机车党" ? canAddUnit(tr, unit.col, side) : (!hasEnemy && canAddUnit(tr, unit.col, side));
                 if (canEnter) {
-                    // 悬赏单位自保：hard 下不前移到会被击杀的格子（送对方赏金）
+                    // 悬赏单位自保：hard/master 下不前移到会被击杀的格子（送对方赏金）
                     if (cfg.defense && (unit.bountyLevel || 0) >= 2) {
                         const lethalAfterMove = gameState.units.some(u =>
                             u.side !== side && u.life > 0 && u.attacksLeftThisTurn > 0 &&
@@ -797,6 +858,23 @@
                             aiEstimateDamage(u, unit) >= unit.life
                         );
                         if (lethalAfterMove) return false;
+                    }
+                    // 大师预判：所有单位移动前评估敌方反击，若会被集火击杀且无击杀收益则不动
+                    if (aiIsMaster()) {
+                        const incoming = aiMasterPredictIncomingDamage(unit, tr, unit.col);
+                        if (incoming >= unit.life && unit.dmgValue < 3) {
+                            // 低攻单位不值得冒死推进；高攻单位可牺牲换伤（由交换评估决定）
+                            return false;
+                        }
+                        // 躲避敌方骑士秒杀：高价值单位不走进敌方骑士正前方
+                        if ((unit.dmgValue >= 5 || (unit.bountyLevel || 0) >= 2 || ["费机", "武器商", "国王", "参谋"].includes(unit.cardName))) {
+                            const enemyKnightFront = gameState.units.some(u =>
+                                u.side !== side && u.life > 0 && u.cardName === "骑士" && !u.knightSkillUsed &&
+                                Math.abs(u.row - tr) === 1 && u.col === unit.col &&
+                                ((side === 0 && tr === u.row + 1) || (side === 1 && tr === u.row - 1))
+                            );
+                            if (enemyKnightFront) return false;
+                        }
                     }
                     if (aiDifficulty === 'easy' && Math.random() < cfg.skipActionRate) return false;
                     if (await tryMoveUnit(unit, tr, unit.col)) return true;
@@ -941,7 +1019,7 @@
         // 简单/普通跳过过于复杂的技能，困难难度允许使用
         const skipSkills = ['slaveTransform', 'jinWeiDisable', 'cupidCharm', 'singerSwap', 'superMaleSkill', 'scapegoatTransfer', 'counterBrace', 'shadowFan', 'shadowKick', 'mirrorSpawn', 'hephaestusBlock', 'assimilate', 'riluoRelease', 'riluoDash'];
         if (sk === 'zhongyiHeal' && aiDifficulty === 'easy') return false;  // 简单不会用治疗
-        if (skipSkills.includes(sk) && aiDifficulty !== 'hard') return false;
+        if (skipSkills.includes(sk) && aiDifficulty !== 'hard' && aiDifficulty !== 'master') return false;
 
         // 基本目标检查
         const enemyAlive = gameState.units.filter(u => u.side !== side && u.life > 0);
