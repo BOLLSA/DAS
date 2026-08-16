@@ -505,6 +505,8 @@
             }
         }
         for (let u of [...gameState.units]) if (u.side === side) {
+            // 游戏已重置防护：蓄力结算可能触发 showRecapPanel→startGame（旧快照单位不在新局），立即终止避免操作新局状态
+            if (!gameState.units.includes(u)) break;
             let chargeResolved = false;
             if (u.isCharging) { chargeResolved = true; if (u.cardName === "弩手") await resolveCrossbowCharge(u); else await resolveAxemanCharge(u); }
             if (u.superCharging) { chargeResolved = true; await resolveHeavyAxemanCharge(u); }

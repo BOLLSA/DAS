@@ -88,6 +88,7 @@
         // 镜像幽灵无悬赏（bountyLevel 恒 0）；复活甲拦截/猫九命复活路径不经过此处（拦截时未 splice）
         grantBountyOnRemoval(unit);
         processingDeathIds.add(unitId);
+        try {
         gameState.units.splice(idx, 1);
         // 同化者被移除：共享池和上限-3（放在 splice 之后，避免 killAllAssimilators 递归时旧下标二次 splice）
         if (unit.isAssimilator && !unit._assimilatorCleanup) {
@@ -118,7 +119,9 @@
         }
         triggerDeathPassive(unit, deathRow, deathCol, deathSide);
         triggerPlagueDeath(unit, deathRow, deathCol);
-        processingDeathIds.delete(unitId);
+        } finally {
+        processingDeathIds.delete(unitId);  // finally：任何异常/return 都保证释放防递归标记
+        }
         for (let u of gameState.units) {
             if (u.isCharging && u.chargeTargetId === unitId) {
                 u.isCharging = false;

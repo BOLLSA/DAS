@@ -1031,6 +1031,8 @@
     // ========== 对局复盘面板 ==========
     // 游戏结束后展示完整复盘：统计、AI点评、MVP、关键事件
     async function showRecapPanel(winnerSide) {
+        // 防重入：复盘面板已显示时忽略重复调用（避免多路径（攻击本体/蓄力）叠加）
+        if (document.querySelector('.recap-overlay')) return;
         const stats = gameState.matchStats || {};
         const events = gameState.matchEvents || [];
         const sideName = s => s === 0 ? '蓝方' : '红方';
