@@ -88,6 +88,14 @@
                     const forward = getForwardDelta(caster.side);
                     const d = (unit.row - caster.row) * forward;
                     if (unit.col !== caster.col || d <= 0 || d > 3 || unit.isMirror || unit.life <= 0) return false;
+                    // 飞扇只能攻击「最近的敌人」：同列前方距离3内的最小距离；同一距离（同格多个）均可选
+                    const sameColEnemies = gameState.units.filter(u =>
+                        u.side !== caster.side && u.life > 0 && !u.isMirror && u.col === caster.col &&
+                        (u.row - caster.row) * forward > 0 && (u.row - caster.row) * forward <= 3
+                    );
+                    if (sameColEnemies.length === 0) return false;
+                    const minD = Math.min(...sameColEnemies.map(u => (u.row - caster.row) * forward));
+                    if (d !== minD) return false;
                 }
             }
 
@@ -310,6 +318,14 @@
                 const forward = getForwardDelta(caster.side);
                 const d = (u.row - caster.row) * forward;
                 if (u.col !== caster.col || d <= 0 || d > 3 || u.isMirror || u.life <= 0 || u.absoluteImmunityTurns > 0) { showToast(`飞扇只能攻击正前方同列距离3内的敌人`); return; }
+                // 飞扇只能攻击「最近的敌人」（同格多个均可选）
+                const sameColEnemies = gameState.units.filter(x =>
+                    x.side !== caster.side && x.life > 0 && !x.isMirror && x.col === caster.col &&
+                    (x.row - caster.row) * forward > 0 && (x.row - caster.row) * forward <= 3
+                );
+                if (sameColEnemies.length === 0) { showToast(`前方同列没有可攻击的敌人`); return; }
+                const minD = Math.min(...sameColEnemies.map(x => (x.row - caster.row) * forward));
+                if (d !== minD) { showToast(`飞扇只能攻击最近的敌人（距离${minD}格）`); return; }
             }
         }
 

@@ -127,7 +127,7 @@
 
         // --- 控制/弱化 ---
         weakener: { id: "weakener", name: "弱化师", grade: 2, cost: 2, life: 3, dmgType: "⚔️", dmgValue: 0, range: 1, speed: 1,
-          passive: "", desc: "技能：使本行一敌下个敌方回合造成的伤害无效，每回合1次", onDeathPassive: null,
+          passive: "", desc: "技能：使本列一敌下个敌方回合造成的伤害无效，每回合1次", onDeathPassive: null,
           skill: "weakenerSkill", skillTargetType: "enemy", skillDesc: "弱化" }, // 机制：控制/弱化
 
         // --- 控制/致盲 ---
@@ -329,7 +329,7 @@
 
         // --- 转移/真伤 ---
         wizard: { id: "wizard", name: "巫师", grade: 3, cost: 1, life: 3, dmgType: "🔮", dmgValue: 1, range: 1, speed: 1,
-          passive: "", desc: "攻击命中后可将伤害转移到场上任一单位且不可抵挡", onDeathPassive: null,
+          passive: "", desc: "攻击命中后可将伤害转移到敌方场上任一单位且不可抵挡", onDeathPassive: null,
           skill: null, skillTargetType: null, skillDesc: "" }, // 机制：伤害转移/真伤
 
         // --- 光环/增伤减伤 ---

@@ -1081,8 +1081,8 @@
                 const forward = getForwardDelta(u.side);
                 const rowDiff = (unit.row - u.row) * forward;
                 if (rowDiff > 0 && rowDiff <= 2 && unit.col === u.col) {
-                    // 爱妃光环只给法伤英雄加伤害
-                    if (isAttacking && unit.dmgType === "🔮" && damageType === "🔮") auraBonus += 1;
+                    // 爱妃光环：前方两格内友方普攻/法伤+1（卡牌描述：物伤法伤都+1），受到的法术伤害-1
+                    if (isAttacking && damageType === unit.dmgType) auraBonus += 1;
                     else if (!isAttacking && damageType === "🔮") auraReduce += 1;
                 }
             }

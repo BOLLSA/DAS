@@ -1035,6 +1035,11 @@
         for (const t of targets) {
             switch (effect.type) {
                 case "damage": {
+                    // 酒鬼被动「免疫饮酒debuff」：调酒师的送酒不造成伤害（buff 仍生效）
+                    if (t.cardName === "酒鬼" && (effect.sourceName === "调酒师" || caster.cardName === "调酒师")) {
+                        addLog(`🍺 ${t.cardName} 免疫饮酒伤害（送酒只加buff不扣血）`);
+                        break;
+                    }
                     const source = { dmgType: effect.dmgType || caster.dmgType, cardName: effect.sourceName || caster.cardName, side: caster.side, id: caster.id, fromSkill: true };
                     await applyDamageWithSource(t, effect.value, source, effect.unblockable || false, effect.dmgType);
                     break;
