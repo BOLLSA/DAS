@@ -884,8 +884,7 @@
                     }
                     if (aiDifficulty === 'easy' && Math.random() < cfg.skipActionRate) return false;
                     if (aiGameId !== myGameId) return false;
-                            if (aiGameId !== myGameId) return false;
-                            if (await tryMoveUnit(unit, tr, unit.col)) return true;
+                    if (await tryMoveUnit(unit, tr, unit.col)) return true;
                 }
             }
         }
@@ -912,15 +911,13 @@
                     if (unit.cardName !== "机车党") continue;
                     if (canAddUnit(r, c, side)) {
                         if (aiGameId !== myGameId) return false;
-                            if (aiGameId !== myGameId) return false;
-                            if (await tryMoveUnit(unit, r, c)) return true;
+                        if (await tryMoveUnit(unit, r, c)) return true;
                     }
                     continue;
                 }
                 if (canAddUnit(r, c, side)) {
                     if (aiGameId !== myGameId) return false;
-                            if (aiGameId !== myGameId) return false;
-                            if (await tryMoveUnit(unit, r, c)) return true;
+                    if (await tryMoveUnit(unit, r, c)) return true;
                 }
             }
         }
