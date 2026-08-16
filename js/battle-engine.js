@@ -718,6 +718,11 @@
             }
             return;
         }
+        // 纱琳定身增伤：加入伤害总量后再结算护盾（护盾吸收含增伤，护盾恰好挡满基础伤害时增伤仍生效）
+        if (actualTarget.shaLinBindTurn > 0) {
+            amount += 1;
+            addLog(`🪞 ${actualTarget.cardName} 被纱琳定身，受到的伤害+1`);
+        }
         // ── 反击兵蓄势护盾：优先吸收，每吸收1点 → counterBonus+1 ──
         if ((target.braceShield || 0) > 0 && !isUnblockable) {
             const absorbed = Math.min(target.braceShield, amount);
@@ -823,11 +828,6 @@
         if (actualTarget.flagBearerProtectTurn > 0 && effectiveDmgType === "⚔️") {
             addLog(`🚩 旗手庇护：${actualTarget.cardName} 免疫物伤！`);
             return;
-        }
-        // 纱琳定身增伤（必须在替罪羊检查之前，否则增伤后可能致命但替罪羊不触发）
-        if (actualTarget.shaLinBindTurn > 0) {
-            amount += 1;
-            addLog(`🪞 ${actualTarget.cardName} 被纱琳定身，受到的伤害+1`);
         }
         // 麻木者被动：每次受伤只减1点生命（必须在替罪羊检查之前，否则减伤后不致命但替罪羊错误替死）
         if (actualTarget.cardName === "麻木者" && amount > 1) {
