@@ -903,6 +903,9 @@
             }
         }
         if (actualTarget.life <= 0) {
+            // 防重入：同一伤害链中雷刃/断脊等递归伤害会二次进入本块（目标已死），击杀奖励只结算一次
+            if (actualTarget._killRewardDone) { if (source) lastDamageDealer = null; return; }
+            actualTarget._killRewardDone = true;
             // 设置击杀归属（用于removeUnit中的unitKills追踪）
             if (source) lastDamageDealer = { name: source.cardName, side: source.side };
             if (actualTarget.isAssimilator) {

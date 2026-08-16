@@ -552,6 +552,7 @@
                 u.silenced = 0;
                 u.eagleEyeTurns = 0;
                 u.weakenedTurns = 0;
+                u._killRewardDone = false;  // 击杀奖励防重入标记：复活后重置（复活甲拦截时已置位）
                 u.shieldValue = 0;
                 u.nativeShieldValue = 0;
                 u.externalShieldSources = {};
