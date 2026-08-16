@@ -600,10 +600,10 @@
                 u.eagleEyeTargets = [];
                 u.windSkillUsed = false;
                 u.cupidUseCount = 0;
-                u.xishiBindTurn = 0;
-                u.xishiBindRow = -1;
-                u.xishiBindCol = -1;
-                u.xishiUseCount = 0;
+                u.shaLinBindTurn = 0;
+                u.shaLinBindRow = -1;
+                u.shaLinBindCol = -1;
+                u.shaLinUseCount = 0;
                 u.zhongyiHealUsed = false;
                 u.scapegoatUsed = false;
                 u.scapegoatProtectorId = null;

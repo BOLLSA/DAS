@@ -344,7 +344,7 @@
             isSweepCharging: false, hornRecoveryTurns: 0, hornPendingHeal: 0,
             shieldValue: 0, nativeShieldValue: 0, externalShieldSources: {}, absoluteImmunityTurns: 0, reviveTimesLeft: 0,
             extraAttacks: (card.extraAttacks || 0), attacksLeftThisTurn: 0, weakenedEnemies: [], eagleEyeTargets: [], windSkillUsed: false,
-            cupidPair: null, cupidUseCount: 0, xishiBindTurn: 0, xishiBindRow: -1, xishiBindCol: -1, xishiUseCount: 0,
+            cupidPair: null, cupidUseCount: 0, shaLinBindTurn: 0, shaLinBindRow: -1, shaLinBindCol: -1, shaLinUseCount: 0,
             zhongyiHealUsed: false, scapegoatUsed: false, scapegoatProtectorId: null, feijiBonusGiven: 0, feizheBonusGiven: 0,
             flagBearerProtectTurn: 0, witchProtectReduce: 0, witchProtectorId: null, plagueInfected: false, plagueOwnerSide: null,
             bartenderUseCount: 0, drunkardInvincibleUsed: false, spearmanCharges: 0, braceActive: false, braceShield: 0,
@@ -1080,10 +1080,10 @@
                 title: '武器商协作',
                 desc: (g) => `武器商提供 <b>${g.count}</b> 次攻速加持，让友军化身战场绞肉机，形成压制性火力网！`
             },
-            xishi_lockdown: {
+            shaLin_lockdown: {
                 icon: '🪞',
-                title: '西施封路',
-                desc: (g) => `西施施放 <b>${g.count}</b> 次精妙定身，封锁敌方走位并额外增伤，完美掌控战场节奏！`
+                title: '纱琳封路',
+                desc: (g) => `纱琳施放 <b>${g.count}</b> 次精妙定身，封锁敌方走位并额外增伤，完美掌控战场节奏！`
             },
             wrestler_throw: {
                 icon: '💪',
@@ -1145,10 +1145,10 @@
                 title: '行动干扰',
                 desc: (g) => `书呆子启动 <b>${g.count}</b> 次行动干扰，打乱敌方攻击节奏，让对手的计划化为泡影！`
             },
-            jinyiwei_disable: {
+            jinwei_disable: {
                 icon: '🎴',
-                title: '锦衣卫封牌',
-                desc: (g) => `锦衣卫 <b>${g.count}</b> 次禁用敌方手牌，切断对手的战术选择，从信息层面压制对手！`
+                title: '禁卫封牌',
+                desc: (g) => `禁卫 <b>${g.count}</b> 次禁用敌方手牌，切断对手的战术选择，从信息层面压制对手！`
             },
             stun: {
                 icon: '💫',
@@ -1211,11 +1211,11 @@
         // 战术事件的图标映射
         const TACTIC_ICONS = {
             knight_execute: '⚔️', zhanyue_execute: '🗡️', weaponsmith_buff: '🛠️',
-            xishi_lockdown: '🪞', wrestler_throw: '💪', pull: '🧲',
+            shaLin_lockdown: '🪞', wrestler_throw: '💪', pull: '🧲',
             cupid_bind: '💘', scapegoat_save: '🐑', shield_block: '🛡️',
             absolute_immunity: '✨', drummer_buff: '🥁', alcohol_boost: '🍺',
             critical_hit: '💥', plague_spread: '🦠', revive: '🔄',
-            nerd_jam: '🤖', jinyiwei_disable: '🎴', stun: '💫',
+            nerd_jam: '🤖', jinwei_disable: '🎴', stun: '💫',
             sweep_charge: '🌀', blood_dance_kill: '🩸', hunger_kill: '🍽️',
             guard_substitute: '🤝', aifei_aura: '👑', flag_bearer: '🚩'
         };

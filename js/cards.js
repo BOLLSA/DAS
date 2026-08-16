@@ -39,12 +39,12 @@
           skill: "cupidCharm", skillTargetType: "enemy", skillDesc: "共生死" }, // 机制：共生死
 
         // --- 控制/定身 ---
-        xishi: { id: "xishi", name: "西施", grade: 1, cost: 3, life: 3, dmgType: "🔮", dmgValue: 2, range: 1, speed: 1,
+        shaLin: { id: "shaLin", name: "纱琳", grade: 1, cost: 3, life: 3, dmgType: "🔮", dmgValue: 2, range: 1, speed: 1,
           passive: "", desc: "技能：选中全场任一格，将此刻处于格子中的敌人定身至下个我方回合结束，期间被定身敌人受到的物伤法伤+1，仅限两次，冷却2大回合", onDeathPassive: null,
-          skill: "xishiBind", skillTargetType: "self", skillDesc: "定身" }, // 机制：定身/增伤
+          skill: "shaLinBind", skillTargetType: "self", skillDesc: "定身" }, // 机制：定身/增伤
 
         // --- 光环/自由移动 ---
-        strategist: { id: "strategist", name: "军师", grade: 1, cost: 2, life: 3, dmgType: "🔮", dmgValue: 1, range: 1, speed: 1,
+        canMou: { id: "canMou", name: "参谋", grade: 1, cost: 2, life: 3, dmgType: "🔮", dmgValue: 1, range: 1, speed: 1,
           passive: "友方可自由移动", desc: "在场时所有友方可以自由向前后左右移动（不再只能向前）", onDeathPassive: null,
           skill: null, skillTargetType: null, skillDesc: "" }, // 机制：光环/自由移动
 
@@ -59,8 +59,8 @@
           skill: null, skillTargetType: null, skillDesc: "" }, // 机制：要塞/不可移动
 
         // --- 加费/征税 ---
-        emperor: { id: "emperor", name: "皇帝", grade: 1, cost: 4, life: 3, dmgType: "⚔️", dmgValue: 1, range: 1, speed: 1,
-          passive: "征税", desc: "若一个大回合内皇帝未受伤，下个大回合己方手牌费用-1；若受伤则+1。不叠加，不下于0", onDeathPassive: null,
+        king: { id: "king", name: "国王", grade: 1, cost: 4, life: 3, dmgType: "⚔️", dmgValue: 1, range: 1, speed: 1,
+          passive: "征税", desc: "若一个大回合内国王未受伤，下个大回合己方手牌费用-1；若受伤则+1。不叠加，不下于0", onDeathPassive: null,
           skill: null, skillTargetType: null, skillDesc: "" }, // 机制：加费/征税
 
         // --- 标记/斩杀 ---
@@ -141,9 +141,9 @@
           skill: "zhongyiHeal", skillTargetType: "friendly", skillDesc: "治疗" }, // 机制：治疗
 
         // --- 瞬移/护盾 ---
-        sevenTwo: { id: "sevenTwo", name: "72", grade: 2, cost: 2, life: 5, dmgType: "⚔️", dmgValue: 0, range: 0, speed: 1,
+        huYuanBing: { id: "huYuanBing", name: "护援兵", grade: 2, cost: 2, life: 5, dmgType: "⚔️", dmgValue: 0, range: 0, speed: 1,
           passive: "不占位置", desc: "不占用位置，可走进已满员的格子（不可与敌方重叠）；技能：移至任意一格并对该格友方和自己+2护盾，冷却2大回合", onDeathPassive: null,
-          skill: "sevenTwoTeleport", skillTargetType: "self", skillDesc: "瞬移+护盾" }, // 机制：瞬移/超限/护盾
+          skill: "huYuanBingTeleport", skillTargetType: "self", skillDesc: "瞬移+护盾" }, // 机制：瞬移/超限/护盾
 
         // --- 自由移动/碰撞/蓄力 ---
         motorcyclist: { id: "motorcyclist", name: "机车党", grade: 2, cost: 2, life: 3, dmgType: "⚔️", dmgValue: 0, range: 1, speed: 1,
@@ -221,7 +221,7 @@
           skill: "witchBuff", skillTargetType: "friendly", skillDesc: "法伤庇护" }, // 机制：法伤减免/庇护
 
         // --- 击杀成长 ---
-        hungry: { id: "hungry", name: "饿饿", grade: 2, cost: 2, life: 4, dmgType: "⚔️", dmgValue: 1, range: 1, speed: 1,
+        baoShiZhe: { id: "baoShiZhe", name: "暴食者", grade: 2, cost: 2, life: 4, dmgType: "⚔️", dmgValue: 1, range: 1, speed: 1,
           passive: "击杀回血+增伤", desc: "每击杀一个敌方单位，自身生命回满且物伤永久+1", onDeathPassive: null,
           skill: null, skillTargetType: null, skillDesc: "" }, // 机制：击杀回血/成长
 
@@ -328,7 +328,7 @@
           skill: "slaveTransform", skillTargetType: "self", skillDesc: "消耗三张奴隶变形" }, // 机制：变形/消耗手牌
 
         // --- 转移/真伤 ---
-        egg: { id: "egg", name: "卤蛋", grade: 3, cost: 1, life: 3, dmgType: "🔮", dmgValue: 1, range: 1, speed: 1,
+        wizard: { id: "wizard", name: "巫师", grade: 3, cost: 1, life: 3, dmgType: "🔮", dmgValue: 1, range: 1, speed: 1,
           passive: "", desc: "攻击命中后可将伤害转移到场上任一单位且不可抵挡", onDeathPassive: null,
           skill: null, skillTargetType: null, skillDesc: "" }, // 机制：伤害转移/真伤
 
@@ -338,9 +338,9 @@
           skill: null, skillTargetType: null, skillDesc: "" }, // 机制：光环/增伤/减伤
 
         // --- 手牌控制 ---
-        jinYiWei: { id: "jinYiWei", name: "锦衣卫", grade: 3, cost: 2, life: 3, dmgType: "⚔️", dmgValue: 1, range: 1, speed: 1,
+        jinWei: { id: "jinWei", name: "禁卫", grade: 3, cost: 2, life: 3, dmgType: "⚔️", dmgValue: 1, range: 1, speed: 1,
           passive: "", desc: "技能：禁用对方的一张手牌（不能放置，可以弃牌），持续1大回合", onDeathPassive: null,
-          skill: "jinYiWeiDisable", skillTargetType: "enemy", skillDesc: "禁用对手手牌" }, // 机制：手牌控制/禁用
+          skill: "jinWeiDisable", skillTargetType: "enemy", skillDesc: "禁用对手手牌" }, // 机制：手牌控制/禁用
 
         // --- 击退/位移 ---
         windSoldier: { id: "windSoldier", name: "风兵", grade: 3, cost: 1, life: 2, dmgType: "⚔️", dmgValue: 1, range: 1, speed: 1,
@@ -383,7 +383,7 @@
           skill: "nerdJam", skillTargetType: "none", skillDesc: "行动干扰（每回合一次）" }, // 机制：干扰/无效化
 
         // --- 九宫格AOE ---
-        crying: { id: "crying", name: "哭哭", grade: 3, cost: 1, life: 3, dmgType: "🔮", dmgValue: 1, range: 1, speed: 1,
+        xuanFuRen: { id: "xuanFuRen", name: "旋斧人", grade: 3, cost: 1, life: 3, dmgType: "🔮", dmgValue: 1, range: 1, speed: 1,
           passive: "九宫格AOE", desc: "普通攻击为所在格及周围九宫格（自身+周围8格）内所有敌人的AOE法伤", onDeathPassive: null,
           skill: null, skillTargetType: null, skillDesc: "" }, // 机制：AOE/九宫格
 

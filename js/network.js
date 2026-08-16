@@ -61,7 +61,7 @@
                     return (value || []).map(networkSlimCard);
                 }
                 if (key === 'matchEvents') return [];  // 复盘事件仅主机需要，剔除
-                if (key === 'isModalOpen') return false;  // 弹窗互斥锁是本地 UI 状态，跨端同步会挡住对方端弹窗（如卤蛋转移选择）
+                if (key === 'isModalOpen') return false;  // 弹窗互斥锁是本地 UI 状态，跨端同步会挡住对方端弹窗（如巫师转移选择）
                 return value;
             }
         );

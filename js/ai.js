@@ -27,14 +27,14 @@
     };
     function aiCfg() { return AI_DIFFICULTY_CONFIG[aiDifficulty] || AI_DIFFICULTY_CONFIG.normal; }
 
-    // AI 计算卡牌费用（含皇帝征税、狂战士等修正）
+    // AI 计算卡牌费用（含国王征税、狂战士等修正）
     function aiGetCardCost(side, card) {
         let cost = card.cost;
         if (card.name === "狂战士") {
             const enemyCount = gameState.units.filter(u => u.side !== side).length;
             if (card.life + enemyCount >= 5) cost = 2;
         }
-        cost = Math.max(0, cost + (gameState.emperorCostMod[side] || 0));
+        cost = Math.max(0, cost + (gameState.kingCostMod[side] || 0));
         return cost;
     }
 
@@ -60,8 +60,8 @@
         if (unit.cardName === "弩手" && unit.isCharging) score += 20;
         if (unit.cardName === "双剑" && unit.isSweepCharging) score += 30;   // 横扫蓄力
         if (unit.cardName === "戟兵" && unit.halberdierCharging) score += 25;
-        if (unit.cardName === "皇帝") score += 20;      // 皇帝征税
-        if (unit.cardName === "军师") score += 18;      // 军师给对方自由移动
+        if (unit.cardName === "国王") score += 20;      // 国王征税
+        if (unit.cardName === "参谋") score += 18;      // 参谋给对方自由移动
         if (unit.cardName === "血舞") score += 22;      // 远程连击
         if (unit.cardName === "公主") score += 28;      // 无限射程
         if (unit.cardName === "爱妃") score += 15;      // 光环增伤
@@ -81,7 +81,7 @@
 
         // ── 已被标记/定身的单位威胁降低 ──
         if (unit.stun > 0) score *= 0.3;               // 眩晕中威胁大减
-        if (unit.xishiBindTurn > 0) score *= 0.7;      // 被定身威胁降低
+        if (unit.shaLinBindTurn > 0) score *= 0.7;      // 被定身威胁降低
         if (unit.eagleEyeTurns > 0) score *= 0.5;      // 被致盲技能失效
 
         return Math.min(100, Math.max(0, score));
@@ -241,7 +241,7 @@
     function aiShouldProtect(unit, side) {
         if (!unit || unit.life <= 0) return false;
         // 关键单位才保护
-        const keyUnits = ["费机", "武器商", "皇帝", "军师", "调酒师", "鼓手"];
+        const keyUnits = ["费机", "武器商", "国王", "参谋", "调酒师", "鼓手"];
         if (!keyUnits.includes(unit.cardName)) return false;
         // 检查附近是否有能攻击到它的敌方单位
         const enemies = gameState.units.filter(u => u.side !== side && u.life > 0 && u.attacksLeftThisTurn > 0);
@@ -439,7 +439,7 @@
             const hasEnemy = gameState.units.some(u => u.row === row && u.col === col && u.side !== side && u.life > 0);
             const canPlaceOnEnemy = ["掠影", "影舞姬"].includes(card.name);
             if (hasEnemy && !canPlaceOnEnemy) continue;
-            if (card.name !== "72" && !canAddUnit(row, col, side)) continue;
+            if (card.name !== "护援兵" && !canAddUnit(row, col, side)) continue;
             if (row === enemyCastleRow && !canPlaceOnEnemy) continue;
 
             let score = 0;
@@ -472,7 +472,7 @@
                     else if (Math.abs(row - frontRow) <= 1) score += 5;
                 }
                 // 费机/武器商等辅助放城池行
-                if (["费机", "武器商", "皇帝", "军师"].includes(card.name)) {
+                if (["费机", "武器商", "国王", "参谋"].includes(card.name)) {
                     if (row === castleRow) score += 20;
                 }
             }
@@ -501,7 +501,7 @@
         if (attacker.nextAttackBonus > 0) dmg += attacker.nextAttackBonus;
         const { bonus } = applyAifeiAura(attacker, true, attacker.dmgType);
         if (bonus > 0) dmg += bonus;
-        if (target.xishiBindTurn > 0) dmg += 1;
+        if (target.shaLinBindTurn > 0) dmg += 1;
         if (target.cardName === "麻木者") dmg = 1;
         // ── 装备系统：来源单位装备效果 ──
         const atkEqId = attacker.equipmentId;
@@ -576,8 +576,8 @@
             recheckAllWeaponSmithBuffs();
             return true;
         }
-        // 哭哭：自身九宫格AOE
-        if (unit.cardName === "哭哭") {
+        // 旋斧人：自身九宫格AOE
+        if (unit.cardName === "旋斧人") {
             if (unit.attacksLeftThisTurn <= 0) return false;
             const ccellsEnemy = gameState.units.find(u => u.side !== unit.side && u.life > 0 && !u.isMirror && Math.abs(u.row - unit.row) <= 1 && Math.abs(u.col - unit.col) <= 1);
             if (!ccellsEnemy) return false;
@@ -691,14 +691,14 @@
         const forward = getForwardDelta(side);
         const cfg = aiCfg();
         if (unit.cardName === "军营" || unit.cardName === "稻草人") return false;
-        if (unit.xishiBindTurn > 0) return false;
+        if (unit.shaLinBindTurn > 0) return false;
 
         // ── 防守意识：如果关键单位受威胁，其他单位尝试挡位 ──
         if (cfg.defense && !unit.moved && (unit.movesLeftThisTurn || 0) > 0) {
             // 检查己方关键单位是否被威胁
             const keyAllies = gameState.units.filter(u =>
                 u.side === side && u.life > 0 && u.id !== unit.id &&
-                ["费机", "武器商", "皇帝", "军师"].includes(u.cardName)
+                ["费机", "武器商", "国王", "参谋"].includes(u.cardName)
             );
             for (let ally of keyAllies) {
                 if (!aiShouldProtect(ally, side)) continue;
@@ -731,8 +731,8 @@
                 }
             }
         }
-        // 军师在场或机车党：尝试其他方向
-        if (gameState.units.some(u => u.side === side && u.cardName === "军师" && u.life > 0) || unit.cardName === "机车党") {
+        // 参谋在场或机车党：尝试其他方向
+        if (gameState.units.some(u => u.side === side && u.cardName === "参谋" && u.life > 0) || unit.cardName === "机车党") {
             for (let [dr, dc] of [[-1,0],[1,0],[0,-1],[0,1]]) {
                 const r = unit.row + dr, c = unit.col + dc;
                 if (r < 0 || r > 4 || c < 0 || c > 2 || (r === unit.row && c === unit.col)) continue;
@@ -817,14 +817,14 @@
             for (let r = 0; r < 5; r++) for (let c = 0; c < 3; c++) {
                 const hasEnemy = gameState.units.some(u => u.row === r && u.col === c && u.side !== caster.side);
                 if (hasEnemy) continue;
-                if (!canAddUnit(r, c, caster.side) && caster.cardName !== "72") continue;
+                if (!canAddUnit(r, c, caster.side) && caster.cardName !== "护援兵") continue;
                 const minDist = Math.min(...enemies.map(e => Math.abs(e.row - r) + Math.abs(e.col - c)));
                 if (minDist < bestDist) { bestDist = minDist; best = {row: r, col: c}; }
             }
             return best;
         }
         if (filter === "any") {
-            // 西施定身：选有高威胁敌人的格子
+            // 纱琳定身：选有高威胁敌人的格子
             const enemies = gameState.units.filter(u => u.side !== caster.side && u.life > 0);
             if (enemies.length === 0) return null;
             // 选威胁最高的敌人所在格
@@ -852,7 +852,7 @@
 
         // ── 难度差异化跳过列表 ──
         // 简单/普通跳过过于复杂的技能，困难难度允许使用
-        const skipSkills = ['slaveTransform', 'jinYiWeiDisable', 'cupidCharm', 'singerSwap', 'superMaleSkill', 'scapegoatTransfer', 'counterBrace', 'shadowFan', 'shadowKick', 'mirrorSpawn', 'hephaestusBlock', 'assimilate', 'riluoRelease', 'riluoDash'];
+        const skipSkills = ['slaveTransform', 'jinWeiDisable', 'cupidCharm', 'singerSwap', 'superMaleSkill', 'scapegoatTransfer', 'counterBrace', 'shadowFan', 'shadowKick', 'mirrorSpawn', 'hephaestusBlock', 'assimilate', 'riluoRelease', 'riluoDash'];
         if (sk === 'zhongyiHeal' && aiDifficulty === 'easy') return false;  // 简单不会用治疗
         if (skipSkills.includes(sk) && aiDifficulty !== 'hard') return false;
 
@@ -1064,7 +1064,7 @@
                             // 找武器商所在格
                             const targetPos = { row: placedSmith.row, col: placedSmith.col };
                             // 检查能否放置
-                            if (canAddUnit(targetPos.row, targetPos.col, side) || secondCard.name === "72") {
+                            if (canAddUnit(targetPos.row, targetPos.col, side) || secondCard.name === "护援兵") {
                                 const idx2 = gameState.players[side].hand.indexOf(secondCard);
                                 if (idx2 >= 0) {
                                     gameState.selectedCardIdx = idx2;
@@ -1082,7 +1082,7 @@
                     if (smith) {
                         const card = combo.card;
                         const cost = aiGetCardCost(side, card);
-                        if (gameState.players[side].mana >= cost && (canAddUnit(smith.row, smith.col, side) || card.name === "72")) {
+                        if (gameState.players[side].mana >= cost && (canAddUnit(smith.row, smith.col, side) || card.name === "护援兵")) {
                             const idx = gameState.players[side].hand.indexOf(card);
                             if (idx >= 0) {
                                 gameState.selectedCardIdx = idx;

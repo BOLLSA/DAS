@@ -70,8 +70,8 @@
             showToast(`${unit.cardName} 本回合移动次数已用完`);
             return false;
         }
-        if (unit.xishiBindTurn > 0 && (targetRow !== unit.xishiBindRow || targetCol !== unit.xishiBindCol)) {
-            showToast(`🪞 ${unit.cardName} 被西施定身，无法离开该格！`);
+        if (unit.shaLinBindTurn > 0 && (targetRow !== unit.shaLinBindRow || targetCol !== unit.shaLinBindCol)) {
+            showToast(`🪞 ${unit.cardName} 被纱琳定身，无法离开该格！`);
             return false;
         }
         // 赫菲斯托斯方块：敌方不可走入 / 不可走出
@@ -82,9 +82,9 @@
             showToast(`处于敌方方块中，无法走出`); return false;
         }
         const forward = getForwardDelta(unit.side);
-        // 军师在场或机车党自身：可自由向前后左右移动
-        const hasStrategist = gameState.units.some(u => u.side === unit.side && u.cardName === "军师" && u.life > 0);
-        if (!hasStrategist && unit.cardName !== "机车党") {
+        // 参谋在场或机车党自身：可自由向前后左右移动
+        const hasCanMou = gameState.units.some(u => u.side === unit.side && u.cardName === "参谋" && u.life > 0);
+        if (!hasCanMou && unit.cardName !== "机车党") {
             if (targetRow !== unit.row + forward || targetCol !== unit.col) {
                 showToast(`只能向前移动一格`);
                 return false;
@@ -97,7 +97,7 @@
         }
         const hasNonLueyingEnemy = gameState.units.some(u => u.row === targetRow && u.col === targetCol && u.side !== unit.side && u.cardName !== "掠影" && u.cardName !== "影舞姬" && u.cardName !== "镜中人");
         if (hasNonLueyingEnemy && unit.cardName !== "掠影" && unit.cardName !== "影舞姬" && unit.cardName !== "镜中人" && unit.cardName !== "机车党") { showToast(`目标有敌方单位，请攻击`); return false; }
-        if (!canAddUnit(targetRow, targetCol, unit.side) && unit.cardName !== "72" && unit.cardName !== "镜中人") { showToast(`格子已满 (最多2个单位)`); return false; }
+        if (!canAddUnit(targetRow, targetCol, unit.side) && unit.cardName !== "护援兵" && unit.cardName !== "镜中人") { showToast(`格子已满 (最多2个单位)`); return false; }
         if (unit.side === SIDE_PLAYER0 && targetRow < 1) { showToast(`蓝方单位不能越过红方城下`); return false; }
         if (unit.side === SIDE_PLAYER1 && targetRow > 3) { showToast(`红方单位不能越过蓝方城下`); return false; }
         unit.row = targetRow;
@@ -136,7 +136,7 @@
         }
         // sendActionSync removed
         recheckAllWeaponSmithBuffs();
-        applyXishiCellBinding(unit);
+        applyShaLinCellBinding(unit);
         renderUI();
         return true;
     }
@@ -144,7 +144,7 @@
     // 绫罗回绫罗合法性检查：被定身/敌方城池/己方满员时无法回绫罗
     function canRiluoReturn(unit) {
         if (!unit || unit.cardName !== "绫罗" || !unit.riluoPlaced) return false;
-        if (unit.xishiBindTurn > 0) return false;
+        if (unit.shaLinBindTurn > 0) return false;
         if (unit.side === SIDE_PLAYER0 && unit.riluoRow === 0) return false;
         if (unit.side === SIDE_PLAYER1 && unit.riluoRow === 4) return false;
         if (gameState.units.some(u => u.row === unit.riluoRow && u.col === unit.riluoCol && u.side !== unit.side && u.life > 0)) return false;
@@ -161,7 +161,7 @@
         unit.riluoPlaced = false;
         unit.riluoRow = -1;
         unit.riluoCol = -1;
-        applyXishiCellBinding(unit);
+        applyShaLinCellBinding(unit);
         addLog(`🧵 ${unit.cardName} 回到绫罗处并拾起绫罗`);
         showToast(`🧵 回绫罗！`);
         renderUI();
@@ -178,7 +178,7 @@
         unit.riluoPlaced = false;
         unit.riluoRow = -1;
         unit.riluoCol = -1;
-        applyXishiCellBinding(unit);
+        applyShaLinCellBinding(unit);
         addLog(`🧵 ${unit.cardName} 受致命伤，绫罗护体，自动回到绫罗处`);
         showToast(`🧵 绫罗护体！`);
         renderUI();
@@ -206,20 +206,20 @@
             const isEnemyCastleRow = row === enemyCastleRow;
             if (row !== getOwnCastleRow(side) && (!isNearBarracks || isEnemyCastleRow)) { showToast(`只能在你方的城池行（${ROW_NAMES[getOwnCastleRow(side)]}）或军营周围放置，不可在敌方城池行放置`); gameState.selectedCardIdx = -1; renderUI(); return false; }
         }
-        if (card.disabled) { showToast(`此手牌已被锦衣卫禁用，无法放置`); gameState.selectedCardIdx = -1; renderUI(); return false; }
+        if (card.disabled) { showToast(`此手牌已被禁卫禁用，无法放置`); gameState.selectedCardIdx = -1; renderUI(); return false; }
         let cost = card.cost;
         if (card.name === "狂战士") {
             const enemyCount = gameState.units.filter(u => u.side !== side).length;
             let finalLife = card.life + enemyCount;
             if (finalLife >= 5) cost = 2;
         }
-        // 皇帝征税修正
-        cost = Math.max(0, cost + (gameState.emperorCostMod[side] || 0));
+        // 国王征税修正
+        cost = Math.max(0, cost + (gameState.kingCostMod[side] || 0));
         if (!infiniteManaEnabled && gameState.players[side].mana < cost) { showToast(`费用不足，需要 ${cost}`); gameState.selectedCardIdx = -1; renderUI(); return false; }
         const hasEnemy = gameState.units.some(u => u.row === row && u.col === col && u.side !== side);
         const canPlaceOnEnemy = ["掠影", "影舞姬", "镜中人"].includes(card.name);
         if (hasEnemy && !canPlaceOnEnemy) { showToast(`格子有敌方单位，无法放置`); gameState.selectedCardIdx = -1; renderUI(); return false; }
-        if (card.name !== "72" && card.name !== "镜中人" && !canAddUnit(row, col, side)) { showToast(`该格子已有两个我方单位`); gameState.selectedCardIdx = -1; renderUI(); return false; }
+        if (card.name !== "护援兵" && card.name !== "镜中人" && !canAddUnit(row, col, side)) { showToast(`该格子已有两个我方单位`); gameState.selectedCardIdx = -1; renderUI(); return false; }
         if (!infiniteManaEnabled) gameState.players[side].mana -= (cost);
         const newUnit = {
             id: Date.now() + Math.random(),
@@ -253,10 +253,10 @@
             windSkillUsed: false,
             cupidPair: null, // 共生死绑定：{ partnerId, partnerSide }
             cupidUseCount: 0, // 技能使用次数（最多2次）
-            xishiBindTurn: 0, // 定身剩余回合
-            xishiBindRow: -1, // 定身锁定行
-            xishiBindCol: -1, // 定身锁定列
-            xishiUseCount: 0,
+            shaLinBindTurn: 0, // 定身剩余回合
+            shaLinBindRow: -1, // 定身锁定行
+            shaLinBindCol: -1, // 定身锁定列
+            shaLinUseCount: 0,
             zhongyiHealUsed: false,
             scapegoatUsed: false,
             scapegoatProtectorId: null,
@@ -361,7 +361,7 @@
         }
         gameState.players[side].hand.splice(cardIndex, 1);
         // 检查是否放入定身格
-        applyXishiCellBinding(newUnit);
+        applyShaLinCellBinding(newUnit);
         addLog(`放置 ${card.name} 于 ${ROW_NAMES[row]}${COLS[col]}`);
         showToast(`✅ 召唤 ${card.name}`);
         if (card.name === "净化师") { purifyAllFriendly(side); }
@@ -385,13 +385,13 @@
     async function startTurn(side) {
         // 回合计数（用于复盘统计）
         if (gameState.matchStats) gameState.matchStats.turnCount++;
-        // 皇帝征税：先根据上个大回合的受伤记录计算本回合修正，再记录日志（保证日志与实际扣费一致）
-        const emperorAlive = gameState.units.some(u => u.side === side && u.cardName === "皇帝" && u.life > 0);
-        gameState.emperorCostMod[side] = emperorAlive ? (gameState.emperorDamagedCount[side] ? 1 : -1) : 0;
-        gameState.emperorDamagedCount[side] = false;
-        const emperorCostMod = gameState.emperorCostMod[side];
-        if (emperorCostMod !== 0) {
-            addLog(`👑 皇帝征税：本回合手牌费用${emperorCostMod > 0 ? '+' + emperorCostMod : emperorCostMod}`);
+        // 国王征税：先根据上个大回合的受伤记录计算本回合修正，再记录日志（保证日志与实际扣费一致）
+        const kingAlive = gameState.units.some(u => u.side === side && u.cardName === "国王" && u.life > 0);
+        gameState.kingCostMod[side] = kingAlive ? (gameState.kingDamagedCount[side] ? 1 : -1) : 0;
+        gameState.kingDamagedCount[side] = false;
+        const kingCostMod = gameState.kingCostMod[side];
+        if (kingCostMod !== 0) {
+            addLog(`👑 国王征税：本回合手牌费用${kingCostMod > 0 ? '+' + kingCostMod : kingCostMod}`);
         }
         // 重置本回合被攻击记录
         gameState.attackedEnemyIds = [];
@@ -496,7 +496,7 @@
                 if (f.stun > 0) { f.stun = 0; f.stunnedBy = null; cleared.push('眩晕'); }
                 if (f.eagleEyeTurns > 0) { f.eagleEyeTurns = 0; cleared.push('致盲'); }
                 if (f.silenced > 0) { f.silenced = 0; cleared.push('沉默'); }
-                if (f.xishiBindTurn > 0) { f.xishiBindTurn = 0; f.xishiBindRow = null; f.xishiBindCol = null; cleared.push('定身'); }
+                if (f.shaLinBindTurn > 0) { f.shaLinBindTurn = 0; f.shaLinBindRow = null; f.shaLinBindCol = null; cleared.push('定身'); }
                 if (f.weakenedTurns > 0) { f.weakenedTurns = 0; cleared.push('弱化'); }
                 if (f.plagueInfected) { f.plagueInfected = false; cleared.push('鼠疫'); }
                 if (cleared.length > 0) addLog(`${f.cardName} 被火人同列庇护，${cleared.join('、')}解除！`);
@@ -542,7 +542,7 @@
                 continue;
             }
             // 控制类（眩晕/定身/沉默）中断蓄力；位移不中断（位置改变蓄力继续）
-            if (u.stun > 0 || u.xishiBindTurn > 0 || u.silenced > 0) {
+            if (u.stun > 0 || u.shaLinBindTurn > 0 || u.silenced > 0) {
                 u.motCharging = false;
                 u.motChargeTurns = 0;
                 u.motReleaseTurn = false;
@@ -637,12 +637,12 @@
                 u.eagleEyeTargets = u.eagleEyeTargets.filter(t => t.expireTurn !== side);
                 if (u.eagleEyeTargets.length === 0) addLog(`鹰眼效果已到期`);
             }
-            // 西施定身递减
-            if (u.xishiBindTurn > 0) { u.xishiBindTurn--; if (u.xishiBindTurn === 0) addLog(`${u.cardName} 定身结束`); }
+            // 纱琳定身递减
+            if (u.shaLinBindTurn > 0) { u.shaLinBindTurn--; if (u.shaLinBindTurn === 0) addLog(`${u.cardName} 定身结束`); }
             // 旗手庇护递减
             if (u.flagBearerProtectTurn > 0) { u.flagBearerProtectTurn--; if (u.flagBearerProtectTurn === 0) addLog(`${u.cardName} 旗手庇护结束`); }
         }
-        // 锦衣卫手牌禁用递减（每小回合递减）
+        // 禁卫手牌禁用递减（每小回合递减）
         for (let p of gameState.players) {
             for (let c of p.hand) {
                 if (c.disabledTurns > 0) {
@@ -655,13 +655,13 @@
                 }
             }
         }
-        // 西施定身格子递减
-        for (let i = gameState.xishiBoundCells.length - 1; i >= 0; i--) {
-            const cell = gameState.xishiBoundCells[i];
+        // 纱琳定身格子递减
+        for (let i = gameState.shaLinBoundCells.length - 1; i >= 0; i--) {
+            const cell = gameState.shaLinBoundCells[i];
             cell.turnsLeft--;
             if (cell.turnsLeft <= 0) {
                 addLog(`🪞 ${ROW_NAMES[cell.row]}${COLS[cell.col]} 格定身效果消失`);
-                gameState.xishiBoundCells.splice(i, 1);
+                gameState.shaLinBoundCells.splice(i, 1);
             }
         }
         // 赫菲斯托斯方块递减

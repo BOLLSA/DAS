@@ -28,7 +28,7 @@
 //   addShield      - { type: "addShield", value, target: "sameCellFriendlies" }
 //   setScapegoat   - { type: "setScapegoat" }
 //   setCupidPair   - { type: "setCupidPair" }
-//   setXishiBind   - { type: "setXishiBind" }
+//   setShaLinBind   - { type: "setShaLinBind" }
 //   transform      - { type: "transform" }
 //   disableHandCard - { type: "disableHandCard" }
 //   startCharge    - { type: "startCharge", chargeType: "halberdier"|"dualsword" }
@@ -199,19 +199,19 @@
             desc: "位移至任一友方处",
             targetFilter: { excludeSelf: true },
             preCheck: (unit) => {
-                if (unit.xishiBindTurn > 0) { showToast(`🪞 ${unit.cardName} 被西施定身，无法位移！`); return false; }
+                if (unit.shaLinBindTurn > 0) { showToast(`🪞 ${unit.cardName} 被纱琳定身，无法位移！`); return false; }
                 return true;
             },
             effects: [
                 { type: "teleportToTarget" }
             ]
         },
-        sevenTwoTeleport: {
+        huYuanBingTeleport: {
             icon: "📡", label: "瞬移+护盾", targetType: "grid", cooldown: 4, selectMode: "grid",
             desc: "瞬移至任意格，同格友方+2护盾",
             gridFilter: "noEnemy",
             preCheck: (unit) => {
-                if (unit.xishiBindTurn > 0) { showToast(`🪞 ${unit.cardName} 被西施定身，无法瞬移！`); return false; }
+                if (unit.shaLinBindTurn > 0) { showToast(`🪞 ${unit.cardName} 被纱琳定身，无法瞬移！`); return false; }
                 return true;
             },
             effects: [
@@ -253,17 +253,17 @@
                 { type: "setCupidPair" }
             ]
         },
-        xishiBind: {
+        shaLinBind: {
             icon: "🪞", label: "定身", targetType: "grid", cooldown: 4, selectMode: "grid",
             desc: "定身格内敌人至下个我方回合（限2次）",
-            useCountField: "xishiUseCount", useCountMax: 2,
+            useCountField: "shaLinUseCount", useCountMax: 2,
             gridFilter: "any",
             preCheck: (unit) => {
-                if ((unit.xishiUseCount || 0) >= 2) { showToast(`西施技能已用完（最多2次）`); return false; }
+                if ((unit.shaLinUseCount || 0) >= 2) { showToast(`纱琳技能已用完（最多2次）`); return false; }
                 return true;
             },
             effects: [
-                { type: "setXishiBind" }
+                { type: "setShaLinBind" }
             ]
         },
 
@@ -408,7 +408,7 @@
                 { type: "transform" }
             ]
         },
-        jinYiWeiDisable: {
+        jinWeiDisable: {
             icon: "🔒", label: "禁用对手手牌", targetType: "none", cooldown: 0,
             desc: "禁用对手一张手牌（持续1大回合）",
             preCheck: (unit) => {
@@ -530,7 +530,7 @@
             preCheck: (unit) => {
                 if ((unit.kickCooldown || 0) > 0) { showToast(`旋风踢冷却中`); return false; }
                 if (unit.attacksLeftThisTurn <= 0) { showToast(`本回合已经攻击过，无法使用旋风踢`); return false; }
-                if (unit.xishiBindTurn > 0) { showToast(`🪞 ${unit.cardName} 被西施定身，无法位移！`); return false; }
+                if (unit.shaLinBindTurn > 0) { showToast(`🪞 ${unit.cardName} 被纱琳定身，无法位移！`); return false; }
                 return true;
             },
             effects: [
@@ -679,8 +679,8 @@
         if (target.superCharging) {
             addLog(`⚡⚡ ${target.cardName} 处于霸体状态，免疫位移！`); return true;
         }
-        if (target.xishiBindTurn > 0) {
-            addLog(`🪞 ${target.cardName} 被西施定身，免疫位移！`); return true;
+        if (target.shaLinBindTurn > 0) {
+            addLog(`🪞 ${target.cardName} 被纱琳定身，免疫位移！`); return true;
         }
         if (target.isSweepCharging) {
             addLog(`⚔️ ${target.cardName} 正在横扫蓄力，免疫位移！`); return true;
@@ -692,7 +692,7 @@
         if (!target || target.side === caster.side) return false;
         if (target.absoluteImmunityTurns > 0) return false;
         if (target.superCharging) return false;
-        if (target.xishiBindTurn > 0) return false;
+        if (target.shaLinBindTurn > 0) return false;
         if (target.isSweepCharging) return false;
         const moveDir = caster.side === SIDE_PLAYER0 ? 1 : -1;
         const newRow = target.row + moveDir;
@@ -765,7 +765,7 @@
             caster.row = gridRow;
             caster.col = gridCol;
             addLog(`🦵 ${caster.cardName} 旋风踢位移至 ${ROW_NAMES[gridRow]}${COLS[gridCol]}`);
-            applyXishiCellBinding(caster);
+            applyShaLinCellBinding(caster);
             const targets = gameState.units.filter(u => u.side !== caster.side && u.life > 0 && u.row === gridRow);
             for (let t of targets) {
                 const source = { cardName: caster.cardName, side: caster.side, dmgType: "🔮", id: caster.id, fromSkill: true };
@@ -824,7 +824,7 @@
             const gridRow = gameState.declarativeGridRow;
             const gridCol = gameState.declarativeGridCol;
             if (gridRow === null || gridCol === null) { showToast(`请选择位移位置`); return; }
-            if (caster.xishiBindTurn > 0) { showToast(`🪞 ${caster.cardName} 被西施定身，无法位移！`); return; }
+            if (caster.shaLinBindTurn > 0) { showToast(`🪞 ${caster.cardName} 被纱琳定身，无法位移！`); return; }
             if (caster.side === SIDE_PLAYER0 && gridRow === 0) { showToast(`不能进入敌方城池`); return; }
             if (caster.side === SIDE_PLAYER1 && gridRow === 4) { showToast(`不能进入敌方城池`); return; }
             if (gameState.units.some(u => u.row === gridRow && u.col === gridCol && u.side !== caster.side && u.life > 0)) { showToast(`目标格有敌方单位`); return; }
@@ -838,7 +838,7 @@
             caster.riluoReleaseCount = Math.max(0, (caster.riluoReleaseCount || 0) - 1);
             addLog(`💨 ${caster.cardName} 位移至 ${ROW_NAMES[gridRow]}${COLS[gridCol]}，绫罗留在原地`);
             showToast(`💨 位移留绫罗！`);
-            applyXishiCellBinding(caster);
+            applyShaLinCellBinding(caster);
             return;
         }
         if (effect.type === "setFlag") {
@@ -932,7 +932,7 @@
             targetCard.disabled = true;
             targetCard.disabledBy = caster.id;
             targetCard.disabledTurns = 2;
-            addLog(`锦衣卫禁用了对手的手牌 ${targetCard.name}，该牌不能放置（持续1大回合），但可以弃牌。`);
+            addLog(`禁卫禁用了对手的手牌 ${targetCard.name}，该牌不能放置（持续1大回合），但可以弃牌。`);
             showToast(`🔒 禁用 ${targetCard.name}`);
             return;
         }
@@ -1117,9 +1117,9 @@
                     t.silenced = 0;
                     t.eagleEyeTurns = 0;
                     t.weakenedTurns = 0;
-                    t.xishiBindTurn = 0;
-                    t.xishiBindRow = -1;
-                    t.xishiBindCol = -1;
+                    t.shaLinBindTurn = 0;
+                    t.shaLinBindRow = -1;
+                    t.shaLinBindCol = -1;
                     t.flagBearerProtectTurn = 0;
                     t.witchProtectReduce = 0;
                     t.noHeal = false;
@@ -1180,7 +1180,7 @@
                     } else {
                         t.row = newRow;
                     }
-                    applyXishiCellBinding(t);
+                    applyShaLinCellBinding(t);
                     break;
                 }
                 case "pullForward": {
@@ -1196,7 +1196,7 @@
                     t.row = newRow;
                     addLog(`${caster.cardName} 将 ${t.cardName} 从 ${ROW_NAMES[oldRow]} 拉到 ${ROW_NAMES[newRow]}！`);
                     showToast(`🧜‍♀️ ${caster.cardName} 拉拽 ${t.cardName}`);
-                    applyXishiCellBinding(t);
+                    applyShaLinCellBinding(t);
                     break;
                 }
                 case "pullToCaster": {
@@ -1206,7 +1206,7 @@
                     t.col = caster.col;
                     t.moved = true;
                     addLog(`  ${t.cardName} 被吸引至 (${ROW_NAMES[caster.row + forward]},${COLS[caster.col]})`);
-                    applyXishiCellBinding(t);
+                    applyShaLinCellBinding(t);
                     break;
                 }
                 case "moveToGrid": {
@@ -1222,7 +1222,7 @@
                     addLog(`🤠 ${caster.cardName} 将 ${t.cardName} 从 (${ROW_NAMES[oldRow]},${COLS[oldCol]}) 拉至 (${ROW_NAMES[gridRow]},${COLS[gridCol]})`);
                     showToast(`🤠 拉动 ${t.cardName}`);
                     t.displacedByAllySkillThisTurn = true;
-                    applyXishiCellBinding(t);
+                    applyShaLinCellBinding(t);
                     break;
                 }
                 case "swapPositions": {
@@ -1237,8 +1237,8 @@
                     showToast(`🎤 交换位置`);
                     first.displacedByAllySkillThisTurn = true;
                     t.displacedByAllySkillThisTurn = true;
-                    applyXishiCellBinding(first);
-                    applyXishiCellBinding(t);
+                    applyShaLinCellBinding(first);
+                    applyShaLinCellBinding(t);
                     break;
                 }
                 case "teleportToGrid": {
@@ -1249,11 +1249,11 @@
                     caster.row = gridRow;
                     caster.col = gridCol;
                     addLog(`72瞬移至 (${ROW_NAMES[gridRow]},${COLS[gridCol]})`);
-                    applyXishiCellBinding(caster);
+                    applyShaLinCellBinding(caster);
                     break;
                 }
                 case "teleportToTarget": {
-                    if (caster.xishiBindTurn > 0) { showToast(`🪞 ${caster.cardName} 被西施定身，无法位移！`); break; }
+                    if (caster.shaLinBindTurn > 0) { showToast(`🪞 ${caster.cardName} 被纱琳定身，无法位移！`); break; }
                     if (!canAddUnit(t.row, t.col, caster.side)) { showToast(`目标格已有2个我方单位，无法位移`); break; }
                     const oldRow = caster.row, oldCol = caster.col;
                     caster.row = t.row;
@@ -1262,14 +1262,14 @@
                     showToast(`📡 通讯员位移至友方`);
                     caster.moved = true;
                     caster.movesLeftThisTurn = 0;
-                    applyXishiCellBinding(caster);
+                    applyShaLinCellBinding(caster);
                     break;
                 }
                 case "addShield": {
                     if (!t.externalShieldSources) t.externalShieldSources = {};
                     const sourceId = String(caster.id);
                     const cur = t.externalShieldSources[sourceId] || 0;
-                    // 每个来源（每个72）独立上限 = effect.value（72 为 2），不同72可各自叠加
+                    // 每个来源（每个护援兵）独立上限 = effect.value（护援兵为 2），不同护援兵可各自叠加
                     t.externalShieldSources[sourceId] = Math.min(cur + effect.value, effect.value);
                     recalcShieldValue(t);
                     addLog(`${t.cardName} 获得来自 ${caster.cardName} 的外来护盾（当前总护盾${t.shieldValue}）`);
@@ -1292,28 +1292,28 @@
                     showToast(`💘 共生死绑定！`);
                     break;
                 }
-                case "setXishiBind": {
+                case "setShaLinBind": {
                     const gridRow = gameState.declarativeGridRow;
                     const gridCol = gameState.declarativeGridCol;
                     const cellTargets = gameState.units.filter(u => u.row === gridRow && u.col === gridCol && u.side !== caster.side);
                     let bound = 0;
                     for (let ct of cellTargets) {
                         if (isControlImmune(ct, { type: "stun" })) continue;
-                        ct.xishiBindTurn = 3;
-                        ct.xishiBindRow = gridRow;
-                        ct.xishiBindCol = gridCol;
+                        ct.shaLinBindTurn = 3;
+                        ct.shaLinBindRow = gridRow;
+                        ct.shaLinBindCol = gridCol;
                         bound++;
                         ct.displacedByAllySkillThisTurn = false;
                     }
-                    const existing = gameState.xishiBoundCells.find(c => c.row === gridRow && c.col === gridCol);
+                    const existing = gameState.shaLinBoundCells.find(c => c.row === gridRow && c.col === gridCol);
                     if (!existing) {
-                        gameState.xishiBoundCells.push({ row: gridRow, col: gridCol, turnsLeft: 4, side: caster.side });
+                        gameState.shaLinBoundCells.push({ row: gridRow, col: gridCol, turnsLeft: 4, side: caster.side });
                     } else {
                         existing.turnsLeft = 4;
                         existing.side = caster.side;
                     }
-                    if (bound === 0) { addLog(`🪞 西施对该格下咒，走入的敌人会被定身`); showToast(`🪞 该格被下咒！`); }
-                    else { addLog(`🪞 西施将 ${bound} 个敌人定身！下个敌方+我方回合内不能位移，受到物伤法伤+1`); showToast(`🪞 定身！`); }
+                    if (bound === 0) { addLog(`🪞 纱琳对该格下咒，走入的敌人会被定身`); showToast(`🪞 该格被下咒！`); }
+                    else { addLog(`🪞 纱琳将 ${bound} 个敌人定身！下个敌方+我方回合内不能位移，受到物伤法伤+1`); showToast(`🪞 定身！`); }
                     break;
                 }
                 case "knightKill": {

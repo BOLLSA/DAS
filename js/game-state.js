@@ -54,10 +54,10 @@
         dualswordAOEHighlight: null,
         attackedEnemyIds: [],
         killStreakMap: {},  // unitId -> {count, unitName, lifeSnapshot}
-        emperorDamagedCount: {0: false, 1: false},
-        emperorCostMod: {0: 0, 1: 0},
+        kingDamagedCount: {0: false, 1: false},
+        kingCostMod: {0: 0, 1: 0},
         zhanYueMarkedEnemyIds: [],
-        xishiBoundCells: [],  // {row, col, turnsLeft} 西施定身格子
+        shaLinBoundCells: [],  // {row, col, turnsLeft} 纱琳定身格子
         hephaestusBlocks: [],  // {row, col, turnsLeft, side} 赫菲斯托斯方块
         nerdJamPending: {0: false, 1: false},
         plagueCardIdx: -1,
@@ -173,7 +173,7 @@
         if (msg.includes('使用技能秒杀')) return 'knight_execute';
         if (msg.includes('斩月斩杀') || msg.includes('斩月共斩杀')) return 'zhanyue_execute';
         if (msg.includes('受武器商加持')) return 'weaponsmith_buff';
-        if ((msg.includes('西施将') && msg.includes('定身')) || msg.includes('西施对该格下咒') || msg.includes('被西施定身')) return 'xishi_lockdown';
+        if ((msg.includes('纱琳将') && msg.includes('定身')) || msg.includes('纱琳对该格下咒') || msg.includes('被纱琳定身')) return 'shaLin_lockdown';
         if (msg.includes('摔到')) return 'wrestler_throw';
         if (msg.includes('拉至')) return 'pull';
         if (msg.includes('共生死')) return 'cupid_bind';
@@ -186,7 +186,7 @@
         if (msg.includes('鼠疫') && (msg.includes('扩散') || msg.includes('感染'))) return 'plague_spread';
         if (msg.includes('复活') && !msg.includes('无法') && !msg.includes('失败') && !msg.includes('用完') && !msg.includes('次数')) return 'revive';
         if (msg.includes('行动干扰生效') || msg.includes('启动行动干扰')) return 'nerd_jam';
-        if (msg.includes('锦衣卫禁用')) return 'jinyiwei_disable';
+        if (msg.includes('禁卫禁用')) return 'jinwei_disable';
         if (msg.includes('被眩晕')) return 'stun';
         if (msg.includes('蓄力横扫') || msg.includes('横扫蓄力') || msg.includes('双剑延迟AOE对')) return 'sweep_charge';
         if (msg.includes('血舞击杀')) return 'blood_dance_kill';
@@ -283,7 +283,7 @@
     function getOwnCastleRow(side) { return side === SIDE_PLAYER0 ? 4 : 0; }
     function getForwardDelta(side) { return side === SIDE_PLAYER0 ? -1 : 1; }
     function getUnitsAt(row, col) { return gameState.units.filter(u => u.row === row && u.col === col); }
-    function unitNonOccupying(u) { return u.cardName === "72" || u.cardName === "镜中人" || u.isMirror === true; }
+    function unitNonOccupying(u) { return u.cardName === "护援兵" || u.cardName === "镜中人" || u.isMirror === true; }
     function getSideUnitCountAt(row, col, side) { return gameState.units.filter(u => u.row === row && u.col === col && u.side === side && !unitNonOccupying(u)).length; }
     function canAddUnit(row, col, side) { return getSideUnitCountAt(row, col, side) < 2; }
     function getMirrorOf(unit) { return gameState.units.find(u => u.isMirror === true && u.mirrorSourceId === unit.id); }
@@ -315,7 +315,7 @@
             displacedByAllySkillThisTurn: false, silenced: 0, transformUsed: false, isSweepCharging: false,
             hornRecoveryTurns: 0, hornPendingHeal: 0, shieldValue: 0, nativeShieldValue: 0, externalShieldSources: {}, absoluteImmunityTurns: 0,
             extraAttacks: 0, weakenedEnemies: [], eagleEyeTargets: [], windSkillUsed: false,
-            cupidPair: null, cupidUseCount: 0, xishiBindTurn: 0, xishiBindRow: -1, xishiBindCol: -1, xishiUseCount: 0,
+            cupidPair: null, cupidUseCount: 0, shaLinBindTurn: 0, shaLinBindRow: -1, shaLinBindCol: -1, shaLinUseCount: 0,
             zhongyiHealUsed: false, scapegoatUsed: false, scapegoatProtectorId: null, feijiBonusGiven: 0, feizheBonusGiven: 0,
             flagBearerProtectTurn: 0, witchProtectReduce: 0, witchProtectorId: null, plagueInfected: false, plagueOwnerSide: null,
             bartenderUseCount: 0, drunkardInvincibleUsed: false, spearmanCharges: 0,

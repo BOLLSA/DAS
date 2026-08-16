@@ -26,7 +26,7 @@
                 if(u.silenced > 0) { u.silenced = 0; cleared.push('沉默'); }
                 if(u.weakenedTurns > 0) { u.weakenedTurns = 0; cleared.push('弱化'); }
                 if(u.eagleEyeTurns > 0) { u.eagleEyeTurns = 0; cleared.push('致盲'); }
-                if(u.xishiBindTurn > 0) { u.xishiBindTurn = 0; u.xishiBindRow = null; u.xishiBindCol = null; cleared.push('定身'); }
+                if(u.shaLinBindTurn > 0) { u.shaLinBindTurn = 0; u.shaLinBindRow = null; u.shaLinBindCol = null; cleared.push('定身'); }
                 if(u.plagueInfected) { u.plagueInfected = false; cleared.push('鼠疫'); }
                 if(cleared.length > 0) addLog(`${u.cardName} 被净化：${cleared.join('、')}`);
             }

@@ -1,4 +1,4 @@
-﻿// ========== 蓄力 & 特殊攻击 & 手牌技能 ==========
+// ========== 蓄力 & 特殊攻击 & 手牌技能 ==========
 // 自动蓄力(斧兵/弩手/重斧兵)、大力士攻击、双剑延迟AOE计算、
 // 七二定身格检查、手牌技能(无中生有/鼠疫)
 //
@@ -108,9 +108,9 @@
             return false;
         }
         // 检查定身/横扫蓄力：被定身或横扫蓄力中不能摔投，但仍可造成伤害
-        const cannotThrow = actualTarget.xishiBindTurn > 0 || actualTarget.isSweepCharging;
+        const cannotThrow = actualTarget.shaLinBindTurn > 0 || actualTarget.isSweepCharging;
         if (cannotThrow) {
-            if (actualTarget.xishiBindTurn > 0) showToast(`🪞 ${actualTarget.cardName} 被西施定身，无法摔投，但仍可造成伤害`);
+            if (actualTarget.shaLinBindTurn > 0) showToast(`🪞 ${actualTarget.cardName} 被纱琳定身，无法摔投，但仍可造成伤害`);
             else showToast(`⚔️ ${actualTarget.cardName} 正在横扫蓄力，无法摔投，但仍可造成伤害`);
         }
         let dmg = attacker.dmgValue;
@@ -151,7 +151,7 @@
         actualTarget.row = newRow;
         addLog(`${attacker.cardName} 将 ${actualTarget.cardName} 从 ${ROW_NAMES[oldRow]} 摔到 ${ROW_NAMES[newRow]}！`);
         showToast(`💪 ${attacker.cardName} 摔投 ${actualTarget.cardName}`);
-        applyXishiCellBinding(actualTarget);
+        applyShaLinCellBinding(actualTarget);
         renderUI();
         return true;
     }
@@ -161,7 +161,7 @@
         if (!targetUnit || targetUnit.side === caster.side) return false;
         if (targetUnit.absoluteImmunityTurns > 0) return false;
         if (targetUnit.superCharging) return false;
-        if (targetUnit.xishiBindTurn > 0) return false;
+        if (targetUnit.shaLinBindTurn > 0) return false;
         if (targetUnit.isSweepCharging) return false;
         const moveDir = caster.side === SIDE_PLAYER0 ? 1 : -1;
         const newRow = targetUnit.row + moveDir;
@@ -456,19 +456,19 @@
         return targets;
     }
 
-    // ========== 西施定身格检查（位移后调用）==========
-    function applyXishiCellBinding(unit) {
+    // ========== 纱琳定身格检查（位移后调用）==========
+    function applyShaLinCellBinding(unit) {
         if (unit.life <= 0) return;
         if (unit.absoluteImmunityTurns > 0) return;
         if (unit.superCharging) return;
         if (isFireImmune(unit)) return;
-        const cell = gameState.xishiBoundCells.find(c => c.row === unit.row && c.col === unit.col && c.turnsLeft > 0);
+        const cell = gameState.shaLinBoundCells.find(c => c.row === unit.row && c.col === unit.col && c.turnsLeft > 0);
         if (!cell) return;
         if (unit.side === cell.side) return;
-        if (unit.xishiBindTurn > 0) return;
-        unit.xishiBindTurn = cell.turnsLeft;
-        unit.xishiBindRow = unit.row;
-        unit.xishiBindCol = unit.col;
+        if (unit.shaLinBindTurn > 0) return;
+        unit.shaLinBindTurn = cell.turnsLeft;
+        unit.shaLinBindRow = unit.row;
+        unit.shaLinBindCol = unit.col;
         unit.displacedByAllySkillThisTurn = false;
         addLog(`🪞 ${unit.cardName} 走入定身格，被定身！`);
         showToast(`🪞 ${unit.cardName} 被定身！`);
@@ -583,8 +583,8 @@
         if (side !== gameState.turn) { showToast("不是你的回合"); return false; }
         const card = gameState.players[side].hand[cardIdx];
         if (!card || card.name !== "无中生有") { showToast("无效的手牌"); return false; }
-        if (card.disabled) { showToast(`此手牌已被锦衣卫禁用，无法使用`); return false; }
-        const cost = Math.max(0, card.cost + (gameState.emperorCostMod[side] || 0));
+        if (card.disabled) { showToast(`此手牌已被禁卫禁用，无法使用`); return false; }
+        const cost = Math.max(0, card.cost + (gameState.kingCostMod[side] || 0));
         if (!infiniteManaEnabled && gameState.players[side].mana < cost) { showToast(`费用不足，需要 ${cost}`); return false; }
         const confirmed = await showConfirm(`确定使用"无中生有"吗？将消耗 ${cost} 费，随机获得两张卡组中的牌。`);
         if (!confirmed) return false;
@@ -634,8 +634,8 @@
         if (side !== gameState.turn) { showToast("不是你的回合"); return false; }
         const card = gameState.players[side].hand[cardIdx];
         if (!card || card.name !== "鼠疫") { showToast("无效的手牌"); return false; }
-        if (card.disabled) { showToast(`此手牌已被锦衣卫禁用，无法使用`); return false; }
-        const cost = Math.max(0, card.cost + (gameState.emperorCostMod[side] || 0));
+        if (card.disabled) { showToast(`此手牌已被禁卫禁用，无法使用`); return false; }
+        const cost = Math.max(0, card.cost + (gameState.kingCostMod[side] || 0));
         if (!infiniteManaEnabled && gameState.players[side].mana < cost) { showToast(`费用不足，需要 ${cost}`); return false; }
         gameState.awaitingSkillTarget = true;
         gameState.skillCasterId = null;
@@ -655,7 +655,7 @@
         if (side === null || side === undefined || cardIdx < 0) { clearSkillTarget(); renderUI(); return false; }
         const card = gameState.players[side].hand[cardIdx];
         if (!card || card.name !== "鼠疫") { showToast("鼠疫手牌不存在"); clearSkillTarget(); renderUI(); return false; }
-        const cost = Math.max(0, card.cost + (gameState.emperorCostMod[side] || 0));
+        const cost = Math.max(0, card.cost + (gameState.kingCostMod[side] || 0));
         if (!infiniteManaEnabled && gameState.players[side].mana < cost) { showToast(`费用不足，需要 ${cost}`); clearSkillTarget(); renderUI(); return false; }
         const enemies = getUnitsAt(row, col).filter(u => u.side !== side);
         if (enemies.length === 0) { showToast(`该格没有敌方单位`); return false; }
@@ -829,7 +829,7 @@
                     dashed = true;
                     addLog(`🔱 ${caster.cardName} 突进至 ${ROW_NAMES[dashRow]}${COLS[caster.col]}！`);
                     showToast(`🔱 ${caster.cardName} 突进！`);
-                    applyXishiCellBinding(caster);
+                    applyShaLinCellBinding(caster);
                 }
             }
         }

@@ -207,7 +207,7 @@
                         if (unit.stun > 0) statusIcons += `<span class="si stun" title="眩晕${unit.stun}回合">💫${unit.stun}</span>`;
                         if (unit.silenced > 0) statusIcons += `<span class="si silence" title="沉默${unit.silenced}回合">🔇${unit.silenced}</span>`;
                         if (unit.eagleEyeTurns > 0) statusIcons += `<span class="si blind" title="致盲${unit.eagleEyeTurns}回合">👁️${unit.eagleEyeTurns}</span>`;
-                        if (unit.xishiBindTurn > 0) statusIcons += `<span class="si bind" title="定身${unit.xishiBindTurn}回合">🔗${unit.xishiBindTurn}</span>`;
+                        if (unit.shaLinBindTurn > 0) statusIcons += `<span class="si bind" title="定身${unit.shaLinBindTurn}回合">🔗${unit.shaLinBindTurn}</span>`;
                         if (unit.invincibleTurns > 0) statusIcons += `<span class="si invincible" title="无敌${unit.invincibleTurns}回合">🛡️${unit.invincibleTurns}</span>`;
                         if (unit.absoluteImmunityTurns > 0) statusIcons += `<span class="si absolute" title="绝对免疫${unit.absoluteImmunityTurns}回合">✨${unit.absoluteImmunityTurns}</span>`;
                         if (unit.flagBearerProtectTurn > 0) statusIcons += `<span class="si flag" title="旗手庇护${unit.flagBearerProtectTurn}回合">🚩${unit.flagBearerProtectTurn}</span>`;
@@ -283,7 +283,7 @@
             const gradeClass = `grade-${card.grade || 3}`;
             cardEl.className = `card ${gradeClass} ${gameState.selectedCardIdx === idx && !gameState.awaitingSkillTarget ? 'selected-card' : ''}`;
             if (card.disabled) cardEl.classList.add('card-disabled');
-            const empMod = gameState.emperorCostMod[gameState.turn] || 0;
+            const empMod = gameState.kingCostMod[gameState.turn] || 0;
             let displayCost = Math.max(0, card.cost + empMod);
             if (card.name === "狂战士") {
                 const enemyCount = gameState.units.filter(u => u.side !== gameState.turn).length;

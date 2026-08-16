@@ -191,7 +191,7 @@
                     target.riluoPlaced = false;
                     target.riluoRow = -1;
                     target.riluoCol = -1;
-                    applyXishiCellBinding(target);
+                    applyShaLinCellBinding(target);
                     addLog(`🧵 ${target.cardName} 受致命鼠疫，绫罗护体，自动回到绫罗处`);
                     showToast(`🧵 绫罗护体！`);
                     continue;
@@ -306,7 +306,7 @@
                 shieldValue: 0, nativeShieldValue: 0, externalShieldSources: {}, absoluteImmunityTurns: 0, reviveTimesLeft: unit.reviveTimesLeft - 1, extraAttacks: (CARD_LIBRARY.find(c => c.name === unit.cardName) || {}).extraAttacks || 0, attacksLeftThisTurn: 0,
                 weakenedEnemies: [], eagleEyeTargets: [], windSkillUsed: false,
                 transformUsed: false, auraBuff: false, silenced: 0, disabled: false, hornRecoveryTurns: 0, hornPendingHeal: 0, isSweepCharging: false,
-                cupidPair: null, cupidUseCount: 0, xishiBindTurn: 0, xishiBindRow: -1, xishiBindCol: -1, xishiUseCount: 0, zhongyiHealUsed: false,
+                cupidPair: null, cupidUseCount: 0, shaLinBindTurn: 0, shaLinBindRow: -1, shaLinBindCol: -1, shaLinUseCount: 0, zhongyiHealUsed: false,
                 scapegoatUsed: false, scapegoatProtectorId: null, feijiBonusGiven: 0, feizheBonusGiven: 0, flagBearerProtectTurn: 0, witchProtectReduce: 0, witchProtectorId: null,
                 bartenderUseCount: 0, drunkardInvincibleUsed: false
             };
@@ -748,10 +748,10 @@
             addLog(`🚩 旗手庇护：${actualTarget.cardName} 免疫物伤！`);
             return;
         }
-        // 西施定身增伤（必须在替罪羊检查之前，否则增伤后可能致命但替罪羊不触发）
-        if (actualTarget.xishiBindTurn > 0) {
+        // 纱琳定身增伤（必须在替罪羊检查之前，否则增伤后可能致命但替罪羊不触发）
+        if (actualTarget.shaLinBindTurn > 0) {
             amount += 1;
-            addLog(`🪞 ${actualTarget.cardName} 被西施定身，受到的伤害+1`);
+            addLog(`🪞 ${actualTarget.cardName} 被纱琳定身，受到的伤害+1`);
         }
         // 麻木者被动：每次受伤只减1点生命（必须在替罪羊检查之前，否则减伤后不致命但替罪羊错误替死）
         if (actualTarget.cardName === "麻木者" && amount > 1) {
@@ -798,7 +798,7 @@
                 actualTarget.riluoPlaced = false;
                 actualTarget.riluoRow = -1;
                 actualTarget.riluoCol = -1;
-                applyXishiCellBinding(actualTarget);
+                applyShaLinCellBinding(actualTarget);
                 addLog(`🧵 ${actualTarget.cardName} 受致命伤，绫罗护体，自动回到绫罗处`);
                 showToast(`🧵 绫罗护体！`);
                 showFloatText(actualTarget.row, actualTarget.col, '绫罗护体', 'shield');
@@ -852,9 +852,9 @@
             if (!gameState.matchStats.unitDamage[key]) gameState.matchStats.unitDamage[key] = { damage: 0, side: source.side };
             gameState.matchStats.unitDamage[key].damage += amount;
         }
-        // 皇帝受伤追踪
-        if (amount > 0 && actualTarget.cardName === "皇帝") {
-            gameState.emperorDamagedCount[actualTarget.side] = true;
+        // 国王受伤追踪
+        if (amount > 0 && actualTarget.cardName === "国王") {
+            gameState.kingDamagedCount[actualTarget.side] = true;
         }
         // 追刃：记录被攻击的敌方单位（来自普通攻击或技能伤害）
         if (source && amount > 0 && !gameState.attackedEnemyIds.includes(actualTarget.id)) {
@@ -908,16 +908,16 @@
                 const refreshMirror = getMirrorOf(source);
                 if (refreshMirror) { refreshMirror.mirrorTurnsLeft = 3; addLog(`🪞 击杀刷新镜像持续时间`); }
             }
-            // 饿饿被动：击杀后回满血+永久物伤+1（禁疗则不回血，但仍增伤）
-            if (source && source.cardName === "饿饿") {
+            // 暴食者被动：击杀后回满血+永久物伤+1（禁疗则不回血，但仍增伤）
+            if (source && source.cardName === "暴食者") {
                 if (!source.noHeal) {
                     source.life = 4; // 回满
-                    addLog(`🍗 饿饿击杀敌方，生命回满，物伤永久+1（当前${source.dmgValue}）`);
+                    addLog(`🍗 暴食者击杀敌方，生命回满，物伤永久+1（当前${source.dmgValue}）`);
                 } else {
-                    addLog(`🍗 饿饿击杀敌方，但处于禁疗状态，无法回血（物伤永久+1）`);
+                    addLog(`🍗 暴食者击杀敌方，但处于禁疗状态，无法回血（物伤永久+1）`);
                 }
                 source.dmgValue += 1;
-                showToast(`🍗 饿饿饱餐！物伤+1`);
+                showToast(`🍗 暴食者饱餐！物伤+1`);
             }
             // 血舞被动：击杀后攻速+1
             if (source && source.cardName === "血舞") {
@@ -1030,7 +1030,7 @@
             addLog(`🩸 ${unit.cardName} 处于禁疗状态，换位无法回血`);
         }
         unit.mirrorSwappedThisTurn = true;
-        applyXishiCellBinding(unit);
+        applyShaLinCellBinding(unit);
         addLog(`🪞 ${unit.cardName} 与镜像互换位置`);
         showToast(`🪞 换位！`);
         recheckAllWeaponSmithBuffs();
@@ -1170,7 +1170,7 @@
             if (enemiesAtTarget.length === 0) { showToast(`目标位置没有敌方单位`); return false; }
             // 位移到目标格（已在同格则不动），需检查目标格友方上限
             if (!isSameCell) {
-                if (attacker.xishiBindTurn > 0) {
+                if (attacker.shaLinBindTurn > 0) {
                     addLog(`🪞 ${attacker.cardName} 被定身，无法位移至目标格，但仍可攻击`);
                 } else {
                     if (!canAddUnit(targetRow, targetCol, attacker.side)) {
@@ -1179,7 +1179,7 @@
                     attacker.row = targetRow;
                     attacker.col = targetCol;
                     addLog(`🗡️ ${attacker.cardName} 位移至 ${ROW_NAMES[targetRow]}${COLS[targetCol]}`);
-                    applyXishiCellBinding(attacker);
+                    applyShaLinCellBinding(attacker);
                 }
             }
             // AOE：对目标格所有敌人造成伤害
@@ -1232,7 +1232,7 @@
             const isCrit = Math.random() < 0.5;
             if (isCrit) addLog(`${attacker.cardName} 触发暴击，伤害翻倍！`);
             let totalDmg = 0;
-            // 一次性加成在循环外计算一次，对所有目标生效（与哭哭/火神/掠影一致）
+            // 一次性加成在循环外计算一次，对所有目标生效（与旋斧人/火神/掠影一致）
             let baseBonus = 0;
             if (attacker.tempAttackBonus > 0 && canApplyBonus(attacker, 'physical')) baseBonus += attacker.tempAttackBonus;
             if (attacker.nextAttackBonus > 0 && canApplyBonus(attacker, 'physical')) { baseBonus += attacker.nextAttackBonus; attacker.nextAttackBonus = 0; }
@@ -1299,15 +1299,15 @@
             renderUI();
             return true;
         }
-        // 哭哭：自身九宫格AOE（正常攻击流程，点九宫格内任意敌人触发）
-        if (attacker.cardName === "哭哭") {
+        // 旋斧人：自身九宫格AOE（正常攻击流程，点九宫格内任意敌人触发）
+        if (attacker.cardName === "旋斧人") {
             if (attacker.stun > 0) { showToast(`${attacker.cardName} 眩晕无法攻击`); return false; }
             if (attacker.attacksLeftThisTurn <= 0) { showToast(`${attacker.cardName} 已经攻击过`); return false; }
             let actualTarget = enforceAttackTarget(attacker, targetUnit);
             if (actualTarget.side === attacker.side) { showToast(`只能攻击敌方单位`); return false; }
             const dr0 = Math.abs(actualTarget.row - attacker.row);
             const dc0 = Math.abs(actualTarget.col - attacker.col);
-            if (dr0 > 1 || dc0 > 1) { showToast(`哭哭只能攻击自身九宫格内的敌人`); return false; }
+            if (dr0 > 1 || dc0 > 1) { showToast(`旋斧人只能攻击自身九宫格内的敌人`); return false; }
             let dmg = attacker.dmgValue;
             const bonusType = attacker.dmgType === "⚔️" ? 'physical' : 'magic';
             if (attacker.tempAttackBonus > 0 && canApplyBonus(attacker, bonusType)) dmg += attacker.tempAttackBonus;
@@ -1414,7 +1414,7 @@
             }
         }
         
-        if (attacker.cardName === "卤蛋") {
+        if (attacker.cardName === "巫师") {
             const wantTransfer = await showConfirm("是否将本次伤害转移到敌方场上任意单位？（不可抵挡）");
             if (wantTransfer) {
                 let targets = [];

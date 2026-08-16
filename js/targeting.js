@@ -82,7 +82,7 @@
                     if (unit.row !== caster.row + forward || unit.col !== caster.col) return false;
                 }
                 if (effectiveFilter.pullable && !canPullForward(caster, unit)) return false;
-                if (effectiveFilter.checkBind && (unit.xishiBindTurn > 0 || unit.isSweepCharging || unit.superCharging)) return false;
+                if (effectiveFilter.checkBind && (unit.shaLinBindTurn > 0 || unit.isSweepCharging || unit.superCharging)) return false;
                 if (effectiveFilter.notAssimilator && unit.isAssimilator) return false;
                 if (effectiveFilter.shadowFanRange) {
                     const forward = getForwardDelta(caster.side);
@@ -127,7 +127,7 @@
             if (!glideUnit) { gameState.awaitingGlide = false; gameState.glideUnitId = null; renderUI(); return; }
             const dist = Math.abs(row - glideUnit.row) + Math.abs(col - glideUnit.col);
             if (dist !== 1) { showToast(`滑步只能位移1格`); return; }
-            if (glideUnit.xishiBindTurn > 0) { showToast(`🪞 ${glideUnit.cardName} 被西施定身，无法滑步`); return; }
+            if (glideUnit.shaLinBindTurn > 0) { showToast(`🪞 ${glideUnit.cardName} 被纱琳定身，无法滑步`); return; }
             if (!canAddUnit(row, col, glideUnit.side)) { showToast(`目标格己方已满`); return; }
             if (glideUnit.side === SIDE_PLAYER0 && row < 1) { showToast(`不能进入敌方城池`); return; }
             if (glideUnit.side === SIDE_PLAYER1 && row > 3) { showToast(`不能进入敌方城池`); return; }
@@ -139,7 +139,7 @@
                 const source = { cardName: glideUnit.cardName, side: glideUnit.side, dmgType: "🔮", id: glideUnit.id, fromSkill: true };
                 await applyDamageWithSource(t, 1, source, false, "🔮");
             }
-            applyXishiCellBinding(glideUnit);
+            applyShaLinCellBinding(glideUnit);
             recheckAllWeaponSmithBuffs();
             gameState.awaitingGlide = false;
             gameState.glideUnitId = null;
@@ -194,7 +194,7 @@
             if (!unit || unit.side !== gameState.turn) { gameState.selectedUnitId = null; renderUI(); return; }
             const enemyBaseRow = unit.side === SIDE_PLAYER0 ? 0 : 4;
             if (row === enemyBaseRow && col === unit.col && canAttackBase(unit)) { await attackBase(unit); gameState.selectedUnitId = null; renderUI(); return; }
-            if (unit.xishiBindTurn > 0) { showToast(`🪞 ${unit.cardName} 被西施定身，不能移动`); gameState.selectedUnitId = null; renderUI(); return; }
+            if (unit.shaLinBindTurn > 0) { showToast(`🪞 ${unit.cardName} 被纱琳定身，不能移动`); gameState.selectedUnitId = null; renderUI(); return; }
             if (unit.cardName === "掠影" && row === enemyBaseRow && col === unit.col) { showToast(`掠影不可攻击敌方城池及其内的敌方`); gameState.selectedUnitId = null; renderUI(); return; }
             await tryMoveUnit(unit, row, col);
             gameState.selectedUnitId = null;
@@ -406,7 +406,7 @@
         if (stepType === "enemy" && u.side === caster.side) { showToast(`请点击敌方单位！`); return; }
         if (stepType === "friendly" && u.side !== caster.side) { showToast(`请点击友方单位！`); return; }
         if (stepDef?.excludeSelf && u.id === caster.id) { showToast(`不能选择自身！`); return; }
-        if (stepDef?.checkBind && (u.xishiBindTurn > 0 || u.isSweepCharging || u.superCharging)) {
+        if (stepDef?.checkBind && (u.shaLinBindTurn > 0 || u.isSweepCharging || u.superCharging)) {
             showToast(`${u.cardName} 无法被位移！`); return;
         }
 
