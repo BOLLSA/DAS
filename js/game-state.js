@@ -122,7 +122,8 @@
     }
 
     function showKillStreak(killerName, count) {
-        const labels = ['','二杀','三杀','四杀','五杀','六杀','七杀','八杀','九杀','十杀'];
+        // 索引对齐：labels[2]='二杀'（连杀从1起算，count=1不显示）
+        const labels = ['', '', '二杀', '三杀', '四杀', '五杀', '六杀', '七杀', '八杀', '九杀', '十杀'];
         if (count < 2) return;
         const text = count <= 10 ? labels[count] : `${count}杀`;
         const el = document.createElement('div');
