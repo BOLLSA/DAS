@@ -987,9 +987,11 @@
             // 护援兵瞬移：优先选择「靠近敌人 + 同格有友方（能一起+2盾）」的空格
             const enemies = gameState.units.filter(u => u.side !== caster.side && u.life > 0);
             if (enemies.length === 0) return null;
+            const enemyCastleRow = caster.side === SIDE_PLAYER0 ? 0 : 4;
             let best = null, bestScore = -Infinity;
             for (let r = 0; r < 5; r++) for (let c = 0; c < 3; c++) {
-                const hasEnemy = gameState.units.some(u => u.row === r && u.col === c && u.side !== caster.side);
+                if (r === enemyCastleRow) continue;  // 禁止瞬移到敌方城池行
+                const hasEnemy = gameState.units.some(u => u.row === r && u.col === c && u.side !== caster.side && !u.isMirror);
                 if (hasEnemy) continue;
                 if (!canAddUnit(r, c, caster.side) && caster.cardName !== "护援兵") continue;
                 const minDist = Math.min(...enemies.map(e => Math.abs(e.row - r) + Math.abs(e.col - c)));

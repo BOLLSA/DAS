@@ -13,6 +13,53 @@
         addLog(`💰 悬赏兑现！${unit.cardName}（${level}级悬赏）被移除，${rewardSide === 0 ? "蓝方" : "红方"}获得 ${level} 费赏金！`);
         showToast(`💰 悬赏 +${level}费`);
     }
+
+    // ── 击杀奖励统一结算（伤害路径与秒杀路径共用）──
+    // 暴食者回血增伤 / 血舞攻速 / 连杀计数 / 悬赏升级
+    async function resolveKillRewards(source, victim) {
+        // 镜中人击杀刷新镜像持续时间
+        if (source && source.cardName === "镜中人" && !source.isMirror) {
+            const refreshMirror = getMirrorOf(source);
+            if (refreshMirror) { refreshMirror.mirrorTurnsLeft = 3; addLog(`🪞 击杀刷新镜像持续时间`); }
+        }
+        // 暴食者被动：击杀后回满血+永久物伤+1（禁疗则不回血，但仍增伤）
+        if (source && source.cardName === "暴食者") {
+            if (!source.noHeal) {
+                source.life = source.maxLife || 4; // 回满（考虑甘泉/霜痕提升的生命上限）
+                addLog(`🍗 暴食者击杀敌方，生命回满，物伤永久+1（当前${source.dmgValue}）`);
+            } else {
+                addLog(`🍗 暴食者击杀敌方，但处于禁疗状态，无法回血（物伤永久+1）`);
+            }
+            source.dmgValue += 1;
+            showToast(`🍗 暴食者饱餐！物伤+1`);
+        }
+        // 血舞被动：击杀后攻速+1
+        if (source && source.cardName === "血舞") {
+            source.extraAttacks = (source.extraAttacks || 0) + 1;
+            source.attacksLeftThisTurn = (source.attacksLeftThisTurn || 0) + 1;
+            addLog(`💃 血舞击杀敌方，攻速+1（当前额外攻速${source.extraAttacks}）`);
+            showToast(`💃 血舞攻速+1`);
+        }
+        // 连杀系统（秒杀/斩杀路径同样计入连杀与悬赏）
+        if (source && source.id !== undefined && source.life > 0) {
+            let ks = gameState.killStreakMap[source.id];
+            if (ks && ks.unitName === source.cardName) {
+                ks.count++;
+            } else {
+                ks = { count: 1, unitName: source.cardName };
+                gameState.killStreakMap[source.id] = ks;
+            }
+            if (ks.count >= 2) showKillStreak(ks.unitName, ks.count);
+            // ── 悬赏机制：3/5/7/9 连杀进入 1/2/3/4 级悬赏状态 ──
+            const bountyForStreak = ks.count >= 9 ? 4 : ks.count >= 7 ? 3 : ks.count >= 5 ? 2 : ks.count >= 3 ? 1 : 0;
+            if (bountyForStreak > (source.bountyLevel || 0)) {
+                source.bountyLevel = bountyForStreak;
+                addLog(`💰 悬赏！${source.cardName} 达成 ${ks.count} 连杀，进入 ${bountyForStreak} 级悬赏状态！`);
+                showToast(`💰 悬赏 ${bountyForStreak} 级`);
+                renderUI();
+            }
+        }
+    }
     function removeUnit(unitId, deathRow, deathCol, deathSide) {
         // 修复：防止循环递归（A 死→触发 B 死→B 也在处理中时跳过）
         if (processingDeathIds.has(unitId)) return null;
@@ -935,48 +982,8 @@
                 lastDamageDealer = null;
                 return;
             }
-            // 镜中人击杀刷新镜像持续时间
-            if (source && source.cardName === "镜中人" && !source.isMirror) {
-                const refreshMirror = getMirrorOf(source);
-                if (refreshMirror) { refreshMirror.mirrorTurnsLeft = 3; addLog(`🪞 击杀刷新镜像持续时间`); }
-            }
-            // 暴食者被动：击杀后回满血+永久物伤+1（禁疗则不回血，但仍增伤）
-            if (source && source.cardName === "暴食者") {
-                if (!source.noHeal) {
-                    source.life = source.maxLife || 4; // 回满（考虑甘泉/霜痕提升的生命上限）
-                    addLog(`🍗 暴食者击杀敌方，生命回满，物伤永久+1（当前${source.dmgValue}）`);
-                } else {
-                    addLog(`🍗 暴食者击杀敌方，但处于禁疗状态，无法回血（物伤永久+1）`);
-                }
-                source.dmgValue += 1;
-                showToast(`🍗 暴食者饱餐！物伤+1`);
-            }
-            // 血舞被动：击杀后攻速+1
-            if (source && source.cardName === "血舞") {
-                source.extraAttacks = (source.extraAttacks || 0) + 1;
-                source.attacksLeftThisTurn = (source.attacksLeftThisTurn || 0) + 1;
-                addLog(`💃 血舞击杀敌方，攻速+1（当前额外攻速${source.extraAttacks}）`);
-                showToast(`💃 血舞攻速+1`);
-            }
-            // 连杀系统
-            if (source && source.id !== undefined && source.life > 0) {
-                let ks = gameState.killStreakMap[source.id];
-                if (ks && ks.unitName === source.cardName) {
-                    ks.count++;
-                } else {
-                    ks = { count: 1, unitName: source.cardName };
-                    gameState.killStreakMap[source.id] = ks;
-                }
-                if (ks.count >= 2) showKillStreak(ks.unitName, ks.count);
-                // ── 悬赏机制：3/5/7/9 连杀进入 1/2/3/4 级悬赏状态 ──
-                const bountyForStreak = ks.count >= 9 ? 4 : ks.count >= 7 ? 3 : ks.count >= 5 ? 2 : ks.count >= 3 ? 1 : 0;
-                if (bountyForStreak > (source.bountyLevel || 0)) {
-                    source.bountyLevel = bountyForStreak;
-                    addLog(`💰 悬赏！${source.cardName} 达成 ${ks.count} 连杀，进入 ${bountyForStreak} 级悬赏状态！`);
-                    showToast(`💰 悬赏 ${bountyForStreak} 级`);
-                    renderUI();
-                }
-            }
+            // 击杀奖励统一结算（暴食者/血舞/连杀/悬赏；秒杀路径也调用本函数，保证连杀与悬赏计数一致）
+            await resolveKillRewards(source, actualTarget);
         }
         // ── 装备：霜痕（攻击后冰冻命中的敌人，AOE全冰冻） ──
         if (sourceEqId === 'iceGrip' && sourceUnit && !sourceUnit.iceGripUsed && actualTarget.life > 0 && amount > 0 && !source.fromSkill) {

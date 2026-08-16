@@ -992,8 +992,10 @@
                         showToast(`💙 ${e.cardName} 只掉1血`);
                         if (e.life <= 0) {
                             lastDamageDealer = { name: caster.cardName, side: caster.side };
+                            e._killRewardDone = true;
                             removeUnit(e.id, e.row, e.col, e.side);
                             killed++;
+                            if (typeof resolveKillRewards === 'function') await resolveKillRewards(caster, e);
                             const nIdx = gameState.zhanYueMarkedEnemyIds.indexOf(e.id);
                             if (nIdx >= 0) gameState.zhanYueMarkedEnemyIds.splice(nIdx, 1);
                         }
@@ -1002,8 +1004,10 @@
                     addLog(`🔪 斩月斩杀 ${e.cardName}！`);
                     lastDamageDealer = { name: caster.cardName, side: caster.side };
                     e.life = 0;
+                    e._killRewardDone = true;
                     removeUnit(e.id, e.row, e.col, e.side);
                     killed++;
+                    if (typeof resolveKillRewards === 'function') await resolveKillRewards(caster, e);
                     const idx = gameState.zhanYueMarkedEnemyIds.indexOf(e.id);
                     if (idx >= 0) gameState.zhanYueMarkedEnemyIds.splice(idx, 1);
                 }
@@ -1089,17 +1093,24 @@
                         t.life = Math.max(0, t.life - 1);
                         addLog(`${t.cardName} 被秒杀，但被动使其只减少1点生命！`);
                         showToast(`💙 ${t.cardName} 只掉1血`);
-                        if (t.life <= 0) { lastDamageDealer = { name: caster.cardName, side: caster.side }; removeUnit(t.id, t.row, t.col, t.side); }
+                        if (t.life <= 0) {
+                            lastDamageDealer = { name: caster.cardName, side: caster.side };
+                            t._killRewardDone = true;
+                            removeUnit(t.id, t.row, t.col, t.side);
+                            if (typeof resolveKillRewards === 'function') await resolveKillRewards(caster, t);
+                        }
                         break;
                     }
                     lastDamageDealer = { name: caster.cardName, side: caster.side };
                     t.life = 0;
+                    t._killRewardDone = true;
                     removeUnit(t.id, t.row, t.col, t.side);
                     // 复活甲拦截：单位未被移除（pendingRevive），标记击杀奖励防重入，防止后续伤害绕过复活甲直接移除
                     if (gameState.units.some(u => u.id === t.id && u.pendingRevive)) {
-                        t._killRewardDone = true;
                         lastDamageDealer = null;
                         addLog(`💀 ${t.cardName} 的复活甲拦截了秒杀，将在下个我方回合复活`);
+                    } else if (typeof resolveKillRewards === 'function') {
+                        await resolveKillRewards(caster, t);  // 秒杀计入连杀/悬赏/击杀被动
                     }
                     break;
                 }
@@ -1258,11 +1269,17 @@
                 case "teleportToGrid": {
                     const gridRow = gameState.declarativeGridRow;
                     const gridCol = gameState.declarativeGridCol;
-                    const hasEnemy = gameState.units.some(u => u.row === gridRow && u.col === gridCol && u.side !== caster.side);
+                    const hasEnemy = gameState.units.some(u => u.row === gridRow && u.col === gridCol && u.side !== caster.side && !u.isMirror);
                     if (hasEnemy) { showToast(`目标格有敌方单位，无法瞬移`); break; }
+                    // 护援兵不占位置，但仍禁止进入敌方城池行（与其它位移技能规则一致）
+                    const enemyCastleRow = caster.side === SIDE_PLAYER0 ? 0 : 4;
+                    if (gridRow === enemyCastleRow) { showToast(`不能瞬移到敌方城池行`); break; }
+                    // 消耗移动（护援兵瞬移后本回合不能移动）
                     caster.row = gridRow;
                     caster.col = gridCol;
-                    addLog(`72瞬移至 (${ROW_NAMES[gridRow]},${COLS[gridCol]})`);
+                    caster.moved = true;
+                    caster.movesLeftThisTurn = 0;
+                    addLog(`🚛 护援兵瞬移至 (${ROW_NAMES[gridRow]},${COLS[gridCol]})`);
                     applyShaLinCellBinding(caster);
                     break;
                 }
