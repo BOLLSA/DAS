@@ -1,7 +1,8 @@
 # ========== 黑暗中世纪 · 正式版发布脚本 ==========
 # 把当前成熟版本拷贝到桌面 DAS 的正式版本目录（按既有文件夹格式）
 # 格式：C:\Users\WhereIt\Desktop\DAS\正式版本\1.01\<命名文件夹>\
-# 用法：powershell -File publish.ps1 -FolderName "Dark Age SagaXXX"
+# 命名规则：Dark Age Saga + 本次改动一句话总结（例如 "Dark Age Saga单位改名与界面卡顿优化"）
+# 用法：powershell -File publish.ps1 -FolderName "Dark Age Saga单位改名与界面卡顿优化"
 param(
     [Parameter(Mandatory = $true)][string]$FolderName
 )
