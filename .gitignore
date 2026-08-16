@@ -1,0 +1,10 @@
+# 游戏根目录 .gitignore（委托给 Attention/ 的统一忽略规则）
+# 注意：非游戏内容（含 .gitignore 本体）集中在 Attention/ 子目录，
+# 但 .gitignore 只对其所在目录及子目录生效，故根目录保留此委托文件。
+# 统一规则维护在 Attention/.gitignore，新增忽略项请在那边添加。
+*/.git/
+_check.log
+*.log
+.DS_Store
+Thumbs.db
+node_modules/
