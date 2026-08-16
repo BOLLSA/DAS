@@ -683,6 +683,59 @@
         return result;
     }
 
+    // ========== AI 装备价值评估（按装备效果强度打分） ==========
+    function aiEquipmentValue(eqDef) {
+        const v = {
+            reviveArmor: 95,        // 满血复活，最高价值
+            starWand: 70,           // 法伤×1.5
+            demonBlade: 65,         // 低血物伤×2
+            coagulationBlade: 68,   // 物伤+1+禁疗（2费高性价比）
+            amulet: 55,             // 免疫一次致死
+            brokenSpine: 58,        // 普攻额外15%
+            lightningDagger: 52,    // 每2攻闪电
+            eagleFeather: 62,       // 攻速+1+必中
+            iceGrip: 50,            // +生命+冰冻
+            bloodRing: 48,          // 吸血
+            voidCloak: 56,          // 受伤-1
+            pureSky: 54,            // 减伤30%
+            sweetSpring: 46,        // 生命×1.3+回合回血
+            witchCloak: 40,         // 每回合法盾
+        };
+        return v[eqDef.id] ?? 50;
+    }
+
+    // ========== AI 选择装备穿戴单位（按装备类型匹配） ==========
+    function aiPickEquipmentUnit(eqDef, candidates, side) {
+        // 物伤类装备：给物伤高攻单位
+        if (["demonBlade", "coagulationBlade", "brokenSpine", "lightningDagger", "eagleFeather", "iceGrip"].includes(eqDef.id)) {
+            const phys = candidates.filter(u => u.dmgType === '⚔️' && u.dmgValue >= 2);
+            if (phys.length > 0) {
+                phys.sort((a, b) => b.dmgValue - a.dmgValue);
+                return phys[0];
+            }
+        }
+        // 法伤类装备：给法伤单位
+        if (eqDef.id === 'starWand') {
+            const mag = candidates.filter(u => u.dmgType === '🔮');
+            if (mag.length > 0) {
+                mag.sort((a, b) => b.dmgValue - a.dmgValue);
+                return mag[0];
+            }
+        }
+        // 复活甲：给关键单位（高价值辅助或高攻）
+        if (eqDef.id === 'reviveArmor') {
+            const keyNames = ["费机", "武器商", "国王", "参谋", "机车党", "重斧兵", "骑士", "枷锁猎手"];
+            const key = candidates.filter(u => keyNames.includes(u.cardName));
+            if (key.length > 0) {
+                key.sort((a, b) => b.dmgValue - a.dmgValue || b.life - a.life);
+                return key[0];
+            }
+        }
+        // 默认：生命最高的（存活最久，收益最大）
+        candidates.sort((a, b) => b.life - a.life);
+        return candidates[0];
+    }
+
     // ========== AI 局内购买装备 ==========
     // AI 在出牌阶段后、使用单位阶段前调用
     async function aiUseEquipment(myGameId) {
@@ -710,13 +763,19 @@
         });
         if (affordable.length === 0) return;
 
-        // 简单策略：选最贵的（高价值装备），保留剩余费用出单位
-        // easy难度随机选，normal/hard选最贵的
+        // 简单策略：选价值最高的装备，保留剩余费用出单位
+        // easy难度随机选，normal/hard按价值评估选择
         let chosenEqId;
         if (aiDifficulty === 'easy') {
             chosenEqId = affordable[Math.floor(Math.random() * affordable.length)];
         } else {
-            affordable.sort((a, b) => getEquipmentDef(b).cost - getEquipmentDef(a).cost);
+            affordable.sort((a, b) => {
+                const va = aiEquipmentValue(getEquipmentDef(a));
+                const vb = aiEquipmentValue(getEquipmentDef(b));
+                // 价值相近时优先便宜的（保留费用出单位）
+                if (Math.abs(va - vb) <= 8) return getEquipmentDef(a).cost - getEquipmentDef(b).cost;
+                return vb - va;
+            });
             chosenEqId = affordable[0];
         }
 
@@ -727,14 +786,12 @@
         const candidates = eqDef.buffsMaxLife ? available.filter(u => !u.isAssimilator) : available;
         if (candidates.length === 0) return;
 
-        // 选择最合适的单位穿戴
-        // 简单策略：选生命值最高的单位（存活最久）
+        // 选择最合适的单位穿戴（按装备类型匹配）
         let bestUnit;
         if (aiDifficulty === 'easy') {
             bestUnit = candidates[Math.floor(Math.random() * candidates.length)];
         } else {
-            candidates.sort((a, b) => b.life - a.life);
-            bestUnit = candidates[0];
+            bestUnit = aiPickEquipmentUnit(eqDef, candidates, side);
         }
 
         if (!bestUnit) return;

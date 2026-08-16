@@ -73,6 +73,16 @@
         if (unit.cardName === "同化师") score += 20;                        // 同化共享生命
         if (unit.cardName === "绫罗" && unit.riluoPlaced) score += 18;      // 绫罗离身难击杀
         if (unit.cardName === "赫菲斯托斯" && (unit.hephaestusUseCount || 0) < 3) score += 16; // 方块封锁
+        // ── 悬赏机制：敌方悬赏单位击杀后有赏金收益，威胁权重提高（1/2/3/4级悬赏） ──
+        if ((unit.bountyLevel || 0) > 0) score += unit.bountyLevel * 10 + 6;
+        // 暴食者：击杀回血+物伤永久成长，威胁高
+        if (unit.cardName === "暴食者") score += 12;
+        // 护援兵：瞬移持续给同格友方和自己+2盾，辅助价值高
+        if (unit.cardName === "护援兵") score += 12;
+        // 麻木者：只掉1血极难击杀，持久骚扰
+        if (unit.cardName === "麻木者") score += 14;
+        // 枷锁猎手：自带盾+破盾绝对免疫，难处理
+        if (unit.cardName === "枷锁猎手" && (unit.shieldValue || 0) > 0) score += 10;
 
         // ── 距离城池越近越危险 ──
         const myCastleRow = getOwnCastleRow(mySide);
@@ -83,6 +93,9 @@
         if (unit.stun > 0) score *= 0.3;               // 眩晕中威胁大减
         if (unit.shaLinBindTurn > 0) score *= 0.7;      // 被定身威胁降低
         if (unit.eagleEyeTurns > 0) score *= 0.5;      // 被致盲技能失效
+        if ((unit.invincibleTurns || 0) > 0) score *= 0.55;        // 无敌中（濒死状态）威胁略降
+        if ((unit.absoluteImmunityTurns || 0) > 0) score *= 0.6;   // 绝对免疫期间威胁略降
+        if (unit.weakenedTurns > 0) score *= 0.6;      // 弱化中下回合伤害无效
 
         return Math.min(100, Math.max(0, score));
     }
@@ -117,7 +130,12 @@
         // 2. 斩杀线：能打死的优先（选威胁最高的可击杀目标）
         const canKill = enemies.filter(e => e.life <= aiEstimateDamage(attacker, e));
         if (canKill.length > 0) {
-            canKill.sort((a, b) => aiEvaluateThreat(b, attacker.side) - aiEvaluateThreat(a, attacker.side));
+            canKill.sort((a, b) => {
+                // 悬赏单位优先击杀（有赏金收益），其次按威胁排序
+                const ba = a.bountyLevel || 0, bb = b.bountyLevel || 0;
+                if (ba !== bb) return bb - ba;
+                return aiEvaluateThreat(b, attacker.side) - aiEvaluateThreat(a, attacker.side);
+            });
             return canKill[0];
         }
 
@@ -231,6 +249,28 @@
             }
         }
 
+        // ── Combo 5: 骑士/技能秒杀敌方高悬赏单位（击杀获得赏金） ──
+        const enemyHighBounty = gameState.units.find(u =>
+            u.side !== side && u.life > 0 && (u.bountyLevel || 0) >= 3);
+        if (enemyHighBounty) {
+            if (knightOnBoard) {
+                combos.push({
+                    type: 'knight_execute',
+                    name: '骑士秒杀悬赏单位',
+                    unit: knightOnBoard,
+                    target: enemyHighBounty,
+                    priority: 88
+                });
+            } else if (hasKnight) {
+                combos.push({
+                    type: 'place_knight',
+                    name: '下骑士针对悬赏单位',
+                    card: hasKnight,
+                    priority: 80
+                });
+            }
+        }
+
         // 按优先级排序
         combos.sort((a, b) => b.priority - a.priority);
         return combos;
@@ -240,9 +280,10 @@
     // 判断某单位是否需要保护（是否被敌方高威胁单位威胁）
     function aiShouldProtect(unit, side) {
         if (!unit || unit.life <= 0) return false;
-        // 关键单位才保护
+        // 关键单位才保护：悬赏单位（>=2级，被移除会送对方赏金）与核心辅助
         const keyUnits = ["费机", "武器商", "国王", "参谋", "调酒师", "鼓手"];
-        if (!keyUnits.includes(unit.cardName)) return false;
+        const isBountyUnit = (unit.bountyLevel || 0) >= 2;
+        if (!keyUnits.includes(unit.cardName) && !isBountyUnit) return false;
         // 检查附近是否有能攻击到它的敌方单位
         const enemies = gameState.units.filter(u => u.side !== side && u.life > 0 && u.attacksLeftThisTurn > 0);
         for (let e of enemies) {
@@ -503,6 +544,11 @@
         if (bonus > 0) dmg += bonus;
         if (target.shaLinBindTurn > 0) dmg += 1;
         if (target.cardName === "麻木者") dmg = 1;
+        // ── 无敌/绝对免疫：本次攻击无法造成有效生命损失 ──
+        if ((target.invincibleTurns || 0) > 0) return 0;   // 无敌最低1血，斩杀线判定无效
+        if ((target.absoluteImmunityTurns || 0) > 0) return 0;
+        // ── 旗手庇护：免疫物伤 ──
+        if ((target.flagBearerProtectTurn || 0) > 0 && attacker.dmgType === '⚔️') return 0;
         // ── 装备系统：来源单位装备效果 ──
         const atkEqId = attacker.equipmentId;
         // 星痕之杖：法术伤害×1.5
@@ -516,12 +562,24 @@
                 dmg *= 2;
             }
         }
+        // 凝血之刃：物伤+1
+        if (atkEqId === 'coagulationBlade' && attacker.dmgType === '⚔️') dmg += 1;
         // ── 装备系统：目标碎镜减伤30% ──
         if (target.pureSkyDamageReduction) {
             dmg = Math.floor(dmg * 0.7);
         }
+        // ── 装备系统：虚无之衣（生命上限>4时受伤-1） ──
+        if (target.equipmentId === 'voidCloak' && (target.maxLife || 0) > 4) dmg = Math.max(0, dmg - 1);
         // 戟兵普通攻击为真伤（isUnblockable），无视护盾
-        if (attacker.cardName !== "戟兵" && target.shieldValue > 0) dmg = Math.max(0, dmg - target.shieldValue);
+        if (attacker.cardName !== "戟兵" && target.shieldValue > 0) {
+            // 枷锁猎手：破盾触发绝对免疫且多余伤害被忽略，仅能清盾
+            if (target.cardName === "枷锁猎手") dmg = 0;
+            else dmg = Math.max(0, dmg - target.shieldValue);
+        }
+        // 反击兵蓄势护盾
+        if (attacker.cardName !== "戟兵" && (target.braceShield || 0) > 0) {
+            dmg = Math.max(0, dmg - target.braceShield);
+        }
         // ── 装备系统：暗影纱法术护盾 ──
         if (attacker.dmgType === '🔮' && (target.magicShieldValue || 0) > 0) {
             dmg = Math.max(0, dmg - target.magicShieldValue);
@@ -599,8 +657,13 @@
         // 跳过为combo留buff的单位
         if (aiSkipAttackIds.has(unit.id)) return false;
 
-        // 攻击本体
-        if (canAttackBase(unit) && unit.cardName !== "大力士" && unit.cardName !== "骑士") {
+        // 攻击本体：优先清理「可击杀」或「高悬赏」的敌方单位（悬赏单位击杀有赏金收益）
+        const nearbyKillable = gameState.units.some(u =>
+            u.side === enemySide && u.life > 0 && !u.isMirror &&
+            Math.abs(u.row - unit.row) + Math.abs(u.col - unit.col) <= unit.range + 1 &&
+            (aiEstimateDamage(unit, u) >= u.life || (u.bountyLevel || 0) >= 2)
+        );
+        if (canAttackBase(unit) && unit.cardName !== "大力士" && unit.cardName !== "骑士" && !nearbyKillable) {
             if (aiGameId !== myGameId) return false;
             if (gameState.nerdJamPending[unit.side]) {
                 gameState.nerdJamPending[unit.side] = false;
@@ -695,10 +758,10 @@
 
         // ── 防守意识：如果关键单位受威胁，其他单位尝试挡位 ──
         if (cfg.defense && !unit.moved && (unit.movesLeftThisTurn || 0) > 0) {
-            // 检查己方关键单位是否被威胁
+            // 检查己方关键单位是否被威胁（含高悬赏单位：被移除会送对方赏金）
             const keyAllies = gameState.units.filter(u =>
                 u.side === side && u.life > 0 && u.id !== unit.id &&
-                ["费机", "武器商", "国王", "参谋"].includes(u.cardName)
+                (["费机", "武器商", "国王", "参谋"].includes(u.cardName) || (u.bountyLevel || 0) >= 2)
             );
             for (let ally of keyAllies) {
                 if (!aiShouldProtect(ally, side)) continue;
@@ -726,6 +789,15 @@
                 // 机车党：前方有敌方也主动走进（触发碰撞伤害）
                 const canEnter = unit.cardName === "机车党" ? canAddUnit(tr, unit.col, side) : (!hasEnemy && canAddUnit(tr, unit.col, side));
                 if (canEnter) {
+                    // 悬赏单位自保：hard 下不前移到会被击杀的格子（送对方赏金）
+                    if (cfg.defense && (unit.bountyLevel || 0) >= 2) {
+                        const lethalAfterMove = gameState.units.some(u =>
+                            u.side !== side && u.life > 0 && u.attacksLeftThisTurn > 0 &&
+                            Math.abs(u.row - tr) + Math.abs(u.col - unit.col) <= u.range + 1 &&
+                            aiEstimateDamage(u, unit) >= unit.life
+                        );
+                        if (lethalAfterMove) return false;
+                    }
                     if (aiDifficulty === 'easy' && Math.random() < cfg.skipActionRate) return false;
                     if (await tryMoveUnit(unit, tr, unit.col)) return true;
                 }
@@ -733,7 +805,17 @@
         }
         // 参谋在场或机车党：尝试其他方向
         if (gameState.units.some(u => u.side === side && u.cardName === "参谋" && u.life > 0) || unit.cardName === "机车党") {
-            for (let [dr, dc] of [[-1,0],[1,0],[0,-1],[0,1]]) {
+            // 机车党：优先尝试「有敌方可碰撞」的格子（碰撞造成1物伤），其次前进方向
+            const dirs = unit.cardName === "机车党"
+                ? [[-1,0],[1,0],[0,-1],[0,1]].sort((a, b) => {
+                    const ra = unit.row + a[0], ca = unit.col + a[1];
+                    const rb = unit.row + b[0], cb = unit.col + b[1];
+                    const ea = gameState.units.some(u => u.row === ra && u.col === ca && u.side !== side && u.life > 0) ? 1 : 0;
+                    const eb = gameState.units.some(u => u.row === rb && u.col === cb && u.side !== side && u.life > 0) ? 1 : 0;
+                    return eb - ea;
+                })
+                : [[-1,0],[1,0],[0,-1],[0,1]];
+            for (let [dr, dc] of dirs) {
                 const r = unit.row + dr, c = unit.col + dc;
                 if (r < 0 || r > 4 || c < 0 || c > 2 || (r === unit.row && c === unit.col)) continue;
                 const sideLimit = side === 0 ? r < 1 : r > 3;
@@ -768,10 +850,12 @@
 
         // 友方目标
         const skillName = gameState.declarativeSkillName;
-        // 治疗：选生命最低的
+        // 治疗：选生命最低的（排除麻木者/禁疗单位——无法被治疗）
         if (skillName === 'zhongyiHeal') {
-            targets.sort((a, b) => a.life - b.life);
-            return targets[0];
+            const healable = targets.filter(t => t.cardName !== "麻木者" && !t.noHeal);
+            if (healable.length === 0) return null;
+            healable.sort((a, b) => a.life - b.life);
+            return healable[0];
         }
         // 调酒师送酒：选攻击力最高的（收益最大）
         if (skillName === 'bartenderBuff') {
@@ -810,16 +894,19 @@
         const skillName = gameState.declarativeSkillName;
 
         if (def.targetType === "grid" && filter === "noEnemy") {
-            // 七二瞬移：选靠近敌人的空格
+            // 护援兵瞬移：优先选择「靠近敌人 + 同格有友方（能一起+2盾）」的空格
             const enemies = gameState.units.filter(u => u.side !== caster.side && u.life > 0);
             if (enemies.length === 0) return null;
-            let best = null, bestDist = Infinity;
+            let best = null, bestScore = -Infinity;
             for (let r = 0; r < 5; r++) for (let c = 0; c < 3; c++) {
                 const hasEnemy = gameState.units.some(u => u.row === r && u.col === c && u.side !== caster.side);
                 if (hasEnemy) continue;
                 if (!canAddUnit(r, c, caster.side) && caster.cardName !== "护援兵") continue;
                 const minDist = Math.min(...enemies.map(e => Math.abs(e.row - r) + Math.abs(e.col - c)));
-                if (minDist < bestDist) { bestDist = minDist; best = {row: r, col: c}; }
+                // 同格友方数：瞬移后每个友方+2盾，收益高
+                const alliesHere = getUnitsAt(r, c).filter(u => u.side === caster.side && u.id !== caster.id).length;
+                const score = alliesHere * 8 - minDist * 2;
+                if (score > bestScore) { bestScore = score; best = {row: r, col: c}; }
             }
             return best;
         }
@@ -883,8 +970,11 @@
                 return e.row === unit.row + forward && e.col === unit.col;
             });
             if (!frontEnemy) return false;
-            // 只在有值得秒杀的目标时使用（高生命或高威胁）
-            if (frontEnemy.life <= 2 && frontEnemy.dmgValue <= 1) return false;  // 普通攻击就能解决
+            // 无敌/绝对免疫目标免疫秒杀，不浪费技能
+            if ((frontEnemy.invincibleTurns || 0) > 0 || (frontEnemy.absoluteImmunityTurns || 0) > 0) return false;
+            // 只在有值得秒杀的目标时使用（高生命或高威胁或高悬赏——击杀悬赏单位有赏金）
+            const frontHasBounty = (frontEnemy.bountyLevel || 0) > 0;
+            if (frontEnemy.life <= 2 && frontEnemy.dmgValue <= 1 && !frontHasBounty) return false;  // 普通攻击就能解决
         }
 
         // ── 标枪手突刺：有强化普攻且前方有敌人或敌方本体时使用 ──

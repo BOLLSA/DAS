@@ -84,7 +84,8 @@ decks.js → targeting.js → ui.js → ui-overlay.js → ai.js → network.js �
 | `targeting.js` | `getSkillTargetableUnits` / `handleCellClick` / `dispatchSkillTarget` | 目标过滤 + 棋盘点击分发 |
 | `ui.js` | `renderUI` | 全量渲染（末尾挂载教程高亮 applyTutorialHighlight） |
 | `ui-overlay.js` | `showPokedex` / `showPokedexDetail` / `showCardPool` / `buildCardPoolMap` / `showTutorial` / `startBeginnerTutorial` / `BEGINNER_TUTORIAL_STEPS` / `tutorialAllowAction` / `tutorialBlock` / `openTestPanel` / `onGlobalKeydown` / `showMatchRecap` / `calculateMVP` | 图鉴 / 卡池 / 教程（静态速查 + 新手引导）/ 教程白名单 / 测试 / 快捷键 |
-| `ai.js` | `aiTakeTurn` / `aiPlaceCards` / `aiUseUnits` / `aiTryAttack` / `aiTryMove` / `aiTrySkill` / `aiEstimateDamage` | AI 决策全链路 |
+| `ai.js` | `aiTakeTurn` / `aiPlaceCards` / `aiUseUnits` / `aiTryAttack` / `aiTryMove` / `aiTrySkill` / `aiEstimateDamage` / `aiEvaluateThreat` / `aiSelectAttackTarget` / `aiShouldProtect` / `aiDetectCombos` | AI 决策全链路（含悬赏机制运用：击杀高悬赏优先、保护己方悬赏单位、悬赏单位不自保移动） |
+| `equipment.js` | `aiEquipmentValue` / `aiPickEquipmentUnit` / `aiUseEquipment` | AI 装备价值评估 + 穿戴者匹配 |
 | `main.js` | `startGame` | 入口（模式选择 → 新手教程 / 各模式 → resetGame） |
 
 ---
@@ -461,6 +462,7 @@ node --check js/main.js
 | 启动性能优化 | PeerJS 改为按需动态加载（不再同步阻塞页面启动）；全屏 overlay 移除 backdrop-filter 全屏模糊 |
 | 卡池查看 | 主界面「📚 卡池」：全卡池共享 / 预设卡组分我方敌方，动态计算（死亡单位自动回池），等级筛选+搜索 |
 | 悬赏机制 | 3/5/7/9 连杀进入 1/2/3/4 级悬赏（牌面💰xN），被移除（死亡/自爆/弃牌等）时另一方获得对应费赏金 |
+| AI 全面升级 | AI 成熟运用悬赏/护盾来源/真伤/麻木者/无敌免疫/旗手庇护/装备适配：悬赏单位优先集火与保护、斩杀线修正、装备价值评估与穿戴匹配 |
 
 ---
 
