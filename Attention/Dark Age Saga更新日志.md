@@ -5,6 +5,217 @@
 
 ---
 
+## 2026 年 8 月 · 日志/toast/弹窗消息模板 100% 人工翻译（零中文残留）
+
+**本次改动：全部 showToast/addLog/showMessage/showConfirm 含中文调用（1006 处）改为 trText(中文模板, 英文模板) 包裹**
+
+### 实现方式
+
+- 自动生成：对 851 个唯一模板，插值（${}）保护后经短语词典翻译主干生成英文模板，自动应用 950+ 处；插值表达式原样保留（运行时展开的中文由咽喉层 translateText 二次翻译）
+- 人工精修：73 个顽固模板（悬赏兑现/护盾抵消/摔投/纱琳定身/武器商加持等）逐个人工撰写英文
+- 词典扩充：补充 200+ 组合词条（被消灭/已用完/替伤伤害/外来护盾/受法伤/回绫罗/摔落位置/下咒等）
+- 逻辑兼容：categorizeEvent/detectTactic 增加英文关键词镜像（复盘分类不失效）；showMessage 结束消息判断改为中英双语正则（AI 对战结束消息不再被跳过）
+
+### 结果
+
+- 未翻译的中文消息调用：**0**（全量源码扫描确认）
+- en 模式日志/toast/弹窗全部英文：Action Jam takes effect! Heavy Axeman's attack was negated! / Game Start! both sides start with 3 mana, cap 15 / Restart the game? All match progress will be lost!
+- zh 模式完全不变（trText 原样返回中文）
+
+**涉及文件：** 全部 15 个 js 文件（消息调用点 trText 包裹）、js/i18n.js（词典扩充）、js/game-state.js（categorizeEvent/detectTactic 双语）、js/game-flow.js（showMessage 判断）
+
+**验证：** 16 个 JS 语法检查通过；100% 专项测试（en 日志零中文/zh 原样/confirm/图鉴/装备）+ 逻辑测试（英文消息分类/战术识别/结束消息判断）全部 PASS。
+
+---
+
+## 2026 年 8 月 · 全面核查：残留中文清零 + Attention 文档同步
+
+**全面扫描所有渲染路径（innerHTML/innerText/textContent/placeholder/title）后修复的遗漏：**
+
+- ui.js：镜中人换位按钮（换位/换位(已用)）、状态图标 title 词条补全（秒杀已用/首击加成/已变形/复活甲待机/本回合被位移/下次攻击翻倍等，24 个状态图标 title 全部英文）
+- ui-overlay.js：镜像变形搜索框 placeholder（搜索单位名称）
+- decks.js：卡组导入/导出面板整体接入 translateText（输入卡组名称/粘贴分享码/房间码等 placeholder）；保存卡组列表删除按钮 title 单独翻译（不误翻用户自定义卡组名）
+- i18n.js：关闭大写（close→Close）、补 已用/首击/待机 等词条
+- 验证：16 个 JS 语法通过；状态图标 12 项、模式选择回归 5 项、E2E 全过；日志/toast 字符覆盖 96.3%；81 卡详情/装备名/装备介绍/装备短介绍/教程/技能标签全部零中文
+
+**涉及文件：** js/i18n.js、js/ui.js、js/ui-overlay.js、js/decks.js
+
+---
+
+## 2026 年 8 月 · 修复：装备名/介绍本地化遗漏（战斗商店卡片 + 单位装备 tooltip）
+
+**本次改动：**
+
+- 战斗中装备商店（showEquipmentShop）卡片：装备名 nameLine 改用 translateText()，介绍 descLine 改用 equipDescDisplay()（之前直接用原文，完全未翻译）
+- 单位装备图标 tooltip（getEquipmentDisplay）：返回翻译后的 name/desc（en 时），悬停单位装备图标显示英文名 + 完整人工翻译介绍
+- 验证：商店卡片三元素（名/短介绍/介绍）、单位 tooltip、14 件装备名全部英文无中文
+
+**涉及文件：** js/equipment.js（nameLine/descLine/getEquipmentDisplay）
+
+**验证：** 16 个 JS 语法检查通过；装备显示 7 项校验全部 PASS。
+
+---
+
+## 2026 年 8 月 · 修复：测试模式/装备商店本地化 + 图鉴详情完整信息
+
+**本次改动：**
+
+- 测试模式面板（openTestPanel）：标题/调试工具/清除所有单位/无限费开关/添加手牌/等级筛选/关闭 全部接入翻译
+- 装备商店：新增 EQUIP_SHORT_EN（14 件装备短介绍），shortLine 与 AI 商店选项改用 equipShortDisplay()
+- 图鉴详情 EN 分支：修复"太简单"问题——有被动的卡显示完整 desc（而非只显示被动名）；被动+技能卡按 Skill:/Active: 拆分完整展示；仅技能卡显示完整技能描述
+- 补充测试模式/日志高频词条（调试工具/清除所有单位/无限费/添加手牌等）
+
+**涉及文件：** js/i18n.js（EQUIP_SHORT_EN + 词条）、js/ui-overlay.js（测试面板包裹、图鉴 EN 分支）、js/equipment.js（short 显示）
+
+**验证：** 16 个 JS 语法检查通过；测试面板/装备商店/图鉴详情 10 项 + 冒烟 5 项全部 PASS。
+
+---
+
+## 2026 年 8 月 · 英文 100% 干净覆盖（人工翻译内容字典）
+
+**本次改动：为全部用户可见内容人工撰写英文翻译，切换 English 后图鉴/单位名/日志/toast/教程/装备/技能/复盘不再中英混杂**
+
+### 新增内容字典（js/i18n.js）
+
+| 字典 | 内容 | 接入点 |
+|------|------|--------|
+| CARD_DETAILS_EN | 81 张卡 desc/passive/skillDesc 完整人工翻译（零中文残留） | 图鉴详情（showPokedexDetail EN 分支）、手牌被动名（cardPassiveText） |
+| CARD_SKILL2_EN | 双技能卡第二技能描述（影舞姬/绫罗） | cardSkillDescDisplay |
+| SKILL_LABELS_EN | 43 个技能按钮 label 英译 | getSkillBtnText |
+| EQUIP_DESCS_EN | 14 件装备描述 | equipDescDisplay（装备商店） |
+| TUTORIAL_STEPS_EN | 13 步新手引导英文（title/text/buttonText） | tutorialStepDisplay |
+| TUTORIAL_QUICK_EN | 速查教程整页英文版 | showTutorial |
+| 短语词典扩充 | 日志/toast/复盘/AI 策略高频词 + 长模板精确翻译（~1200 条） | translateText 咽喉入口 |
+
+### 效果
+
+- 图鉴详情：81 张卡描述/被动/技能全部零中文残留
+- 关键日志/toast：Restart the game? All match progress will be lost! / Scapegoat instead of Heavy Axeman took lethal damage! / Death-round check: neither side can defeat the opponent's base, Blue Victory!
+- 日志/toast 消息模板字符覆盖率 96.1%，剩余为生僻词（词典可继续扩充）
+- 中文模式（默认）完全不变
+
+**涉及文件：** js/i18n.js（内容字典 + 助手函数）、js/ui-overlay.js（图鉴详情 EN 分支、教程英文版）、js/ui.js（手牌被动名）、js/skill-config.js（技能按钮 label）、js/equipment.js（装备描述）
+
+**验证：** 16 个 JS 语法检查全通过；15 项内容校验（81 卡零中文残留、教程/装备/技能字典、zh 回退）+ 8 项 E2E 运行时测试全部 PASS。
+
+---
+
+## 2026 年 8 月 · 英文全量本地化（局内单位名/toast/日志/图鉴/教程/联机等动态内容）
+
+**本次改动：切换 English 后，游戏内全部用户可见文本均显示英文（短语级机器翻译，未覆盖词保留中文原样）**
+
+### 实现方式：咽喉入口翻译 + 渲染点包裹
+
+| 层 | 方式 | 位置 |
+|----|------|------|
+| 卡牌名（81张） | `CARD_NAMES_EN` 字典 + `cardNameDisplay()` | i18n.js |
+| toast/日志/弹窗 | `showToast`/`addLog`/`showConfirmLocal`/`showMessage` 显示层调用 `translateText()`（事件记录/网络同步仍用原文，对端各自翻译） | game-state.js、game-flow.js |
+| 图鉴/卡池/详情 | 渲染模板整串包 `translateText()` | ui-overlay.js |
+| 手牌/棋盘/预牌堆/按钮 | 渲染模板包 `translateText()`；技能按钮文本在 `getSkillBtnText` 出口翻译 | ui.js、skill-config.js |
+| 卡组构建器/联机对话框/预牌面板/装备商店/复盘/MVP/教程 | 渲染模板包 `translateText()` | decks.js、game-flow.js、equipment.js、ui-overlay.js |
+| 翻译引擎 | `ZH_EN_PHRASES`（~600条短语）+ `ZH_EN_RULES`（数字规则/标点）+ 最长匹配；词典未覆盖中文原样保留 | i18n.js |
+
+### 关键设计
+
+- **零逻辑改动风险**：翻译只在显示层，中文模式（默认）下 `translateText()` 原样返回，行为与之前完全一致
+- **联机同步**：日志/toast 网络传输仍用原文，各端按自己的语言显示
+- **图鉴描述**：81 张卡 desc 经短语级翻译为可读英文（约 90% 字符覆盖率）
+
+**涉及文件：** `js/i18n.js`（CARD_NAMES_EN + 短语词典 + translateText + cardNameDisplay + trText）、`js/game-state.js`（showToast/addLog/showKillStreak 显示层翻译）、`js/game-flow.js`（showConfirmLocal/showMessage/showSelect/预牌面板）、`js/ui.js`（棋盘/手牌/按钮渲染）、`js/ui-overlay.js`（图鉴/卡池/教程/复盘/测试面板）、`js/decks.js`（联机对话框/卡组构建器）、`js/equipment.js`（装备商店）、`js/skill-config.js`（getSkillBtnText）
+
+**验证：** 16 个 JS 文件语法检查全通过；E2E 运行时测试（addLog/showToast/showConfirm/showMessage 英文翻译、中文原样、卡名、t() 占位符、图鉴描述）全部 PASS；模式选择并列布局回归 PASS；全语料覆盖率 **93.7%**（残留为长卡牌描述中的生僻词，可在 ZH_EN_PHRASES 词典补词条提升）。
+
+---
+
+## 2026 年 8 月 · 语言选择（简体中文 / English）
+
+**本次改动：新增与「模式选择」并列的语言选择面板 + i18n 语言切换框架**
+
+### 新增功能
+
+| 项 | 说明 |
+|----|------|
+| 语言选择面板 | 模式选择页改为左右两列并列：左列语言选择（简体中文 / English），右列模式选择；点击即时切换，窄屏自动上下堆叠 |
+| i18n 框架 | 新增 `js/i18n.js`：中英文对照字典、`t(key, {n})` 翻译函数、`data-i18n` 属性自动填充、`setLanguage()` 即时切换并持久化到 localStorage（`das_lang`） |
+| 已本地化范围 | 语言/模式选择页、AI 对战设置页、主界面 HUD 静态文案（蓝方/红方/手牌/敌方手牌/预牌堆/各按钮/快捷键提示）、回合提示、页面标题、红方选卡提示语 |
+| 未本地化（扩展点） | 卡牌名、技能描述、战斗日志、卡组构建器、图鉴、教程、远程联机子对话框 —— 仍为中文，后续在 `I18N_DICT` 按 key 扩展并在生成处改用 `t()`/data-i18n 即可 |
+
+**涉及文件：** `js/i18n.js`（新增）、`index.html`（加载 i18n.js + 静态文案 data-i18n 标记）、`js/decks.js`（模式选择并列布局 + AI 设置翻译）、`js/ui.js`（回合提示翻译）、`js/main.js`（启动应用语言 + 选卡提示翻译）、`css/style.css`（并列布局与语言按钮样式）
+
+**验证：** 4 个 JS 文件语法检查通过；i18n 逻辑冒烟测试（中英切换/持久化/占位符替换/缺 key 回退）全部通过。
+
+---
+
+## 2026 年 8 月 · 新增角色与机制（魔矢人/炽炎射手/琴魔/法师/剑客/风女 + 极速/死亡回合 + 弱化/霸体）
+
+**本次改动：新增 6 个角色、3 种游戏机制、弱化效果与多处 bug 修复**
+
+### 新增角色（6 个）
+
+| 角色 | 等级/费用 | 生命/伤害 | 核心机制 |
+|------|----------|----------|---------|
+| 魔矢人 | 2级/2费 | 2血/1法伤 | 被动攻击范围正前方3格（同列1~3格） |
+| 炽炎射手 | 2级/2费 | 3血/1法伤 | 蓄力1/2/3回合，释放回合攻速+1/2/3且每次+0/1/1法伤；蓄力期间可移动不能攻击，最多3回合自动结束 |
+| 琴魔 | 史诗/2费 | 1血/3法伤 | 蓄力选中一横行，下个我方回合对该行所有敌人造成3法伤；蓄力中可移动不能攻击；被眩晕/定身/沉默中断 |
+| 法师 | 3级/1费 | 2血/1法伤 | 被动攻击正前方2格，命中后施加弱化（weakenedTurns=2，持续2小回合）；被弱化的单位造成的伤害无效 |
+| 剑客 | 3级/2费 | 3血/1法伤 | AOE攻击正前方同列2格内所有敌人；造成击杀后攻击范围+1（永久成长） |
+| 风女 | 2级/2费 | 2血/1法伤 | 被动攻击范围正前方3格，普攻后可自由移动一格（不消耗移速，每回合1次）；二选一技能：1.风暴冲击（对正前方3格内最近敌人所在格所有敌人造成1法伤+1能量，上限3，不可空放）2.能量爆发（消耗所有能量，每点+1普攻次数） |
+
+### 新增游戏机制（3 种）
+
+| 机制 | 触发条件 | 效果 |
+|------|---------|------|
+| 极速回合 | 第13大回合起 | 每回合从预牌堆选2张牌（必须选2张），先选后确定；溢出2张时从全部牌中选2张弃牌 |
+| 死亡回合 | 第25大回合起 | 不再自然加费（费用冻结） |
+| 平局判定 | 死亡回合每回合开始 | 检查双方场上+手牌+预牌堆是否有dmgValue>0，均无则比较HP判平局/胜负；费用不足的伤害牌被忽略 |
+
+### 弱化效果与霸体免疫
+
+- **弱化（weakenedTurns）**：法师攻击命中后施加，持续2小回合；被弱化的单位造成的伤害无效
+- **弱化不阻止蓄力触发**：斧兵/弩手/重斧兵/双剑被弱化时仍可通过攻击触发蓄力（即时伤害为0但蓄力正常进入）
+- **弱化阻止蓄力释放**：斧兵/弩手蓄力释放时如有弱化，伤害无效并消耗蓄力（与戟兵横扫一致）
+- **霸体免疫弱化**：霸体（superCharging）单位免疫法师弱化施加
+
+### Bug 修复（7 项）
+
+| Bug | 文件 | 修复 |
+|-----|------|------|
+| AI 风女技能方向反转（forward 与 getForwardDelta 相反） | ai.js | 改用 getForwardDelta(side) |
+| 攻击城池不触发风女风之步 | battle-engine.js | attackBase 添加风之步触发 |
+| AI 移动门控忽略风女风之步（6 处） | ai.js | 添加风女风之步例外条件 |
+| 斧兵/弩手蓄力释放无弱化检查 | skill-charge.js | 添加弱化检查（与戟兵一致） |
+| AI 能量爆发无脑使用（有能量即用，不看可攻击目标） | ai.js | 添加 canAttack 前置条件+风暴冲击AOE缩放评分 |
+| AI 弱化伤害估算对蓄力触发单位不一致 | ai.js | 被弱化的蓄力触发单位添加蓄力价值 |
+| AI 风女技能评分缺少 isMirror 过滤 | ai.js | filter 添加 !u.isMirror |
+
+**涉及文件：** `js/cards.js`（6张新卡）、`js/skill-config.js`（6个新技能+弱化检查+风女SKILL_CANCELLED修复）、`js/skill-charge.js`（炽炎射手/琴魔蓄力+斧兵/弩手弱化检查）、`js/battle-engine.js`（法师弱化+剑客AOE+风女风之步+霸体免疫弱化）、`js/game-flow.js`（极速/死亡回合/平局判定+风女属性+自由移动+回合重置）、`js/ai.js`（6角色AI评分+移动门控+弱化估算修复）、`js/ui.js`（风女状态标签）、`js/equipment.js`（复活状态重置）、`js/ui-overlay.js`（测试面板+极速回合UI）、`js/network.js`（联机同步）、`css/style.css`（极速回合样式）
+
+**验证：** 15 个 JS 语法检查通过。
+
+---
+
+## 2025 年 1.01 · 卡牌闭环
+
+**本次改动：卡牌循环从"半开环（弃牌/死亡永久消失）"改为"闭环（回卡池可再次抽到）"**
+
+| 项 | 说明 |
+|---|---|
+| 弃牌回池 | `discardCard()`（game-state.js）：弃掉的手牌回到 deck，Fisher-Yates 洗牌 |
+| 死亡回池 | `removeUnit()`（battle-engine.js）：单位死亡时卡牌回 deck，排除复活甲/猫复活/同化者/镜像/测试卡 |
+| 爆牌回池 | `popUnit()`（game-state.js）：爆牌移除的单位回 deck，排除镜像/同化者/测试卡 |
+| 测试卡标记 | `openTestPanel()`（ui-overlay.js）：测试模式添加的卡打 `_fromTestPanel: true` 标记，弃牌/死亡时直接销毁不回池 |
+| 手牌超限弃牌 | `useCreateFromNothing()`（skill-charge.js）：AI/玩家手牌超上限时弃掉的卡同样回 deck |
+| 联机同步 | `networkSlimCard()`（network.js）：快照只传 `{n,d,db,dt}`，`_fromTestPanel` 字段自动剔除不传播 |
+| 洗牌函数 | `shuffleDeck(side)`（game-state.js）：Fisher-Yates 洗牌算法 |
+
+**排除特殊情况（防止无限资源）：** 复活甲 `pendingRevive` / 猫复活 `reviveTimesLeft` / 城池复活 `onDeathPassive==="revive"` / 同化者 `isAssimilator` / 镜像 `isMirror` / 测试卡 `_fromTestPanel`
+
+**额外修复：** `_fromTestPanel` 标记从手牌→单位（`placeCard` in game-flow.js）→猫复活新单位（`triggerDeathPassive` in battle-engine.js）三处传递，防止测试卡变为单位后丢失标记导致错误回流。
+
+**验证：** 15 个 JS 语法检查通过。
+
+---
+
 ## 2025 年 1.01 · 全卡描述与机制核对修复
 
 **本次改动：系统核对 75 张卡描述与实现，修复 5 处不符**

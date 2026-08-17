@@ -335,6 +335,11 @@
             return Math.floor(Math.random() * prepool.length);
         }
 
+        // 大师难度：使用手牌协同 + 牌堆知识规划
+        if (aiIsMaster()) {
+            return aiMasterSelectPrepool(side, prepool);
+        }
+
         const enemies = gameState.units.filter(u => u.side !== side && u.life > 0);
         const friends = gameState.units.filter(u => u.side === side && u.life > 0);
         const myHp = gameState.players[side].hp;
@@ -351,6 +356,7 @@
             if (c.name === "护盾") s += 12;
             if (c.name === "净化师") s += 15;
             if (c.name === "机车党") s += 10;  // 碰撞+蓄力高速接近
+            if (c.name === "魔矢人") s += 12;  // 远程标记+增减伤
             if (c.range >= 2) s += 5;
 
             // ── 局势感知（normal/hard）──
@@ -394,7 +400,7 @@
         const cfg = aiCfg();
 
         // combo关键牌不丢
-        const keyCards = ["护盾", "武器商", "费机", "军营"];
+        const keyCards = ["护盾", "武器商", "费机", "军营", "魔矢人", "炽炎射手", "琴魔", "法师", "剑客", "风女"];
         if (cfg.manaPlan) {
             // 困难模式更精明地保留combo对
             const hasWeaponSmith = hand.some(c => c.name === "武器商");
@@ -414,11 +420,78 @@
             if (c.name === "军营") s += 25;
             if (c.name === "费机") s += 20;
             if (c.name === "武器商") s += 20;
+            if (c.name === "魔矢人") s += 12;
+            if (c.name === "炽炎射手") s += 12;  // 远程蓄力+攻速加成
+            if (c.name === "琴魔") s += 14;  // 横行AOE蓄力
+            if (c.name === "法师") s += 10;  // 弱化攻击
+            if (c.name === "剑客") s += 12;  // AOE攻击+击杀成长
+            if (c.name === "风女") s += 14;  // 远程+能量系统+自由移动
             if (c.name === "三刀" || c.name === "双刀") s += 15;
             if (s < worstScore) { worstScore = s; worstIdx = i; }
         }
         if (worstIdx === -1) worstIdx = 0;
         return worstIdx;
+    }
+
+    // ========== 极速回合：选2张预牌 ==========
+    function aiSelectPrepoolCard2(prepool) {
+        if (!prepool || prepool.length < 2) return [0, Math.min(1, prepool.length - 1)];
+        const side = aiSide;
+        // 复用现有评分逻辑，选评分最高的2张
+        const scores = prepool.map((c, i) => {
+            let s = c.dmgValue * 3 + c.life - c.cost * 2;
+            if (c.name === "军营") s += 25;
+            if (c.name === "费机") s += 20;
+            if (c.name === "护盾") s += 12;
+            if (c.name === "净化师") s += 15;
+            if (c.name === "机车党") s += 10;
+            if (c.name === "魔矢人") s += 12;  // 远程标记+增减伤
+            if (c.name === "炽炎射手") s += 12;  // 远程蓄力+攻速加成
+            if (c.name === "琴魔") s += 14;  // 横行AOE蓄力
+            if (c.name === "法师") s += 10;  // 弱化攻击
+            if (c.range >= 2) s += 5;
+            if (aiIsMaster()) {
+                // 大师难度额外考量
+                const hand = gameState.players[side].hand;
+                if (hand.some(h => h.name === "武器商") && (c.name === "三刀" || c.name === "双刀")) s += 25;
+                if (hand.some(h => h.name === "三刀" || h.name === "双刀") && c.name === "武器商") s += 25;
+            }
+            return { idx: i, score: s };
+        });
+        scores.sort((a, b) => b.score - a.score);
+        return [scores[0].idx, scores[1].idx];
+    }
+
+    // ========== 极速回合：弃2张牌 ==========
+    function aiSelectDiscard2(side, newCards) {
+        const hand = gameState.players[side].hand;
+        const allCards = [...hand, ...newCards];
+        const keyCards = ["护盾", "武器商", "费机", "军营", "魔矢人", "炽炎射手", "琴魔", "法师", "剑客", "风女"];
+        const cfg = aiCfg();
+        if (cfg.manaPlan) {
+            const hasWeaponSmith = hand.some(c => c.name === "武器商");
+            const hasTripleOrDual = hand.some(c => c.name === "三刀" || c.name === "双刀");
+            if (hasWeaponSmith) keyCards.push("三刀", "双刀");
+            if (hasTripleOrDual) keyCards.push("武器商");
+        }
+        // 评分所有牌（含新牌），选最低分的2张弃掉
+        const scored = allCards.map((c, idx) => {
+            if (keyCards.includes(c.name) && gameState.players[side].mana >= c.cost) return { idx, score: Infinity };
+            let s = c.dmgValue * 3 + c.life - c.cost * 2;
+            if (c.name === "军营") s += 25;
+            if (c.name === "费机") s += 20;
+            if (c.name === "武器商") s += 20;
+            if (c.name === "魔矢人") s += 12;
+            if (c.name === "炽炎射手") s += 12;  // 远程蓄力+攻速加成
+            if (c.name === "琴魔") s += 14;  // 横行AOE蓄力
+            if (c.name === "法师") s += 10;  // 弱化攻击
+            if (c.name === "剑客") s += 12;  // AOE攻击+击杀成长
+            if (c.name === "风女") s += 14;  // 远程+能量系统+自由移动
+            if (c.name === "三刀" || c.name === "双刀") s += 15;
+            return { idx, score: s };
+        });
+        scored.sort((a, b) => a.score - b.score);
+        return [scored[0].idx, scored[1].idx];
     }
 
     // ========== 卡牌放置优先级（升级版）==========
@@ -443,6 +516,12 @@
         if (card.name === "火神") p += 16;
         if (card.name === "赫菲斯托斯") p += 15;
         if (card.name === "机车党") p += 12;  // 碰撞+蓄力高速接近
+        if (card.name === "魔矢人") p += 14;  // 远程标记+增减伤
+        if (card.name === "炽炎射手") p += 14;  // 远程蓄力+攻速加成
+        if (card.name === "琴魔") p += 16;  // 横行AOE蓄力
+        if (card.name === "法师") p += 12;  // 弱化攻击
+        if (card.name === "剑客") p += 14;  // AOE攻击+击杀成长
+        if (card.name === "风女") p += 16;  // 远程3格+能量系统+自由移动
         if (card.range >= 2) p += 8;
         if (card.name === "护盾" || card.name === "无中生有" || card.name === "鼠疫") p = -1000;
 
@@ -522,8 +601,9 @@
 
             // ── 大师预判：评估此位置下回合受敌方反击伤害，脆弱关键单位避开火力 ──
             if (aiIsMaster() && (card.life <= 4 || ["费机", "武器商", "国王", "参谋", "调酒师"].includes(card.name))) {
-                const incoming = aiMasterPredictIncomingDamage({ ...card, side }, row, col);
-                if (incoming >= card.life) score -= 40;      // 会被集火击杀的位置
+                const incoming = aiMasterEnhancedPredictDamage({ ...card, side }, row, col);
+                if (incoming >= 999) score -= 80;      // 骑士秒杀区绝对避让
+                else if (incoming >= card.life) score -= 40;      // 会被集火击杀的位置
                 else if (incoming > 0) score -= incoming * 5; // 受火力按伤害减分
             }
 
@@ -547,7 +627,7 @@
     // AI 估算伤害（简化版）
     function aiEstimateDamage(attacker, target) {
         let dmg = attacker.dmgValue;
-        // 弱化：本回合伤害无效（与实际 performAttack 一致）
+        // 弱化：本回合即时伤害无效（蓄力触发单位仍可攻击触发蓄力，但即时伤害为0）
         if ((attacker.weakenedTurns || 0) > 0) return 0;
         if (attacker.tempAttackBonus > 0) dmg += attacker.tempAttackBonus;
         if (attacker.nextAttackBonus > 0) dmg += attacker.nextAttackBonus;
@@ -633,6 +713,709 @@
         return { kill: false, incoming, dealt, net: dealt - incoming };
     }
 
+    // ========== 大师难度：顶级策略引擎 ==========
+    // 赋予大师 AI：节奏感知、全局行动优化、费用组合规划、手牌协同、
+    // 增强预判、情境化装备、角色特定策略
+
+    // ── 大师策略状态（每回合重置）──
+    let aiMasterPhase = 'midgame';
+    let aiMasterTempoState = 'even';
+    let aiMasterMode = 'tempo';
+    let aiMasterEnemyData = null;
+    let aiMasterCardSequence = [];
+    let aiMasterReservedMana = 0;
+
+    // ── 游戏阶段检测：开局/中盘/终盘 ──
+    function aiMasterDetectPhase(side) {
+        const turnCount = Math.floor((gameState.matchStats.turnCount || 0) / 2);
+        const myMana = gameState.players[side].mana;
+        const myUnits = gameState.units.filter(u => u.side === side && u.life > 0);
+        const enemyUnits = gameState.units.filter(u => u.side !== side && u.life > 0);
+        const totalUnits = myUnits.length + enemyUnits.length;
+        const myHp = gameState.players[side].hp;
+        const enemyHp = gameState.players[1 - side].hp;
+        if (turnCount <= 2 || (totalUnits <= 3 && myMana <= 5)) return 'opening';
+        if (myHp <= 4 || enemyHp <= 4 || myMana >= 12 || turnCount >= 7) return 'endgame';
+        return 'midgame';
+    }
+
+    // ── 节奏评估：优势/均势/劣势 ──
+    function aiMasterDetectTempo(side) {
+        const myHp = gameState.players[side].hp;
+        const enemyHp = gameState.players[1 - side].hp;
+        const myUnits = gameState.units.filter(u => u.side === side && u.life > 0);
+        const enemyUnits = gameState.units.filter(u => u.side !== side && u.life > 0);
+        const myBoardVal = myUnits.reduce((s, u) => s + u.dmgValue * 2 + u.life + (u.bountyLevel || 0) * 3, 0);
+        const enemyBoardVal = enemyUnits.reduce((s, u) => s + u.dmgValue * 2 + u.life + (u.bountyLevel || 0) * 3, 0);
+        let score = (myHp - enemyHp) * 2.5 + (myBoardVal - enemyBoardVal) + (myUnits.length - enemyUnits.length) * 3;
+        if (score >= 8) return 'ahead';
+        if (score <= -8) return 'behind';
+        return 'even';
+    }
+
+    // ── 策略选择：aggro / tempo / control / race / defend ──
+    function aiMasterSelectStrategy(side) {
+        aiMasterPhase = aiMasterDetectPhase(side);
+        aiMasterTempoState = aiMasterDetectTempo(side);
+        if (aiMasterPhase === 'opening') {
+            aiMasterMode = 'tempo';
+        } else if (aiMasterPhase === 'endgame') {
+            aiMasterMode = (aiMasterTempoState === 'behind') ? 'defend' : 'race';
+        } else {
+            if (aiMasterTempoState === 'ahead') aiMasterMode = 'aggro';
+            else if (aiMasterTempoState === 'behind') aiMasterMode = 'control';
+            else aiMasterMode = 'tempo';
+        }
+        aiMasterEnemyData = aiMasterAnalyzeEnemies(side);
+        return { phase: aiMasterPhase, tempo: aiMasterTempoState, mode: aiMasterMode };
+    }
+
+    // ── 敌方综合分析：技能威胁、危险区域、经济单位、可击杀目标 ──
+    function aiMasterAnalyzeEnemies(side) {
+        const enemies = gameState.units.filter(u => u.side !== side && u.life > 0 && !u.isMirror);
+        const fwd = getForwardDelta(side);
+        const analysis = {
+            threats: [],
+            skillThreats: [],
+            dangerZones: {},
+            economyUnits: [],
+            killable: [],
+        };
+        for (let e of enemies) {
+            const threat = aiEvaluateThreat(e, side);
+            analysis.threats.push({ unit: e, score: threat });
+            const cardDef = CARD_LIBRARY.find(c => c.name === e.cardName);
+            if (cardDef && cardDef.skill) {
+                const skDef = SKILL_DEFS[cardDef.skill];
+                const skillReady = !e.skillUsedThisTurn && e.silenced <= 0 && (e.skillCooldown || 0) <= 0 && (e.eagleEyeTurns || 0) <= 0;
+                // 骑士秒杀威胁
+                if (cardDef.skill === 'knightExecute' && !e.knightSkillUsed && e.attacksLeftThisTurn > 0) {
+                    const dangerRow = e.row + getForwardDelta(e.side);
+                    analysis.skillThreats.push({ unit: e, type: 'knightExecute', dangerRow });
+                    analysis.dangerZones[`${dangerRow},${e.col}`] = (analysis.dangerZones[`${dangerRow},${e.col}`] || 0) + 50;
+                }
+                // 塞壬拉扯威胁
+                if (cardDef.skill === 'sirenPull' && skillReady) {
+                    analysis.skillThreats.push({ unit: e, type: 'sirenPull' });
+                }
+                // 纱琳定身威胁
+                if (cardDef.skill === 'shaLinBind' && skillReady && (e.shaLinBindUses || 2) > 0) {
+                    analysis.skillThreats.push({ unit: e, type: 'shaLinBind' });
+                }
+                // 斩月标记/斩杀威胁
+                if (cardDef.skill === 'zhanYueSkill' && skillReady) {
+                    analysis.skillThreats.push({ unit: e, type: 'zhanYueSkill' });
+                }
+                // 赫菲斯托斯封锁
+                if (cardDef.skill === 'hephaestusBlock' && skillReady && (e.hephaestusUseCount || 0) < 3) {
+                    analysis.skillThreats.push({ unit: e, type: 'hephaestusBlock' });
+                }
+            }
+            if (["费机", "武器商", "国王", "参谋"].includes(e.cardName)) {
+                analysis.economyUnits.push(e);
+            }
+        }
+        // 可击杀目标
+        const myUnits = gameState.units.filter(u => u.side === side && u.life > 0);
+        for (let e of enemies) {
+            for (let m of myUnits) {
+                if (aiEstimateDamage(m, e) >= e.life) { analysis.killable.push(e); break; }
+            }
+        }
+        analysis.threats.sort((a, b) => b.score - a.score);
+        return analysis;
+    }
+
+    // ── 大师卡牌价值评估（情境化）──
+    function aiMasterCardValue(card, side, units) {
+        let v = card.dmgValue * 3 + card.life - card.cost * 1.5;
+        // 阶段+策略加成
+        if (aiMasterPhase === 'opening') {
+            if (card.name === "费机") v += 40;
+            if (card.name === "武器商") v += 35;
+            if (card.name === "军营") v += 30;
+            if (card.name === "国王") v += 25;
+            if (card.name === "参谋") v += 22;
+        } else if (aiMasterMode === 'aggro' || aiMasterMode === 'race') {
+            if (card.dmgValue >= 3) v += 20;
+            if (card.name === "骑士") v += 25;
+            if (card.name === "重斧兵") v += 22;
+            if (card.name === "公主") v += 18;
+            if (card.name === "三刀" || card.name === "双刀") v += 18;
+            if (card.name === "血舞") v += 16;
+        } else if (aiMasterMode === 'control' || aiMasterMode === 'defend') {
+            if (card.name === "守卫") v += 25;
+            if (card.name === "盾兵") v += 22;
+            if (card.name === "旗手") v += 20;
+            if (card.name === "显眼包") v += 18;
+            if (card.name === "净化师") v += 15;
+            if (card.name === "麻木者") v += 18;
+            if (card.name === "反击兵") v += 16;
+        }
+        // 组合协同
+        if (card.name === "武器商" && units.some(u => u.cardName === "武器商")) v -= 15;
+        const hand = gameState.players[side].hand;
+        if (card.name === "武器商" && hand.some(c => c.name === "三刀" || c.name === "双刀")) v += 25;
+        if ((card.name === "三刀" || card.name === "双刀") && (hand.some(c => c.name === "武器商") || units.some(u => u.cardName === "武器商"))) v += 28;
+        if (card.name === "费机" && hand.some(c => c.cost >= 3)) v += 18;
+        if (card.name === "调酒师" && (units.some(u => u.dmgValue >= 2) || hand.some(c => c.dmgValue >= 2))) v += 22;
+        // 预判：针对敌方威胁
+        if (aiMasterEnemyData) {
+            const enemyKnightThreat = aiMasterEnemyData.skillThreats.find(t => t.type === 'knightExecute');
+            if (enemyKnightThreat && card.name === "骑士") v += 30;
+            const topThreat = aiMasterEnemyData.threats[0];
+            if (topThreat && topThreat.score >= 60 && card.dmgValue >= 3) v += 15;
+            // 敌方有高悬赏单位时优先斩杀卡
+            const enemyBounty = aiMasterEnemyData.threats.find(t => (t.unit.bountyLevel || 0) >= 3);
+            if (enemyBounty && (card.name === "骑士" || card.dmgValue >= 4)) v += 20;
+        }
+        // 城池受威胁时优先防守
+        const myHp = gameState.players[side].hp;
+        if (myHp <= 4) {
+            if (card.name === "守卫" || card.name === "盾兵") v += 15;
+            if (card.name === "显眼包") v += 12;
+            if (card.name === "护盾") v += 14;
+        }
+        return v;
+    }
+
+    // ── 大师费用规划：枚举卡牌组合，选总价值最高方案 ──
+    function aiMasterPlanCardSequence(side) {
+        const hand = gameState.players[side].hand;
+        const mana = gameState.players[side].mana;
+        const units = gameState.units.filter(u => u.side === side && u.life > 0);
+        const playable = [];
+        for (let i = 0; i < hand.length; i++) {
+            const c = hand[i];
+            if (c.disabled) continue;
+            if (c.name === "护盾" || c.name === "无中生有" || c.name === "鼠疫") continue;
+            const cost = aiGetCardCost(side, c);
+            if (cost > mana) continue;
+            playable.push({ card: c, idx: i, cost, value: aiMasterCardValue(c, side, units) });
+        }
+        if (playable.length === 0) {
+            aiMasterCardSequence = [];
+            aiMasterReservedMana = 0;
+            return;
+        }
+        // 贪心+回溯枚举（限制 ≤5 张卡，避免组合爆炸）
+        const maxCards = Math.min(playable.length, 5);
+        let bestSeq = [], bestVal = -1;
+        function search(idx, remMana, curSeq, curVal, count) {
+            if (curVal > bestVal) { bestVal = curVal; bestSeq = curSeq.slice(); }
+            if (count >= maxCards || idx >= playable.length) return;
+            for (let j = idx; j < playable.length; j++) {
+                if (playable[j].cost <= remMana) {
+                    curSeq.push(playable[j]);
+                    search(j + 1, remMana - playable[j].cost, curSeq, curVal + playable[j].value, count + 1);
+                    curSeq.pop();
+                }
+            }
+        }
+        search(0, mana, [], 0, 0);
+        aiMasterCardSequence = bestSeq;
+        const spent = bestSeq.reduce((s, p) => s + p.cost, 0);
+        aiMasterReservedMana = 0;
+        // 手牌有高费卡未出且剩余≥2费 → 预留
+        const remaining = mana - spent;
+        if (remaining >= 2 && hand.some(c => c.cost >= 3 && !c.disabled && !bestSeq.some(p => p.card === c))) {
+            aiMasterReservedMana = Math.min(remaining, 2);
+        }
+        // 终盘 race 模式不留费
+        if (aiMasterMode === 'race') aiMasterReservedMana = 0;
+    }
+
+    // ── 大师手牌协同分析：识别组合潜力与缺件 ──
+    function aiMasterHandSynergy(side) {
+        const hand = gameState.players[side].hand;
+        const units = gameState.units.filter(u => u.side === side && u.life > 0);
+        const synergy = {
+            hasWeaponSmith: hand.some(c => c.name === "武器商") || units.some(u => u.cardName === "武器商"),
+            hasTripleBlade: hand.some(c => c.name === "三刀"),
+            hasDualBlade: hand.some(c => c.name === "双刀"),
+            hasFeiji: hand.some(c => c.name === "费机") || units.some(u => u.cardName === "费机"),
+            hasBartender: hand.some(c => c.name === "调酒师"),
+            hasHighAtk: hand.some(c => c.dmgValue >= 2) || units.some(u => u.dmgValue >= 2),
+            hasHighCost: hand.some(c => c.cost >= 3),
+            hasKnight: hand.some(c => c.name === "骑士"),
+            hasHeal: hand.some(c => c.name === "中医"),
+            hasShield: hand.some(c => c.name === "护盾"),
+            hasPurifier: hand.some(c => c.name === "净化师"),
+            // 组合完整度
+            weaponSmithComboReady: false,
+            feijiComboReady: false,
+            needsWeaponSmith: false,
+            needsTripleBlade: false,
+            needsFeiji: false,
+        };
+        const smithOnBoard = units.some(u => u.cardName === "武器商");
+        synergy.weaponSmithComboReady = (synergy.hasWeaponSmith || smithOnBoard) && (synergy.hasTripleBlade || synergy.hasDualBlade);
+        synergy.feijiComboReady = synergy.hasFeiji && synergy.hasHighCost;
+        synergy.needsWeaponSmith = (synergy.hasTripleBlade || synergy.hasDualBlade) && !synergy.hasWeaponSmith && !smithOnBoard;
+        synergy.needsTripleBlade = synergy.hasWeaponSmith && !synergy.hasTripleBlade && !synergy.hasDualBlade;
+        synergy.needsFeiji = synergy.hasHighCost && !synergy.hasFeiji;
+        return synergy;
+    }
+
+    // ── 大师预牌堆选择：基于手牌协同 + 牌堆知识 ──
+    function aiMasterSelectPrepool(side, prepool) {
+        if (!prepool || prepool.length === 0) return 0;
+        const synergy = aiMasterHandSynergy(side);
+        const myHp = gameState.players[side].hp;
+        const enemyHp = gameState.players[1 - side].hp;
+        const enemies = gameState.units.filter(u => u.side !== side && u.life > 0);
+        const myUnits = gameState.units.filter(u => u.side === side && u.life > 0);
+
+        // 牌堆知识：统计牌堆中各类卡的数量（用于概率评估）
+        const deck = gameState.players[side].deck || [];
+        const deckCounts = {};
+        for (let c of deck) deckCounts[c.name] = (deckCounts[c.name] || 0) + 1;
+
+        let bestIdx = 0, bestScore = -Infinity;
+        for (let i = 0; i < prepool.length; i++) {
+            const c = prepool[i];
+            let s = c.dmgValue * 3 + c.life - c.cost * 2;
+            // 基础偏好
+            if (c.name === "军营") s += 25;
+            if (c.name === "费机") s += 20;
+            if (c.name === "护盾") s += 12;
+            if (c.name === "净化师") s += 15;
+            if (c.name === "魔矢人") s += 12;  // 远程标记+增减伤
+            if (c.range >= 2) s += 5;
+            // ── 手牌协同：优先补全组合 ──
+            if (synergy.needsWeaponSmith && c.name === "武器商") s += 40;
+            if (synergy.needsTripleBlade && (c.name === "三刀" || c.name === "双刀")) s += 35;
+            if (synergy.needsFeiji && c.name === "费机") s += 30;
+            if (synergy.hasBartender && c.dmgValue >= 2) s += 20;
+            if (synergy.hasFeiji && c.cost >= 3) s += 18;
+            if (synergy.hasWeaponSmith && (c.name === "三刀" || c.name === "双刀")) s += 28;
+            // ── 策略偏好 ──
+            if (aiMasterMode === 'aggro' || aiMasterMode === 'race') {
+                if (c.dmgValue >= 3) s += 18;
+                if (c.name === "骑士") s += 22;
+                if (c.name === "公主") s += 15;
+            }
+            if (aiMasterMode === 'control' || aiMasterMode === 'defend') {
+                if (c.name === "守卫") s += 20;
+                if (c.name === "盾兵") s += 18;
+                if (c.name === "旗手") s += 16;
+                if (c.name === "显眼包") s += 14;
+                if (c.name === "麻木者") s += 16;
+            }
+            if (aiMasterPhase === 'opening') {
+                if (c.name === "费机") s += 15;
+                if (c.name === "武器商") s += 12;
+                if (c.name === "军营") s += 10;
+            }
+            // ── 局势感知 ──
+            if (myHp <= 5) {
+                if (c.name === "守卫" || c.name === "盾兵") s += 18;
+                if (c.name === "护盾") s += 14;
+                if (c.name === "旗手") s += 12;
+            }
+            if (enemies.length >= 4) {
+                if (c.name === "银运") s += 15;
+                if (c.range >= 2) s += 8;
+            }
+            if (enemies.length <= 2 && enemyHp <= 5) {
+                if (c.dmgValue >= 3) s += 18;
+                if (c.name === "骑士") s += 20;
+            }
+            // ── 预判：敌方威胁针对 ──
+            if (aiMasterEnemyData) {
+                const enemyKnight = aiMasterEnemyData.skillThreats.find(t => t.type === 'knightExecute');
+                if (enemyKnight && c.name === "骑士") s += 25;
+                const enemyHighThreat = aiMasterEnemyData.threats[0];
+                if (enemyHighThreat && enemyHighThreat.score >= 55 && c.dmgValue >= 3) s += 12;
+            }
+            // ── 牌堆知识：如果牌堆中已有同类卡，降低优先级（避免重复）──
+            if (deckCounts[c.name] && deckCounts[c.name] >= 2) s -= 5;
+            // 已有同类场上单位时不重复
+            if (myUnits.some(u => u.cardName === c.name) && c.grade === 1) s -= 8;
+            if (s > bestScore) { bestScore = s; bestIdx = i; }
+        }
+        return bestIdx;
+    }
+
+    // ── 大师增强预判：考虑敌方技能的复合伤害预测 ──
+    function aiMasterEnhancedPredictDamage(unit, row, col) {
+        let total = aiMasterPredictIncomingDamage(unit, row, col);
+        if (!aiMasterEnemyData) return total;
+        // 骑士秒杀预判：高价值单位不进入敌方骑士前方
+        for (let t of aiMasterEnemyData.skillThreats) {
+            if (t.type === 'knightExecute') {
+                if (t.dangerRow === row && t.unit.col === col) {
+                    // 如果该单位生命>2 或 高价值，骑士秒杀威胁极大
+                    const unitValue = unit.dmgValue * 2 + unit.life + (unit.bountyLevel || 0) * 5;
+                    if (unitValue >= 8) total += 999; // 绝对避免
+                    else total += 50;
+                }
+            }
+        }
+        return total;
+    }
+
+    // ── 大师全局行动评估：为每个单位评估所有行动并排序 ──
+    function aiMasterEvaluateAllActions(side) {
+        const myUnits = gameState.units.filter(u => u.side === side && u.life > 0);
+        const actions = [];
+        const specialAttackers = ["镜中人", "旋斧人", "双剑", "大力士", "掠影"];
+        for (let unit of myUnits) {
+            if (unit.stun > 0 || unit.isCharging || unit.superCharging || unit.isSweepCharging || unit.motCharging) continue;
+            // 攻击行动（琴魔/炽炎射手蓄力中或琴魔释放回合不能攻击，但仍可移动）
+            const cantAttack = unit.qinmoCharging || unit.qinmoReleaseTurn || unit.blazeCharging;
+            if (!cantAttack && unit.attacksLeftThisTurn > 0) {
+                const atkVal = aiMasterScoreAttack(unit, side);
+                if (atkVal !== null) {
+                    actions.push({ unit, type: 'attack', value: atkVal.value, target: atkVal.target });
+                } else if (specialAttackers.includes(unit.cardName)) {
+                    // 特殊攻击模式单位：标准评估可能遗漏，给予保底攻击价值
+                    const enemySide = 1 - side;
+                    const hasNearbyEnemy = gameState.units.some(u => u.side === enemySide && u.life > 0 && !u.isMirror &&
+                        Math.abs(u.row - unit.row) <= 2 && Math.abs(u.col - unit.col) <= 2);
+                    if (hasNearbyEnemy) {
+                        actions.push({ unit, type: 'attack', value: 15, target: null });
+                    }
+                }
+            }
+            // 技能行动（骑士优先用技能秒杀）
+            const cardDef = CARD_LIBRARY.find(c => c.name === unit.cardName);
+            if (cardDef && cardDef.skill && !unit.skillUsedThisTurn && !unit._aiSkillTried && unit.silenced <= 0 && unit.skillCooldown <= 0 && (unit.eagleEyeTurns || 0) <= 0) {
+                const skVal = aiMasterScoreSkill(unit, side, cardDef.skill);
+                if (skVal !== null) actions.push({ unit, type: 'skill', value: skVal.value, detail: skVal });
+            }
+            // 移动行动
+            if (!unit.moved && ((unit.movesLeftThisTurn || 0) > 0 || (unit.cardName === "风女" && unit.windGirlFreeMoveAvailable && !unit.windGirlFreeMoveUsed))) {
+                const movVal = aiMasterScoreMove(unit, side);
+                if (movVal !== null) actions.push({ unit, type: 'move', value: movVal.value, target: movVal.target });
+            }
+        }
+        actions.sort((a, b) => b.value - a.value);
+        return actions;
+    }
+
+    // ── 攻击价值评分 ──
+    function aiMasterScoreAttack(unit, side) {
+        const enemySide = 1 - side;
+        const forward = getForwardDelta(side);
+        let enemies = [];
+        const isWide = unit.cardName === "双刀" || unit.cardName === "三刀";
+        if (isWide) {
+            const frontRow = unit.row + forward;
+            if (frontRow >= 0 && frontRow <= 4) enemies = gameState.units.filter(u => u.side === enemySide && u.life > 0 && u.row === frontRow);
+        } else {
+            for (let e of gameState.units) {
+                if (e.side !== enemySide || e.life <= 0 || e.col !== unit.col || e.isMirror) continue;
+                const dist = (e.row - unit.row) * forward;
+                if (dist < 0) continue;
+                if (dist === 0) { enemies.push(e); continue; }
+                if (dist <= unit.range) {
+                    if (unit.cardName !== "掠影" && unit.cardName !== "剑客") {
+                        let blocked = false;
+                        for (let r = unit.row + forward; r !== e.row; r += forward)
+                            if (gameState.units.some(u => u.col === unit.col && u.row === r && u.side === enemySide && u.life > 0)) { blocked = true; break; }
+                        if (blocked) continue;
+                    }
+                    enemies.push(e);
+                }
+            }
+        }
+        getUnitsAt(unit.row, unit.col).filter(u => u.side !== side && u.life > 0).forEach(e => { if (!enemies.includes(e)) enemies.push(e); });
+        // 无可攻击敌方单位时，检查是否可攻击城池
+        if (enemies.length === 0) {
+            if (canAttackBase(unit)) {
+                const enemyHp = gameState.players[enemySide].hp;
+                let value = unit.dmgValue * 5 + (aiMasterMode === 'race' ? 20 : 0);
+                if (enemyHp <= unit.dmgValue) value += 100; // 致命一击
+                return { value, target: null };
+            }
+            return null;
+        }
+        let target = aiSelectAttackTarget(unit, enemies);
+        if (!target) return null;
+        // 大师交换评估
+        if (aiIsMaster()) {
+            const trade = aiMasterTradeEvaluation(unit, target);
+            if (!trade.kill && trade.incoming > 0 && trade.dealt < trade.incoming && unit.life - trade.incoming <= 0) {
+                let bestAlt = null, bestNet = -Infinity;
+                for (let e of enemies) {
+                    if (e.id === target.id) continue;
+                    const t2 = aiMasterTradeEvaluation(unit, e);
+                    const net = t2.kill ? 1000 : t2.dealt - t2.incoming;
+                    if (net > bestNet) { bestNet = net; bestAlt = e; }
+                }
+                if (bestAlt && bestNet > trade.dealt - trade.incoming) target = bestAlt;
+            }
+        }
+        const dmg = aiEstimateDamage(unit, target);
+        let value = dmg * 4;
+        if (dmg >= target.life) value += 35 + (target.bountyLevel || 0) * 12; // 击杀加成
+        if ((target.bountyLevel || 0) >= 2) value += 15;
+        // 斧兵/弩手/重斧兵/双剑：被弱化时仍可通过攻击触发蓄力（即时伤害为0但蓄力有价值）
+        if ((unit.weakenedTurns || 0) > 0 && ["斧兵", "弩手", "重斧兵", "双剑"].includes(unit.cardName)) {
+            value += unit.dmgValue * 3;
+        }
+        // 剑客AOE：同列范围内每个额外敌人+8价值
+        if (unit.cardName === "剑客") {
+            const aoeCount = gameState.units.filter(u => u.side === enemySide && u.life > 0 && u.col === unit.col && u.id !== target.id &&
+                (u.row - unit.row) * forward >= 1 && (u.row - unit.row) * forward <= unit.range).length;
+            value += aoeCount * 8;
+        }
+        if (value <= 0) return null;
+        return { value, target };
+    }
+
+    // ── 技能价值评分 ──
+    function aiMasterScoreSkill(unit, side, sk) {
+        const cfg = aiCfg();
+        if (Math.random() > cfg.skillUseRate) return null;
+        const enemyAlive = gameState.units.filter(u => u.side !== side && u.life > 0);
+        // 骑士秒杀：高价值目标时使用
+        if (sk === 'knightExecute') {
+            const forward = getForwardDelta(side);
+            const front = enemyAlive.find(e => e.row === unit.row + forward && e.col === unit.col);
+            if (!front) return null;
+            if ((front.invincibleTurns || 0) > 0 || (front.absoluteImmunityTurns || 0) > 0) return null;
+            const val = 30 + (front.life * 4) + (front.dmgValue * 3) + ((front.bountyLevel || 0) * 15);
+            if (front.life <= 2 && front.dmgValue <= 1 && (front.bountyLevel || 0) === 0) return null;
+            return { value: val, skill: sk };
+        }
+        // 标枪手突刺
+        if (sk === 'spearmanThrust') {
+            if ((unit.spearmanCharges || 0) <= 0 || unit.attacksLeftThisTurn <= 0) return null;
+            const forward = getForwardDelta(side);
+            const frontRow = unit.row + forward;
+            if (frontRow < 0 || frontRow > 4) return null;
+            const hasEnemy = gameState.units.some(u => u.row === frontRow && u.col === unit.col && u.side !== side && u.life > 0);
+            if (!hasEnemy && frontRow !== (side === 0 ? 0 : 4)) return null;
+            return { value: 25, skill: sk };
+        }
+        // 机车党蓄力
+        if (sk === 'motorcyclistCharge') {
+            if (unit.motCharging || unit.motReleaseTurn || unit.moved) return null;
+            const nearEnemy = gameState.units.some(u => u.side !== side && u.life > 0 && Math.abs(u.row - unit.row) + Math.abs(u.col - unit.col) <= 2);
+            if (nearEnemy) return null;
+            return { value: aiMasterPhase === 'opening' ? 20 : 12, skill: sk };
+        }
+        // 炽炎射手蓄力
+        if (sk === 'blazeArcherCharge') {
+            if (unit.blazeCharging || unit.blazeReleaseTurn) return null;
+            const enemies = gameState.units.filter(u => u.side !== side && u.life > 0);
+            if (enemies.length === 0) return null;
+            return { value: aiMasterPhase === 'opening' ? 18 : 14, skill: sk };
+        }
+        // 琴魔蓄力横行
+        if (sk === 'qinmoCharge') {
+            if (unit.qinmoCharging || unit.qinmoReleaseTurn) return null;
+            const enemies = gameState.units.filter(u => u.side !== side && u.life > 0);
+            if (enemies.length === 0) return null;
+            // 评分基于横行中敌人最多的行
+            const rowCounts = [0,0,0,0,0];
+            for (const e of enemies) rowCounts[e.row]++;
+            const maxInRow = Math.max(...rowCounts);
+            if (maxInRow === 0) return null;
+            return { value: 15 + maxInRow * 8, skill: sk };
+        }
+        // 风女技能（二选一）
+        if (sk === 'windGirlSkill') {
+            if (unit.windGirlSkillUsedThisTurn) return null;
+            const energy = unit.windGirlEnergy || 0;
+            const forward = getForwardDelta(side);
+            const enemies = gameState.units.filter(u => u.side !== side && u.life > 0 && !u.isMirror && u.col === unit.col && (u.row - unit.row) * forward >= 1 && (u.row - unit.row) * forward <= 3);
+            const canAttack = enemies.length > 0 || canAttackBase(unit);
+            // 风暴冲击：有敌人时造成AOE伤害+1能量
+            if (enemies.length > 0) {
+                const nearestRow = enemies.reduce((min, e) => Math.min((e.row - unit.row) * forward, min), Infinity);
+                const targetsAtNearest = enemies.filter(e => (e.row - unit.row) * forward === nearestRow).length;
+                const stormValue = 15 + targetsAtNearest * 6;
+                if (energy > 0 && canAttack) return { value: Math.max(stormValue, 20 + energy * 5), skill: sk };
+                return { value: stormValue, skill: sk };
+            }
+            // 能量爆发：有可攻击目标时才使用
+            if (energy > 0 && canAttack) return { value: 20 + energy * 5, skill: sk };
+            return null;
+        }
+        // 调酒师送酒
+        if (sk === 'bartenderBuff') {
+            const friendAlive = gameState.units.filter(u => u.side === side && u.life > 0 && u.id !== unit.id);
+            if (!friendAlive.some(u => u.dmgValue >= 2 && u.life > 1)) return null;
+            return { value: 28, skill: sk };
+        }
+        // 纱琳定身
+        if (sk === 'shaLinBind') {
+            if (enemyAlive.length === 0) return null;
+            const topThreat = aiMasterEnemyData && aiMasterEnemyData.threats[0];
+            if (topThreat && topThreat.score >= 50) return { value: 30 + topThreat.score * 0.3, skill: sk };
+            return { value: 18, skill: sk };
+        }
+        // 中医治疗
+        if (sk === 'zhongyiHeal') {
+            const friendAlive = gameState.units.filter(u => u.side === side && u.life > 0 && u.id !== unit.id);
+            const wounded = friendAlive.filter(u => u.life < (u.maxLife || u.life) && u.cardName !== "麻木者" && !u.noHeal);
+            if (wounded.length === 0) return null;
+            const mostWounded = wounded.sort((a, b) => a.life - b.life)[0];
+            return { value: 20 + Math.min(20, (mostWounded.maxLife || 3) - mostWounded.life), skill: sk };
+        }
+        // 斩月标记/斩杀
+        if (sk === 'zhanYueSkill') {
+            if (enemyAlive.length === 0) return null;
+            const marked = enemyAlive.filter(e => (gameState.zhanYueMarkedEnemyIds || []).includes(e.id));
+            const killable = marked.filter(e => e.life <= 2);
+            if (killable.length > 0) return { value: 35 + killable.length * 8, skill: sk };
+            return { value: 15, skill: sk };
+        }
+        // 护援兵瞬移
+        if (sk === 'huYuanBingTeleport') {
+            const friendAlive = gameState.units.filter(u => u.side === side && u.life > 0 && u.id !== unit.id);
+            if (friendAlive.length === 0) return null;
+            // 同格友方越多价值越高（每个+2盾）
+            const alliesSameCell = friendAlive.filter(u => u.row === unit.row && u.col === unit.col).length;
+            return { value: 22 + alliesSameCell * 6, skill: sk };
+        }
+        // 反击兵蓄势：附近有敌方时蓄势（下回合爆炸伤害）
+        if (sk === 'counterBrace') {
+            const nearEnemy = gameState.units.some(u => u.side !== side && u.life > 0 &&
+                Math.abs(u.row - unit.row) + Math.abs(u.col - unit.col) <= 2);
+            if (!nearEnemy) return null;
+            return { value: aiMasterMode === 'control' || aiMasterMode === 'defend' ? 26 : 18, skill: sk };
+        }
+        // 塞壬拉扯：拉敌方高威胁单位过来集火
+        if (sk === 'sirenPull') {
+            if (enemyAlive.length === 0) return null;
+            const pullable = enemyAlive.filter(e => canSirenPullTarget(unit, e));
+            if (pullable.length === 0) return null;
+            // 拉高威胁/高悬赏单位价值高
+            const best = pullable.sort((a, b) => aiEvaluateThreat(b, side) - aiEvaluateThreat(a, side))[0];
+            const val = 20 + aiEvaluateThreat(best, side) * 0.2 + (best.bountyLevel || 0) * 5;
+            return { value: val, skill: sk };
+        }
+        // 魔女增益：给高攻友方加伤害转移
+        if (sk === 'witchBuff') {
+            const friendAlive = gameState.units.filter(u => u.side === side && u.life > 0 && u.id !== unit.id);
+            const nearby = friendAlive.filter(u => Math.abs(u.row - unit.row) <= 1 && Math.abs(u.col - unit.col) <= 1);
+            if (nearby.length === 0) return null;
+            const best = nearby.sort((a, b) => b.dmgValue - a.dmgValue)[0];
+            return { value: 18 + best.dmgValue * 2, skill: sk };
+        }
+        // 赫菲斯托斯方块：封锁敌方关键位置
+        if (sk === 'hephaestusBlock') {
+            if ((unit.hephaestusUseCount || 0) >= 3) return null;
+            // 敌方有近战单位时价值高
+            const enemyMelee = enemyAlive.filter(e => e.range <= 1);
+            if (enemyMelee.length === 0) return null;
+            return { value: 16 + enemyMelee.length * 3, skill: sk };
+        }
+        // 弱化师：弱化高威胁敌方单位
+        if (sk === 'weakenerSkill') {
+            if (enemyAlive.length === 0) return null;
+            const topThreat = aiMasterEnemyData && aiMasterEnemyData.threats[0];
+            if (topThreat && topThreat.score >= 50) return { value: 25 + topThreat.score * 0.2, skill: sk };
+            return { value: 16, skill: sk };
+        }
+        // 鹰眼致盲：致盲高威胁敌方
+        if (sk === 'eagleEyeSkill') {
+            if (enemyAlive.length === 0) return null;
+            const topThreat = aiMasterEnemyData && aiMasterEnemyData.threats[0];
+            if (topThreat && topThreat.score >= 45) return { value: 22 + topThreat.score * 0.15, skill: sk };
+            return { value: 14, skill: sk };
+        }
+        // 鼓手/号角兵：给高攻友方加buff
+        if (sk === 'drummerBuff' || sk === 'hornSoldierBuff') {
+            const friendAlive = gameState.units.filter(u => u.side === side && u.life > 0 && u.id !== unit.id);
+            if (!friendAlive.some(u => u.dmgValue >= 2)) return null;
+            return { value: 20, skill: sk };
+        }
+        // 旗手免伤：保护被威胁的关键单位
+        if (sk === 'flagBearerBuff') {
+            const friendAlive = gameState.units.filter(u => u.side === side && u.life > 0 && u.id !== unit.id);
+            const threatened = friendAlive.filter(u => aiShouldProtect(u, side));
+            if (threatened.length === 0) return null;
+            return { value: 24, skill: sk };
+        }
+        // 通用技能评分
+        const def = SKILL_DEFS[sk];
+        if (!def) return null;
+        if (def.targetType === "enemy" && enemyAlive.length === 0) return null;
+        // 评估技能通用价值
+        let val = 15;
+        if (def.targetType === "friendly") val = 18;
+        if (def.targetType === "self") val = 12;
+        return { value: val, skill: sk };
+    }
+
+    // ── 移动价值评分 ──
+    function aiMasterScoreMove(unit, side) {
+        const forward = getForwardDelta(side);
+        const tr = unit.row + forward;
+        if (tr < 0 || tr > 4) return null;
+        const sideLimit = side === 0 ? tr < 1 : tr > 3;
+        if (sideLimit) return null;
+        const hasEnemy = gameState.units.some(u => u.row === tr && u.col === unit.col && u.side !== side && u.life > 0 && u.cardName !== "掠影");
+        const canEnter = unit.cardName === "机车党" ? canAddUnit(tr, unit.col, side) : (!hasEnemy && canAddUnit(tr, unit.col, side));
+        if (!canEnter) return null;
+        // 预判受击
+        const incoming = aiMasterEnhancedPredictDamage(unit, tr, unit.col);
+        if (incoming >= 999) return null; // 骑士秒杀区绝对避让
+        if (incoming >= unit.life && unit.dmgValue < 3) return null;
+        // 计算移动价值：靠近敌方城池 + 靠近目标
+        const enemyCastleRow = side === 0 ? 0 : 4;
+        const distToEnemyCastle = Math.abs(tr - enemyCastleRow);
+        let value = (5 - distToEnemyCastle) * 3;
+        // 靠近可攻击目标
+        const enemies = gameState.units.filter(u => u.side !== side && u.life > 0);
+        if (enemies.length > 0) {
+            const minEnemyDist = Math.min(...enemies.map(e => Math.abs(e.row - tr) + Math.abs(e.col - unit.col)));
+            if (minEnemyDist <= unit.range) value += 15; // 移动后可攻击
+            else if (minEnemyDist <= unit.range + 1) value += 8;
+        }
+        // 防守：关键单位受威胁时挡位
+        if (aiMasterMode === 'control' || aiMasterMode === 'defend') {
+            const keyAllies = gameState.units.filter(u => u.side === side && u.life > 0 && u.id !== unit.id &&
+                (["费机", "武器商", "国王", "参谋"].includes(u.cardName) || (u.bountyLevel || 0) >= 2));
+            for (let ally of keyAllies) {
+                if (aiShouldProtect(ally, side)) {
+                    const blockRow = ally.row + forward;
+                    if (blockRow === tr && ally.col === unit.col) value += 25;
+                }
+            }
+        }
+        // race 模式优先推进
+        if (aiMasterMode === 'race') value += 10;
+        if (value <= 0) return null;
+        return { value, target: { row: tr, col: unit.col } };
+    }
+
+    // ── 大师情境化装备评估 ──
+    function aiMasterEquipmentValue(eqDef, side) {
+        const myUnits = gameState.units.filter(u => u.side === side && u.life > 0);
+        const hasMage = myUnits.some(u => u.dmgType === '🔮' && u.dmgValue >= 2);
+        const hasPhysDps = myUnits.some(u => u.dmgType === '⚔️' && u.dmgValue >= 3);
+        const hasKeyUnit = myUnits.some(u => ["费机", "武器商", "国王", "重斧兵", "骑士"].includes(u.cardName));
+        const hasHighLife = myUnits.some(u => u.life >= 5);
+        let v = aiEquipmentValue(eqDef); // 基础价值
+        // 法伤装备：只有有法师时才有价值
+        if (eqDef.id === 'starWand') v = hasMage ? 80 : 20;
+        // 物伤装备：有高攻物伤单位时加分
+        if (["demonBlade", "coagulationBlade", "brokenSpine", "lightningDagger"].includes(eqDef.id)) {
+            v = hasPhysDps ? v + 10 : v - 15;
+        }
+        // 复活甲：有关键单位时高价值
+        if (eqDef.id === 'reviveArmor') v = hasKeyUnit ? 100 : 60;
+        // 攻速装备：有高攻单位时高价值
+        if (eqDef.id === 'eagleFeather') v = hasPhysDps ? 75 : 40;
+        // 生命装备：有高生命单位时高价值
+        if (eqDef.id === 'sweetSpring') v = hasHighLife ? 55 : 30;
+        // 防御装备：劣势时价值更高
+        if (["pureSky", "voidCloak", "amulet"].includes(eqDef.id)) {
+            if (aiMasterMode === 'control' || aiMasterMode === 'defend') v += 12;
+        }
+        // 进攻装备：优势时价值更高
+        if (["demonBlade", "bloodRing", "brokenSpine"].includes(eqDef.id)) {
+            if (aiMasterMode === 'aggro' || aiMasterMode === 'race') v += 8;
+        }
+        return v;
+    }
+
     // ========== AI 尝试攻击（升级版）==========
     // 使用威胁评估 + 集火 + 斩杀线选择目标
     async function aiTryAttack(unit, myGameId) {
@@ -650,7 +1433,7 @@
             if (aiGameId !== myGameId) return false;
             if (gameState.nerdJamPending[unit.side]) {
                 gameState.nerdJamPending[unit.side] = false;
-                addLog(`🤖 👓 行动干扰！${unit.cardName} 的攻击被无效化`);
+                addLog(trText(`🤖 👓 行动干扰！${unit.cardName} 的攻击被无效化`, `🤖 👓 Action Jam! ${unit.cardName} 's attack was negated`));
                 renderUI(); return true;
             }
             const target = aiSelectAttackTarget(unit, candidates);
@@ -673,7 +1456,7 @@
             if (aiGameId !== myGameId) return false;
             if (gameState.nerdJamPending[unit.side]) {
                 gameState.nerdJamPending[unit.side] = false;
-                addLog(`🤖 👓 行动干扰！${unit.cardName} 的攻击被无效化`);
+                addLog(trText(`🤖 👓 行动干扰！${unit.cardName} 的攻击被无效化`, `🤖 👓 Action Jam! ${unit.cardName} 's attack was negated`));
                 renderUI(); return true;
             }
             await performMirrorPersonAttack(unit, bestCell[0], bestCell[1]);
@@ -688,7 +1471,7 @@
             if (aiGameId !== myGameId) return false;
             if (gameState.nerdJamPending[unit.side]) {
                 gameState.nerdJamPending[unit.side] = false;
-                addLog(`🤖 👓 行动干扰！${unit.cardName} 的攻击被无效化`);
+                addLog(trText(`🤖 👓 行动干扰！${unit.cardName} 的攻击被无效化`, `🤖 👓 Action Jam! ${unit.cardName} 's attack was negated`));
                 renderUI(); return true;
             }
             await performAttack(unit, ccellsEnemy);
@@ -716,7 +1499,7 @@
             if (aiGameId !== myGameId) return false;
             if (gameState.nerdJamPending[unit.side]) {
                 gameState.nerdJamPending[unit.side] = false;
-                addLog(`🤖 👓 行动干扰！${unit.cardName} 的攻击被无效化`);
+                addLog(trText(`🤖 👓 行动干扰！${unit.cardName} 的攻击被无效化`, `🤖 👓 Action Jam! ${unit.cardName} 's attack was negated`));
                 renderUI(); return true;
             }
             await attackBase(unit);
@@ -736,7 +1519,7 @@
             if (aiGameId !== myGameId) return false;
             if (gameState.nerdJamPending[unit.side]) {
                 gameState.nerdJamPending[unit.side] = false;
-                addLog(`🤖 👓 行动干扰！${unit.cardName} 的攻击被无效化`);
+                addLog(trText(`🤖 👓 行动干扰！${unit.cardName} 的攻击被无效化`, `🤖 👓 Action Jam! ${unit.cardName} 's attack was negated`));
                 renderUI(); return true;
             }
             await performAttack(unit, enemyInAOE);
@@ -759,7 +1542,7 @@
                 if (dist < 0) continue;
                 if (dist === 0) { enemies.push(e); continue; }
                 if (dist <= unit.range) {
-                    if (unit.cardName !== "掠影") {
+                    if (unit.cardName !== "掠影" && unit.cardName !== "剑客") {
                         let blocked = false;
                         for (let r = unit.row + forward; r !== e.row; r += forward)
                             if (gameState.units.some(u => u.col === unit.col && u.row === r && u.side === enemySide && u.life > 0)) { blocked = true; break; }
@@ -804,7 +1587,7 @@
         if (aiGameId !== myGameId) return false;
         if (gameState.nerdJamPending[unit.side]) {
             gameState.nerdJamPending[unit.side] = false;
-            addLog(`🤖 👓 行动干扰！${unit.cardName} 的攻击被无效化`);
+            addLog(trText(`🤖 👓 行动干扰！${unit.cardName} 的攻击被无效化`, `🤖 👓 Action Jam! ${unit.cardName} 's attack was negated`));
             renderUI(); return true;
         }
         await performAttack(unit, target);
@@ -822,7 +1605,7 @@
         if (unit.shaLinBindTurn > 0) return false;
 
         // ── 防守意识：如果关键单位受威胁，其他单位尝试挡位 ──
-        if (cfg.defense && !unit.moved && (unit.movesLeftThisTurn || 0) > 0) {
+        if (cfg.defense && !unit.moved && ((unit.movesLeftThisTurn || 0) > 0 || (unit.cardName === "风女" && unit.windGirlFreeMoveAvailable && !unit.windGirlFreeMoveUsed))) {
             // 检查己方关键单位是否被威胁（含高悬赏单位：被移除会送对方赏金）
             const keyAllies = gameState.units.filter(u =>
                 u.side === side && u.life > 0 && u.id !== unit.id &&
@@ -865,9 +1648,10 @@
                         );
                         if (lethalAfterMove) return false;
                     }
-                    // 大师预判：所有单位移动前评估敌方反击，若会被集火击杀且无击杀收益则不动
+                    // 大师预判：所有单位移动前评估敌方反击（含技能威胁），若会被集火击杀且无击杀收益则不动
                     if (aiIsMaster()) {
-                        const incoming = aiMasterPredictIncomingDamage(unit, tr, unit.col);
+                        const incoming = aiMasterEnhancedPredictDamage(unit, tr, unit.col);
+                        if (incoming >= 999) return false; // 骑士秒杀区绝对避让
                         if (incoming >= unit.life && unit.dmgValue < 3) {
                             // 低攻单位不值得冒死推进；高攻单位可牺牲换伤（由交换评估决定）
                             return false;
@@ -888,8 +1672,9 @@
                 }
             }
         }
-        // 参谋在场或机车党：尝试其他方向
-        if (gameState.units.some(u => u.side === side && u.cardName === "参谋" && u.life > 0) || unit.cardName === "机车党") {
+        // 参谋在场或机车党或风女风之步：尝试其他方向
+        const windGirlCanFreeMove = unit.cardName === "风女" && unit.windGirlFreeMoveAvailable && !unit.windGirlFreeMoveUsed;
+        if (gameState.units.some(u => u.side === side && u.cardName === "参谋" && u.life > 0) || unit.cardName === "机车党" || windGirlCanFreeMove) {
             // 机车党：优先尝试「有敌方可碰撞」的格子（碰撞造成1物伤），其次前进方向
             const dirs = unit.cardName === "机车党"
                 ? [[-1,0],[1,0],[0,-1],[0,1]].sort((a, b) => {
@@ -999,6 +1784,24 @@
             }
             return best;
         }
+        // 琴魔蓄力横行：选敌人最多的行
+        if (skillName === 'qinmoCharge') {
+            const enemies = gameState.units.filter(u => u.side !== caster.side && u.life > 0);
+            if (enemies.length === 0) return null;
+            const rowCounts = [0,0,0,0,0];
+            const rowThreats = [0,0,0,0,0];
+            for (const e of enemies) {
+                rowCounts[e.row]++;
+                rowThreats[e.row] += aiEvaluateThreat(e, caster.side);
+            }
+            let bestRow = 0, bestScore = -Infinity;
+            for (let r = 0; r < 5; r++) {
+                if (rowCounts[r] === 0) continue;
+                const score = rowCounts[r] * 10 + rowThreats[r];
+                if (score > bestScore) { bestScore = score; bestRow = r; }
+            }
+            return {row: bestRow, col: 1};
+        }
         if (filter === "any") {
             // 纱琳定身：选有高威胁敌人的格子
             const enemies = gameState.units.filter(u => u.side !== caster.side && u.life > 0);
@@ -1028,7 +1831,7 @@
 
         // ── 难度差异化跳过列表 ──
         // 简单/普通跳过过于复杂的技能，困难难度允许使用
-        const skipSkills = ['slaveTransform', 'jinWeiDisable', 'cupidCharm', 'singerSwap', 'superMaleSkill', 'scapegoatTransfer', 'counterBrace', 'shadowFan', 'shadowKick', 'mirrorSpawn', 'hephaestusBlock', 'assimilate', 'riluoRelease', 'riluoDash'];
+        const skipSkills = ['slaveTransform', 'jinWeiDisable', 'cupidCharm', 'singerSwap', 'superMaleSkill', 'scapegoatTransfer', 'counterBrace', 'shadowFan', 'shadowKick', 'mirrorSpawn', 'hephaestusBlock', 'assimilate', 'riluoRelease', 'riluoDash', 'magicArrowSkill', 'blazeArcherCharge', 'qinmoCharge', 'windGirlSkill'];
         if (sk === 'zhongyiHeal' && aiDifficulty === 'easy') return false;  // 简单不会用治疗
         if (skipSkills.includes(sk) && aiDifficulty !== 'hard' && aiDifficulty !== 'master') return false;
 
@@ -1048,6 +1851,8 @@
                 if (tf.attackedOnly && !(gameState.attackedEnemyIds || []).includes(u.id)) return false;
                 if (tf.frontAdjacent) { const f = getForwardDelta(side); if (u.row !== unit.row + f || u.col !== unit.col) return false; }
                 if (tf.pullable && !canSirenPullTarget(unit, u)) return false;
+                if (tf.minDmgValue && u.dmgValue < tf.minDmgValue) return false;
+                if (tf.notMarked && u.magicArrowMarkerId != null) return false;
                 return true;
             });
             if (!hasValid) return false;
@@ -1055,6 +1860,15 @@
         if (sk === 'sirenPull' && !enemyAlive.some(e => canSirenPullTarget(unit, e))) return false;
         if (sk === 'firemanDetonate' && enemyAlive.every(u => u.col !== unit.col)) return false;
         if (sk === 'witchBuff' && !friendAlive.some(u => Math.abs(u.row - unit.row) <= 1 && Math.abs(u.col - unit.col) <= 1)) return false;
+        if (sk === 'magicArrowSkill') {
+            if (unit.magicArrowTargetId != null) {
+                const marked = gameState.units.find(u => u.id === unit.magicArrowTargetId);
+                if (marked && marked.life > 0) return false;
+                unit.magicArrowTargetId = null;
+            }
+            const validTargets = enemyAlive.filter(u => !u.isMirror && u.dmgValue > 0 && u.magicArrowMarkerId == null);
+            if (validTargets.length === 0) return false;
+        }
 
         // ── 难度差异化技能使用率 ──
         if (Math.random() > cfg.skillUseRate) return false;
@@ -1099,6 +1913,18 @@
             const nearEnemy = gameState.units.some(u => u.side !== side && u.life > 0 && Math.abs(u.row - unit.row) + Math.abs(u.col - unit.col) <= 2);
             if (nearEnemy) return false;
         }
+        // ── 炽炎射手蓄力：有敌方单位时蓄力 ──
+        if (sk === 'blazeArcherCharge') {
+            if (unit.blazeCharging || unit.blazeReleaseTurn) return false;
+            const enemies = gameState.units.filter(u => u.side !== side && u.life > 0);
+            if (enemies.length === 0) return false;
+        }
+        // ── 琴魔蓄力横行：有敌方单位时蓄力 ──
+        if (sk === 'qinmoCharge') {
+            if (unit.qinmoCharging || unit.qinmoReleaseTurn) return false;
+            const enemies = gameState.units.filter(u => u.side !== side && u.life > 0);
+            if (enemies.length === 0) return false;
+        }
 
         // ── 影舞姬飞扇：先确认同列前方3格内确有可攻击敌人，避免空放后 awaitingGlide 残留卡死 AI 回合 ──
         if (sk === 'shadowFan') {
@@ -1113,7 +1939,7 @@
         if (aiGameId !== myGameId) return false;
         if (gameState.nerdJamPending[unit.side]) {
             gameState.nerdJamPending[unit.side] = false;
-            addLog(`🤖 👓 行动干扰！${unit.cardName} 的技能被无效化`);
+            addLog(trText(`🤖 👓 行动干扰！${unit.cardName} 的技能被无效化`, `🤖 👓 Action Jam! ${unit.cardName} of skill was negated`));
             renderUI(); return true;
         }
 
@@ -1280,7 +2106,7 @@
                                     await placeUnit(side, secondCard, targetPos.row, targetPos.col, idx2);
                                     renderUI();
                                     await aiSleep(300);
-                                    addLog(`🤖 combo: ${firstCard.name}+${secondCard.name} 已连携`);
+                                    addLog(trText(`🤖 combo: ${firstCard.name}+${secondCard.name} 已连携`, `🤖 combo: ${firstCard.name} + ${secondCard.name} combo`));
                                 }
                             }
                         }
@@ -1298,7 +2124,7 @@
                                 await placeUnit(side, card, smith.row, smith.col, idx);
                                 renderUI();
                                 await aiSleep(300);
-                                addLog(`🤖 combo: ${card.name} 配合武器商`);
+                                addLog(trText(`🤖 combo: ${card.name} 配合武器商`, `🤖 combo: ${card.name} synergy Arms Dealer`));
                             }
                         }
                     }
@@ -1315,7 +2141,7 @@
                                 await placeUnit(side, card, pos.row, pos.col, idx);
                                 renderUI();
                                 await aiSleep(300);
-                                addLog(`🤖 combo: 先下${card.name}为后续高费做准备`);
+                                addLog(trText(`🤖 combo: 先下${card.name}为后续高费做准备`, `🤖 combo: play first ${card.name} to prepare for later high-cost in preparation`));
                             }
                         }
                     }
@@ -1346,7 +2172,7 @@
                                 await placeUnit(side, card, bestPos.row, bestPos.col, idx);
                                 renderUI();
                                 await aiSleep(300);
-                                addLog(`🤖 combo: 调酒师就位，准备送酒`);
+                                addLog(trText(`🤖 combo: 调酒师就位，准备送酒`, `🤖 combo: Bartender in place, prepare serves wine`));
                             }
                         }
                     }
@@ -1363,7 +2189,7 @@
                                 await placeUnit(side, card, pos.row, pos.col, idx);
                                 renderUI();
                                 await aiSleep(300);
-                                addLog(`🤖 combo: 骑士上场针对重斧兵`);
+                                addLog(trText(`🤖 combo: 骑士上场针对重斧兵`, `🤖 combo: Knight deploys to counter Heavy Axeman`));
                             }
                         }
                     }
@@ -1372,6 +2198,11 @@
         }
 
         // ── 正常出牌阶段 ──
+        // 大师难度：使用费用组合规划（枚举最优出牌序列）
+        if (aiIsMaster()) {
+            aiMasterPlanCardSequence(side);
+            aiReservedMana = aiMasterReservedMana;
+        }
         let placed = true, safety = 0;
         while (placed && safety < 12) {
             placed = false; safety++;
@@ -1386,7 +2217,11 @@
                 // 费用规划：预留费用时不花光
                 const effectiveMana = gameState.players[side].mana - (cfg.manaPlan ? aiReservedMana : 0);
                 if (effectiveMana < cost) continue;
-                candidates.push({ card, idx: i, cost, priority: aiCardPlacePriority(card) });
+                // 大师难度：使用情境化卡牌价值
+                const priority = aiIsMaster()
+                    ? aiMasterCardValue(card, side, gameState.units.filter(u => u.side === side && u.life > 0))
+                    : aiCardPlacePriority(card);
+                candidates.push({ card, idx: i, cost, priority });
             }
             candidates.sort((a, b) => b.priority - a.priority);
             for (let { card, idx, cost } of candidates) {
@@ -1445,10 +2280,39 @@
         while (acted && iter < 35) {
             acted = false; iter++;
             if (aiGameId !== myGameId) return;
+
+            // ── 大师全局行动优化：评估所有单位所有行动，按价值排序执行，每步重新评估 ──
+            if (aiIsMaster()) {
+                const actions = aiMasterEvaluateAllActions(side);
+                if (actions.length === 0) break;
+                let found = false;
+                for (let act of actions) {
+                    if (aiGameId !== myGameId) return;
+                    const unit = act.unit;
+                    if (unit.life <= 0 || unit.stun > 0 || unit.isCharging || unit.superCharging || unit.isSweepCharging || unit.motCharging) continue;
+                    let success = false;
+                    if (act.type === 'skill') {
+                        success = await aiTrySkill(unit, myGameId);
+                    } else if (act.type === 'attack' && unit.attacksLeftThisTurn > 0) {
+                        success = await aiTryAttack(unit, myGameId);
+                    } else if (act.type === 'move' && !unit.moved && ((unit.movesLeftThisTurn || 0) > 0 || (unit.cardName === "风女" && unit.windGirlFreeMoveAvailable && !unit.windGirlFreeMoveUsed))) {
+                        success = await aiTryMove(unit, myGameId);
+                    }
+                    if (success) {
+                        acted = true; found = true;
+                        await aiSleep(300);
+                        break; // 每步重新评估（懂得变通）
+                    }
+                }
+                if (!found) break; // 所有行动均不可执行
+                continue;
+            }
+
+            // ── 常规路径（非大师难度）：按固定顺序遍历单位 ──
             const myUnits = gameState.units.filter(u => u.side === side && u.life > 0);
             myUnits.sort((a, b) => {
-                const aCan = (a.attacksLeftThisTurn > 0 || (!a.moved && (a.movesLeftThisTurn || 0) > 0)) && a.stun === 0 && !a.isCharging && !a.superCharging && !a.isSweepCharging && !a.motCharging;
-                const bCan = (b.attacksLeftThisTurn > 0 || (!b.moved && (b.movesLeftThisTurn || 0) > 0)) && b.stun === 0 && !b.isCharging && !b.superCharging && !b.isSweepCharging && !b.motCharging;
+                const aCan = (a.attacksLeftThisTurn > 0 || (!a.moved && ((a.movesLeftThisTurn || 0) > 0 || (a.cardName === "风女" && a.windGirlFreeMoveAvailable && !a.windGirlFreeMoveUsed)))) && a.stun === 0 && !a.isCharging && !a.superCharging && !a.isSweepCharging && !a.motCharging;
+                const bCan = (b.attacksLeftThisTurn > 0 || (!b.moved && ((b.movesLeftThisTurn || 0) > 0 || (b.cardName === "风女" && b.windGirlFreeMoveAvailable && !b.windGirlFreeMoveUsed)))) && b.stun === 0 && !b.isCharging && !b.superCharging && !b.isSweepCharging && !b.motCharging;
                 if (aCan && !bCan) return -1;
                 if (!aCan && bCan) return 1;
                 return b.dmgValue - a.dmgValue;
@@ -1469,8 +2333,9 @@
                     }
                 }
                 if (aiGameId !== myGameId) return;
-                // 攻击
-                if (unit.attacksLeftThisTurn > 0) {
+                // 攻击（琴魔/炽炎射手蓄力中或琴魔释放回合不能攻击）
+                const cantAttackNonMaster = unit.qinmoCharging || unit.qinmoReleaseTurn || unit.blazeCharging;
+                if (!cantAttackNonMaster && unit.attacksLeftThisTurn > 0) {
                     if (await aiTryAttack(unit, myGameId)) { acted = true; await aiSleep(300); break; }
                 }
                 if (aiGameId !== myGameId) return;
@@ -1485,7 +2350,7 @@
                 }
                 if (aiGameId !== myGameId) return;
                 // 移动
-                if (!unit.moved && (unit.movesLeftThisTurn || 0) > 0) {
+                if (!unit.moved && ((unit.movesLeftThisTurn || 0) > 0 || (unit.cardName === "风女" && unit.windGirlFreeMoveAvailable && !unit.windGirlFreeMoveUsed))) {
                     if (await aiTryMove(unit, myGameId)) { acted = true; await aiSleep(200); break; }
                 }
             }
@@ -1503,6 +2368,12 @@
         aiReservedMana = 0;
         aiSkipAttackIds = new Set();
         gameState.units.forEach(u => { u._aiSkillTried = false; });
+
+        // ── 大师策略引擎初始化：检测阶段/节奏/策略，分析敌方 ──
+        if (aiIsMaster()) {
+            aiMasterSelectStrategy(aiSide);
+            addLog(trText(`🤖 👑 大师策略：${aiMasterPhase} / ${aiMasterTempoState} / ${aiMasterMode}`, `🤖 👑 master strategy: ${aiMasterPhase} / ${aiMasterTempoState} / ${aiMasterMode}`));
+        }
 
         renderUI();
         try {

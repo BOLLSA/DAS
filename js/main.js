@@ -3,6 +3,7 @@
     async function startGame() {
         // 重置 AI 状态
         aiSide = -1; aiDifficulty = 'normal'; aiActing = false;
+        applyI18n(); // 应用已保存的语言设置
         while (true) {
             gameMode = await showGameModeSelect();
             if (gameMode === 'tutorial') {
@@ -43,7 +44,7 @@
             const p0Names = await showDeckBuilder('🔵 蓝方', 0);
             if (p0Names === 'back') { return startGame(); } // 返回模式选择
             // 提示切换玩家
-            await showMessage('请将设备交给 🔴 红方玩家，红方开始选卡');
+            await showMessage(t('msg.handoff'));
             // 红方选卡
             const p1Names = await showDeckBuilder('🔴 红方', 1);
             if (p1Names === 'back') { return startGame(); } // 返回模式选择
@@ -76,8 +77,8 @@
             }
             if (!networkState) return;  // 开局瞬间已断线（conn open 后 init 前断开）
             networkState.hostSide = setup.hostSide;
-            addLog(`🌐 联机开始！你是${setup.hostSide === 0 ? '蓝方（先手）' : '红方（后手）'}（房主）。`);
-            showToast(`🌐 联机开始`);
+            addLog(trText(`🌐 联机开始！你是${setup.hostSide === 0 ? '蓝方（先手）' : '红方（后手）'}（房主）。`, `🌐 Online start! you is ${setup.hostSide === 0 ? '蓝方（先手）' : '红方（后手）'} (host).`));
+            showToast(trText(`🌐 联机开始`, `🌐 Online start`));
             // 推送开局快照（含卡池模式信息：客机据此计算卡池视图）
             if (networkState && networkState.conn) {
                 const logs = (networkState.logBuffer || []).splice(0);
@@ -92,8 +93,8 @@
             gameMode = 'online';
             // 注意：不要置 customDecks = null——init 消息已同步主机下发的 cd（预设卡组时客机需本地计算卡池视图）
             const guestSide = networkGuestSide();
-            addLog(`🌐 联机开始！你是${guestSide === 0 ? '蓝方（先手）' : '红方（后手）'}（加入者）。`);
-            showToast(`🌐 联机开始`);
+            addLog(trText(`🌐 联机开始！你是${guestSide === 0 ? '蓝方（先手）' : '红方（后手）'}（加入者）。`, `🌐 Online start! you is ${guestSide === 0 ? '蓝方（先手）' : '红方（后手）'} (joiner).`));
+            showToast(trText(`🌐 联机开始`, `🌐 Online start`));
             await new Promise((resolve) => { networkOnDisconnect = resolve; });
             networkOnDisconnect = null;
         }

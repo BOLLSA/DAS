@@ -1,7 +1,7 @@
 # 黑暗中世纪 (Dark Age Saga 1.01) — 项目交接文档
 
-> 供下一位 AI 快速接手并安全规划代码修改，最后更新：2026-08（1.01 单位改名版）
-> 基于上一版交接文档全面重写：新增机车党、新手引导教程、护盾来源系统、替伤防御结算、麻木者禁疗、无敌免疫秒杀、远程联机等；1.01 末期完成 8 个单位改名（详见「Dark Age Saga更新日志.md」）
+> 供下一位 AI 快速接手并安全规划代码修改，最后更新：2026-08（日志/toast 消息模板 100% 人工翻译，零中文残留；categorizeEvent/detectTactic 双语兼容）
+> 基于上一版交接文档全面重写：新增机车党、新手引导教程、护盾来源系统、替伤防御结算、麻木者禁疗、无敌免疫秒杀、远程联机等；1.01 末期完成 8 个单位改名（详见「Dark Age Saga更新日志.md」）；2026-08 新增魔矢人/炽炎射手/琴魔/法师/剑客/风女 6 个角色、极速/死亡回合/平局判定 3 种机制、弱化效果与霸体免疫
 
 ---
 
@@ -10,12 +10,12 @@
 | 项目 | 说明 |
 |------|------|
 | 游戏名 | 黑暗中世纪 1.01（Dark Age Saga 1.01） |
-| 入口文件 | `index.html`（加载 15 个 JS 文件 + 1 个 CSS 文件；PeerJS 按需动态加载，见 §12.1） |
+| 入口文件 | `index.html`（加载 16 个 JS 文件 + 1 个 CSS 文件；PeerJS 按需动态加载，见 §12.1） |
 | 类型 | 回合制战棋卡牌游戏 |
 | 模式 | 全卡池对战 / 自定义卡组 / 人机对战（简单/普通/困难/大师）/ 远程联机 / 新手教程 |
-| 语言 | 纯前端 HTML + Vanilla JS（无框架、无构建工具、无 ES Module） |
+| 语言 | 纯前端 HTML + Vanilla JS（无框架、无构建工具、无 ES Module）；简体中文/English 切换（i18n.js，localStorage 记忆）；English 下**零中文残留**：81 张卡 CARD_DETAILS_EN、技能 SKILL_LABELS_EN、装备 EQUIP_DESCS_EN/EQUIP_SHORT_EN、教程 TUTORIAL_STEPS_EN/TUTORIAL_QUICK_EN；全部日志/toast/弹窗消息调用（1006 处）用 trText(中文模板, 英文模板) 包裹（插值表达式保留，运行时咽喉 translateText 兜底插值内中文）；categorizeEvent/detectTactic 中英双语关键词，showMessage 结束消息判断双语正则 |
 | 测试环境 | Chrome / Edge 最新版 + 移动端 viewport，未适配 IE / 旧版 Safari |
-| 内容规模 | 75 张卡牌 / 14 件装备 / 40 个技能定义，总代码量约 13,700 行（JS 约 11,300 + CSS 约 2,330 + HTML 约 60） |
+| 内容规模 | 81 张卡牌 / 14 件装备 / 44 个技能定义，总代码量约 15,500 行（JS 约 13,000 + CSS 约 2,400 + HTML 约 60） |
 | 版本号位置 | `index.html`（title/meta/角标 v1.01）+ `decks.js` 模式选择标题 |
 
 !!!重要提醒：修改时不要误改导致地图单位卡片渲染错误而无法显示!!!!
@@ -28,17 +28,18 @@
 
 ```
 Dark Age Saga/
-├── index.html                  ← HTML 骨架 + JS 加载顺序（15个文件，PeerJS 按需加载）+ 版本角标 v1.01
+├── index.html                  ← HTML 骨架 + JS 加载顺序（16个文件，PeerJS 按需加载）+ 版本角标 v1.01
 ├── css/
 │   └── style.css               ← 全部样式（含教程高亮 .tutorial-glow、联机按钮）
 ├── js/
-│   ├── cards.js                ← CARD_TEMPLATES（75张卡）/ CARD_LIBRARY
+│   ├── i18n.js                ← 语言切换框架（I18N_DICT 中英文字典 / t() / data-i18n / setLanguage，首个加载）
+│   ├── cards.js                ← CARD_TEMPLATES（81张卡）/ CARD_LIBRARY
 │   ├── game-state.js           ← gameState 全局状态 + initPlayerDeck + 工具函数 + 事件记录
 │   ├── battle-engine.js        ← 伤害链 / 攻击 / 死亡 / 护盾来源 / 替伤防御 / 秒杀防御
-│   ├── skill-charge.js         ← 蓄力攻击（皮卡/弩手/重斧兵/戟兵）+ 标枪手突刺 + 反击兵爆炸
+│   ├── skill-charge.js         ← 蓄力攻击（斧兵/弩手/重斧兵/戟兵/炽炎射手/琴魔）+ 标枪手突刺 + 反击兵爆炸
 │   ├── skill-active.js         ← consumeNerdJamPending + purifyAllFriendly
-│   ├── skill-config.js         ← SKILL_DEFS（40技能）+ 效果执行器 + 秒杀/kill效果
-│   ├── game-flow.js            ← tryMoveUnit / placeUnit / startTurn / endTurn / 机车党蓄力结算 / 弹窗远程转发
+│   ├── skill-config.js         ← SKILL_DEFS（44技能）+ 效果执行器 + 秒杀/kill效果 + 风女二选一
+│   ├── game-flow.js            ← tryMoveUnit / placeUnit / startTurn / endTurn / 机车党蓄力结算 / 极速/死亡回合 / 平局判定 / 弹窗远程转发
 │   ├── equipment.js            ← EQUIPMENT_LIBRARY（14件装备）+ 商店 + 复活 + AI购买 + 远程购买
 │   ├── decks.js                ← PRESET_DECKS（5套）/ resetGame / 模式选择 / 卡组构建 / showOnlineSetup
 │   ├── targeting.js            ← 技能目标过滤 / handleCellClick（联机指令转发）/ dispatchSkillTarget
@@ -48,7 +49,7 @@ Dark Age Saga/
 │   ├── network.js              ← 远程联机网络层（PeerJS P2P 主机权威）
 │   └── main.js                 ← startGame 入口（含教程/联机分支）
 └── Attention/                  ← 非游戏内容（文档 + 开发脚本），与 js/ 并列
-    ├── check.ps1               ← 发布前语法检查（15 个 JS 文件 node --check；内部定位父目录为游戏根）
+    ├── check.ps1               ← 发布前语法检查（16 个 JS 文件 node --check；内部定位父目录为游戏根）
     ├── publish.ps1             ← 正式版发布脚本（干净拷贝到桌面 DAS 正式版本目录；内部定位父目录为游戏根）
     ├── serve.ps1               ← 简易 HTTP 服务器（TcpListener，局域网联机调试用，端口 8080）
     ├── RELEASE_CHECKLIST.md    ← 发布前检查清单（调试痕迹/快照安全/回归项，发布前逐项核对）
@@ -63,10 +64,12 @@ Dark Age Saga/
 ### JS 文件加载顺序（index.html 中定义，不可调整）
 
 ```
-cards.js → game-state.js → battle-engine.js → skill-charge.js →
+i18n.js → cards.js → game-state.js → battle-engine.js → skill-charge.js →
 skill-active.js → skill-config.js → game-flow.js → equipment.js →
 decks.js → targeting.js → ui.js → ui-overlay.js → ai.js → network.js → main.js
 ```
+
+注意：**i18n.js 必须最先加载**（提供全局 `t()` / `applyI18n()` / `setLanguage()` / `translateText()` / `cardNameDisplay()` / `trText()`；语言选择持久化于 localStorage `das_lang`）。动态内容翻译走咽喉入口：`showToast`/`addLog`/`showConfirmLocal`/`showMessage` 显示层调用 translateText()，**事件记录与网络同步保持原文**（对端按各自语言显示）；新增用户可见中文文本时，优先在 `ZH_EN_PHRASES` 词典补词条（最长匹配），或渲染处用 translateText() 包裹。
 
 注意：**equipment.js 在 game-flow.js 之后加载**（旧文档描述有误）。跨文件调用只发生在运行时（函数声明全局提升），加载顺序只影响顶层立即执行代码。**PeerJS 不随页面同步加载**：`index.html` 无 PeerJS 标签，首次点击「远程联机」时由 `loadPeerJS()`（network.js）动态注入 CDN 脚本（15s 超时兜底、失败 toast 提示）——避免 CDN 慢/不可达时阻塞整个页面启动（曾导致模式选择界面卡顿）。
 
@@ -76,15 +79,16 @@ decks.js → targeting.js → ui.js → ui-overlay.js → ai.js → network.js �
 
 | 文件 | 核心函数 | 说明 |
 |------|---------|------|
-| `cards.js` | `CARD_TEMPLATES` / `CARD_LIBRARY` | 75 张卡牌定义，desc 用「技能：」分隔被动/主动 |
+| `i18n.js` | `I18N_DICT` / `t` / `applyI18n` / `setLanguage` / `translateText` / `cardNameDisplay` / `trText` / `cardDetailEN` / `cardDescDisplay` / `cardPassiveText` / `cardSkillDescDisplay` / `equipDescDisplay` / `tutorialStepDisplay` | 语言切换框架 + 翻译引擎：CARD_DETAILS_EN（81卡）/ CARD_NAMES_EN / SKILL_LABELS_EN / EQUIP_DESCS_EN + EQUIP_SHORT_EN / TUTORIAL_STEPS_EN + TUTORIAL_QUICK_EN / ZH_EN_PHRASES ~1500短语 / ZH_EN_RULES 数字标点规则；消息模板由调用点 trText() 包裹（1006 处） |
+| `cards.js` | `CARD_TEMPLATES` / `CARD_LIBRARY` | 81 张卡牌定义，desc 用「技能：」分隔被动/主动 |
 | `game-state.js` | `gameState` / `initPlayerDeck` / `getUnitsAt` / `canAddUnit` / `getForwardDelta` / `getOwnCastleRow` / `createMirrorUnit` / `addUnit` / `popUnit` / `discardCard` | 全局状态 + 卡组生成 + 工具函数 |
 | `battle-engine.js` | `applyDamageWithSource` / `absorbUnitShield` / `recalcShieldValue` / `getExternalShieldTotal` / `triggerChainedHunterImmunity` / `applyRedirectTargetDefense` / `performAttack` / `removeUnit` / `hunterExecute` / `triggerPlagueDeath` / `tryUseShieldToAbsorb` / `tryYangYuhuanDefend` | 伤害计算链 / 护盾来源消耗 / 替伤防御 / 秒杀 / 死亡 |
-| `skill-charge.js` | `resolveAxemanCharge` / `resolveCrossbowCharge` / `resolveHeavyAxemanCharge` / `resolveHalberdierCharge` / `performSpearmanThrustEffect` / `resolveCounterBrace` | 蓄力释放 + 突刺 + 蓄势爆炸 |
+| `skill-charge.js` | `resolveAxemanCharge` / `resolveCrossbowCharge` / `resolveHeavyAxemanCharge` / `resolveHalberdierCharge` / `resolveBlazeArcherCharge` / `resolveQinmoCharge` / `performSpearmanThrustEffect` / `resolveCounterBrace` | 蓄力释放（含弱化检查）+ 炽炎射手/琴魔蓄力 + 突刺 + 蓄势爆炸 |
 | `skill-active.js` | `consumeNerdJamPending` / `purifyAllFriendly` | 行动干扰消耗 + 净化 |
 | `skill-config.js` | `SKILL_DEFS` / `getSkillBtnText` / `checkSkillPrerequisites` / `isControlImmune` / `isDisplacementImmune` / `applyEffect` / `useSelectedUnitSkill` / `startDeclarativeSkill` | 声明式技能系统 + 效果执行器（含 knightKill/kill/斩月防御检查） |
 | `game-flow.js` | `tryMoveUnit` / `placeUnit` / `startTurn` / `endTurn` / `releaseMotorcyclist` / `showSelect` / `showConfirm` | 移动（含机车党碰撞）/ 放置 / 回合 / 机车党蓄力 |
 | `equipment.js` | `EQUIPMENT_LIBRARY` / `initUnitEquipmentFields` / `revivePendingUnits` / `onTurnStartEquipment` / `showEquipmentShop` / `openEquipmentShop` / `aiBuyEquipment` / `aiActivateEquipmentSkills` | 14 件装备 + 商店 + 复活 + AI |
-| `decks.js` | `PRESET_DECKS` / `resetGame` / `showGameModeSelect` / `showAISetup` / `showDeckBuilder` | 5 套预选卡组 + 游戏重置 + 模式选择 |
+| `decks.js` | `PRESET_DECKS` / `resetGame` / `showGameModeSelect` / `showAISetup` / `showDeckBuilder` | 5 套预选卡组 + 游戏重置 + 模式选择（语言/模式两列并列布局，文案走 i18n） |
 | `targeting.js` | `getSkillTargetableUnits` / `handleCellClick` / `dispatchSkillTarget` | 目标过滤 + 棋盘点击分发 |
 | `ui.js` | `renderUI` | 全量渲染（末尾挂载教程高亮 applyTutorialHighlight） |
 | `ui-overlay.js` | `showPokedex` / `showPokedexDetail` / `showCardPool` / `buildCardPoolMap` / `showTutorial` / `startBeginnerTutorial` / `BEGINNER_TUTORIAL_STEPS` / `tutorialAllowAction` / `tutorialBlock` / `openTestPanel` / `onGlobalKeydown` / `showMatchRecap` / `calculateMVP` | 图鉴 / 卡池 / 教程（静态速查 + 新手引导）/ 教程白名单 / 测试 / 快捷键 |
@@ -303,7 +307,8 @@ decks.js → targeting.js → ui.js → ui-overlay.js → ai.js → network.js �
 
 - 入口：主界面手牌区「📚 卡池」按钮 → `showCardPool()`（ui-overlay.js）。
 - **卡池 = 完整牌池 − 占用**，动态计算（`buildCardPoolMap(side)`）：
-  - 占用 = 手牌 + 预牌堆 + 场上单位（镜像幽灵 `isMirror` 不占用；**死亡/爆牌移除的单位自动回到卡池**，无需额外状态）。
+  - 占用 = 手牌 + 预牌堆 + 场上单位（镜像幽灵 `isMirror` 不占用；**死亡/爆牌/弃牌的卡牌实际回到 deck 抽牌堆**，闭环循环，回池后 Fisher-Yates 洗牌）。
+  - 闭环规则：弃牌→`discardCard()` 回 deck；单位死亡→`removeUnit()` 回 deck（排除复活甲 `pendingRevive`/猫复活 `reviveTimesLeft`/城池复活 `onDeathPassive==="revive"`/同化者 `isAssimilator`/镜像 `isMirror`）；爆牌→`popUnit()` 回 deck（排除镜像/同化者，爆牌不触发死亡被动所以无需排除复活类）。测试模式卡 `_fromTestPanel` 标记的卡不回池，直接销毁；`_fromTestPanel` 从手牌→单位（`placeCard`）→猫复活新单位三处传递。
   - 全卡池模式（`customDecks === null`）：双方共享一个卡池，完整牌池 = CARD_LIBRARY 按 grade 上限（1级×1 / 2级×2 / 3级×3）。
   - 预设/自定义卡组（`customDecks !== null`）：分我方/敌方卡池，完整牌池 = 该方 `customDecks[p0/p1]` 按 grade 上限；面板顶部可切换「🔵我方 / 🔴敌方」。
 - 交互：按 CARD_LIBRARY 已有顺序排序，支持等级筛选（全部/1/2/3级）与名称搜索；显示每张卡剩余张数（0 张置灰）；点击卡片看详情。
@@ -433,7 +438,7 @@ node --check js/main.js
 4. 测试模式（🧪）快速添加手牌验证改动。
 5. 装备商店：14 件装备购买/穿戴/效果触发；凝血之刃 2 费。
 6. 新手教程完整走一遍（含回顾、拦截、S10 商店、完成退出）。
-7. 图鉴：75 张卡描述与实际机制一致（被动/主动分区正确）。
+7. 图鉴：81 张卡描述与实际机制一致（被动/主动分区正确）。
 
 ### 19.3 重点回归清单
 
@@ -444,6 +449,13 @@ node --check js/main.js
 - [ ] 麻木者：所有伤害（含秒杀）只掉1血；不能被治疗。
 - [ ] 酒鬼无敌：免疫秒杀（life=1+pendingDeath，无敌结束后死亡）。
 - [ ] 机车党：自由移动/重合碰撞/蓄力1-3回合/控制中断/位移不中断/释放回合禁蓄力。
+- [ ] 法师弱化：命中后施加弱化2小回合；被弱化单位伤害无效；斧兵/弩手/重斧兵/双剑被弱化仍可触发蓄力；霸体免疫弱化。
+- [ ] 炽炎射手：蓄力1-3回合/释放回合攻速+1/2/3且每次+0/1/1法伤/蓄力中可移动不能攻击/最多3回合自动结束/被控制中断。
+- [ ] 琴魔：蓄力选横行/下回合对该行所有敌人3法伤/蓄力中可移动不能攻击/被眩晕/定身/沉默中断。
+- [ ] 剑客：AOE攻击同列2格/击杀后范围+1（永久成长）/穿透（无视中间遮挡）。
+- [ ] 风女：远程3格/普攻后风之步自由移动1格（不消耗移速，每回合1次）/二选一技能（风暴冲击不可空放+1能量/能量爆发消耗能量换普攻）/能量上限3跨回合保存/攻击城池也触发风之步。
+- [ ] 极速回合：第13回合起选2张预牌/溢出弃2张。
+- [ ] 死亡回合+平局判定：第25回合起不加费/每回合检查双方伤害能力判平局。
 - [ ] 新手教程：模式选择入口、上一步回顾、操作白名单拦截、面板避让遮挡。
 
 ---
@@ -452,6 +464,15 @@ node --check js/main.js
 
 | 变更 | 说明 |
 |------|------|
+| 新增角色（6个） | 魔矢人（远程3格被动）/ 炽炎射手（蓄力攻速成长）/ 琴魔（横行AOE蓄力）/ 法师（弱化debuff）/ 剑客（AOE+击杀成长）/ 风女（远程+能量系统+风之步自由移动） |
+| 弱化效果 | 法师攻击命中后施加弱化（weakenedTurns=2），被弱化的单位造成的伤害无效；弱化不阻止蓄力触发（斧兵/弩手/重斧兵/双剑仍可触发蓄力）但阻止蓄力释放 |
+| 霸体免疫弱化 | 霸体（superCharging）单位免疫法师弱化施加 |
+| 极速回合 | 第13大回合起每回合选2张预牌，溢出时弃2张 |
+| 死亡回合 | 第25大回合起不再自然加费 |
+| 平局判定 | 死亡回合每回合开始检查双方是否均无伤害能力，均无则比较HP判平局/胜负 |
+| 机车党蓄力修复 | 仅当用户明确选择"继续蓄力"时继续，取消/跳过均释放蓄力 |
+| 攻击城池逻辑修复 | aiMasterScoreAttack 中攻击城池的死代码修复（canAttackBase 检查移入 enemies.length === 0 分支） |
+| 卡牌闭环 | 弃牌/死亡/爆牌的卡实际回到 deck 抽牌堆（Fisher-Yates 洗牌）；排除复活甲/猫复活/同化者/镜像；测试模式卡 `_fromTestPanel` 不回池 |
 | 护盾来源系统 | 外来/自带分离，按来源（护援兵）独立上限2，外来先消耗 |
 | 真伤修正 | 真伤正确无视所有护盾（含暗影纱） |
 | 秒杀统一 | 四条秒杀路径统一防御检查顺序；补齐斩月/kill 的枷锁猎手与麻木者检查 |
@@ -475,5 +496,5 @@ node --check js/main.js
 ## 二十一、更新日志
 
 - 每次改动的明细记录在独立文件 **`Dark Age Saga更新日志.md`**（与本文档分开维护，最新改动在最上方）。
-- 最近一次：**8 个单位改名**（国王/禁卫/参谋/暴食者/旋斧人/巫师/护援兵/纱琳，含英文标识同步），详见更新日志顶部。
+- 最近一次：**新增 6 个角色（魔矢人/炽炎射手/琴魔/法师/剑客/风女）+ 极速/死亡回合 + 平局判定 + 弱化效果与霸体免疫 + 7 项 bug 修复**，详见更新日志顶部。
 - 注意：改名涉及英文标识（如 `shaLinBind`、`huYuanBingTeleport`、`kingCostMod`、`hasCanMou`、`applyShaLinCellBinding`、`jinWeiDisable` 等），联机快照与本地逻辑共用同一套标识，改动时需保持一致。

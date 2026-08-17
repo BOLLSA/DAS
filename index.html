@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh-CN" data-i18n-title="page.title">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
@@ -15,29 +15,30 @@
     <div class="board-area"><div class="grid" id="gameGrid"></div></div>
     <div class="right-panel">
         <div class="info-bar">
-            <div class="player-card">&#128309; 蓝方 &nbsp; &#10084;&#65039;<span id="p0Hp">10</span> &nbsp; &#128176;<span id="p0Mana">3</span>/15 &nbsp; &#127183;<span id="p0HandCount">0</span>/6</div>
-            <div class="turn-indicator" id="turnText">&#128316; 蓝方回合</div>
-            <div class="player-card">&#128308; 红方 &nbsp; &#10084;&#65039;<span id="p1Hp">10</span> &nbsp; &#128176;<span id="p1Mana">3</span>/15 &nbsp; &#127183;<span id="p1HandCount">0</span>/6</div>
+            <div class="player-card">&#128309; <span data-i18n="hud.blue">蓝方</span> &nbsp; &#10084;&#65039;<span id="p0Hp">10</span> &nbsp; &#128176;<span id="p0Mana">3</span>/15 &nbsp; &#127183;<span id="p0HandCount">0</span>/6</div>
+            <div class="turn-indicator" id="turnText"><span data-i18n="turn.blue">🔽 蓝方回合</span></div>
+            <div class="player-card">&#128308; <span data-i18n="hud.red">红方</span> &nbsp; &#10084;&#65039;<span id="p1Hp">10</span> &nbsp; &#128176;<span id="p1Mana">3</span>/15 &nbsp; &#127183;<span id="p1HandCount">0</span>/6</div>
         </div>
         <div class="hand-area">
-            <div class="hand-title"><span>&#128220; 手牌</span>
-                <div><button class="test-mode-btn" id="testModeBtn">&#129514; 测试模式</button><button class="tutorial-btn" id="tutorialBtn">&#128214; 教程</button><button class="pokedex-btn" id="poolBtn">&#128218; 卡池</button><button class="pokedex-btn" id="pokedexBtn">&#128214; 图鉴</button><button class="clear-hand-btn" id="clearHandBtn">&#10060; 取消选中 <kbd class="kbd-hint">ESC</kbd></button></div>
+            <div class="hand-title"><span>&#128220; <span data-i18n="hud.hand">手牌</span></span>
+                <div><button class="test-mode-btn" id="testModeBtn">&#129514; <span data-i18n="hud.test">测试模式</span></button><button class="tutorial-btn" id="tutorialBtn">&#128214; <span data-i18n="hud.tutorial">教程</span></button><button class="pokedex-btn" id="poolBtn">&#128218; <span data-i18n="hud.pool">卡池</span></button><button class="pokedex-btn" id="pokedexBtn">&#128214; <span data-i18n="hud.pokedex">图鉴</span></button><button class="clear-hand-btn" id="clearHandBtn">&#10060; <span data-i18n="hud.clear">取消选中</span> <kbd class="kbd-hint">ESC</kbd></button></div>
             </div>
             <div class="hand-cards" id="handCards"></div>
         </div>
         <div class="enemy-hand-area">
-            <div class="enemy-hand-title"><span>&#127192; 敌方手牌</span><span id="enemyHandCount">0</span></div>
+            <div class="enemy-hand-title"><span>&#127192; <span data-i18n="hud.enemyHand">敌方手牌</span></span><span id="enemyHandCount">0</span></div>
             <div class="enemy-hand-cards" id="enemyHandCards"></div>
         </div>
-        <div class="prepool-area"><div>&#127136; 预牌堆 (回合结束选一张加入手牌)</div><div class="prepool-list" id="prepoolList"></div></div>
-        <div class="flex-row"><button id="endTurnBtn">&#9889; 结束回合 (喊"过")</button><button id="equipmentShopBtn">&#9876;&#65039; 装备商店</button><button id="resetGameBtn">&#128260; 重新开局</button></div>
-        <div class="shortcut-hints"><span><kbd class="kbd-hint">1-6</kbd>选手牌</span><span><kbd class="kbd-hint">Alt+E</kbd>技能</span><span><kbd class="kbd-hint">Alt+Q</kbd>弃牌/撤回</span><span><kbd class="kbd-hint">ESC</kbd>取消</span></div>
+        <div class="prepool-area"><div>&#127136; <span data-i18n="hud.prepool">预牌堆 (回合结束选一张加入手牌)</span></div><div class="prepool-list" id="prepoolList"></div></div>
+        <div class="flex-row"><button id="endTurnBtn">&#9889; <span data-i18n="hud.endTurn">结束回合 (喊"过")</span></button><button id="equipmentShopBtn">&#9876;&#65039; <span data-i18n="hud.shop">装备商店</span></button><button id="resetGameBtn">&#128260; <span data-i18n="hud.reset">重新开局</span></button></div>
+        <div class="shortcut-hints"><span><kbd class="kbd-hint">1-6</kbd><span data-i18n="hud.hint.select">选手牌</span></span><span><kbd class="kbd-hint">Alt+E</kbd><span data-i18n="hud.hint.skill">技能</span></span><span><kbd class="kbd-hint">Alt+Q</kbd><span data-i18n="hud.hint.discard">弃牌/撤回</span></span><span><kbd class="kbd-hint">ESC</kbd><span data-i18n="hud.hint.cancel">取消</span></span></div>
         <div class="log" id="log"></div>
     </div>
 </div>
 
 <!-- JS 模块加载顺序（依赖链：数据 → 状态 → 战斗 → 技能 → 流程 → 装备 → 目标 → UI → AI → 网络 → 入口）-->
 <!-- PeerJS 不在此同步加载：改为点击「远程联机」时按需动态注入（network.js loadPeerJS），避免 CDN 慢/不可达时阻塞整个页面启动 -->
+<script src="js/i18n.js"></script>
 <script src="js/cards.js"></script>
 <script src="js/game-state.js"></script>
 <script src="js/battle-engine.js"></script>

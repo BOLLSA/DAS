@@ -7,7 +7,7 @@
         overlay.className = 'pokedex-overlay';
         const panel = document.createElement('div');
         panel.className = 'pokedex-panel';
-        panel.innerHTML = `
+        panel.innerHTML = translateText(`
             <h2>📖 单位图鉴</h2>
             <div class="pokedex-controls">
                 <button data-grade="all" class="active">全部</button>
@@ -18,7 +18,7 @@
             </div>
             <div class="pokedex-grid" id="pokedexGrid"></div>
             <button class="prepick-cancel" style="margin-top:15px;">关闭</button>
-        `;
+        `);
         overlay.appendChild(panel);
         document.body.appendChild(overlay);
 
@@ -38,13 +38,13 @@
                 cardDiv.className = 'pokedex-card';
                 const gradeLabel = card.grade === 1 ? '传说' : card.grade === 2 ? '史诗' : '普通';
                 const gradeIcon = '⭐'.repeat(card.grade || 1);
-                cardDiv.innerHTML = `
+                cardDiv.innerHTML = translateText(`
                     <div class="pokedex-card-header">
                         <b>${card.name}</b>
                         <span class="pokedex-grade-tag grade-${card.grade}">${gradeIcon} ${gradeLabel}</span>
                     </div>
                     <div class="pokedex-card-stats">💰${card.cost} ❤️${card.life} ⚔️${card.dmgType}${card.dmgValue} 📏${card.range} 🏃${card.speed}${card.extraAttacks ? ' ×' + (1 + card.extraAttacks) : ''}</div>
-                `;
+                `);
                 cardDiv.onclick = () => showPokedexDetail(card, overlay);
                 gridDiv.appendChild(cardDiv);
             });
@@ -105,7 +105,7 @@
         overlay.className = 'pokedex-overlay';
         const panel = document.createElement('div');
         panel.className = 'pokedex-panel';
-        panel.innerHTML = `
+        panel.innerHTML = translateText(`
             <h2>📚 卡池</h2>
             <div class="pokedex-controls">
                 <button data-grade="all" class="active">全部</button>
@@ -117,7 +117,7 @@
             <div class="pool-summary" id="poolSummary"></div>
             <div class="pokedex-grid" id="poolGrid"></div>
             <button class="prepick-cancel" style="margin-top:15px;">关闭</button>
-        `;
+        `);
         overlay.appendChild(panel);
         document.body.appendChild(overlay);
 
@@ -129,7 +129,7 @@
             currentSide = mySide;
             const toggle = document.createElement('div');
             toggle.className = 'pool-side-toggle';
-            toggle.innerHTML = `<button data-side="0" class="${currentSide === 0 ? 'active' : ''}">🔵 我方卡池</button><button data-side="1" class="${currentSide === 1 ? 'active' : ''}">🔴 敌方卡池</button>`;
+            toggle.innerHTML = translateText(`<button data-side="0" class="${currentSide === 1 ? 'active' : ''}">🔵 我方卡池</button><button data-side="1" class="${currentSide === 0 ? 'active' : ''}">🔴 敌方卡池</button>`);
             panel.insertBefore(toggle, panel.querySelector('.pokedex-controls'));
             toggle.querySelectorAll('[data-side]').forEach(btn => {
                 btn.onclick = () => {
@@ -159,12 +159,12 @@
             let totalLeft = 0, totalKinds = 0;
             for (const e of pool.values()) { totalLeft += e.count; if (e.count > 0) totalKinds++; }
             const leftKinds = [...pool.values()].filter(e => e.count > 0).length;
-            summaryDiv.innerHTML = sharedPool
+            summaryDiv.innerHTML = translateText(sharedPool
                 ? `双方共享卡池：剩余 <b>${totalLeft}</b> 张 / <b>${leftKinds}</b> 种`
-                : `当前查看 <b>${currentSide === 0 ? '🔵 我方' : '🔴 敌方'}</b> 卡池：剩余 <b>${totalLeft}</b> 张 / <b>${leftKinds}</b> 种`;
+                : `当前查看 <b>${currentSide === 0 ? '🔵 我方' : '🔴 敌方'}</b> 卡池：剩余 <b>${totalLeft}</b> 张 / <b>${leftKinds}</b> 种`);
             gridDiv.innerHTML = '';
             if (entries.length === 0) {
-                gridDiv.innerHTML = '<div style="color:#8a7a66;padding:20px;text-align:center;">无符合条件的卡牌</div>';
+                gridDiv.innerHTML = translateText('<div style="color:#8a7a66;padding:20px;text-align:center;">无符合条件的卡牌</div>');
                 return;
             }
             entries.forEach(e => {
@@ -173,14 +173,14 @@
                 cardDiv.className = 'pokedex-card' + (e.count <= 0 ? ' pool-empty' : '');
                 const gradeLabel = card.grade === 1 ? '传说' : card.grade === 2 ? '史诗' : '普通';
                 const gradeIcon = '⭐'.repeat(card.grade || 1);
-                cardDiv.innerHTML = `
+                cardDiv.innerHTML = translateText(`
                     <div class="pokedex-card-header">
                         <b>${card.name}</b>
                         <span class="pokedex-grade-tag grade-${card.grade}">${gradeIcon} ${gradeLabel}</span>
                     </div>
                     <div class="pokedex-card-stats">💰${card.cost} ❤️${card.life} ⚔️${card.dmgType}${card.dmgValue} 📏${card.range} 🏃${card.speed}${card.extraAttacks ? ' ×' + (1 + card.extraAttacks) : ''}</div>
                     <div class="pool-count ${e.count <= 0 ? 'zero' : ''}">剩余 ${e.count} 张</div>
-                `;
+                `);
                 cardDiv.onclick = () => showPokedexDetail(card, overlay);
                 gridDiv.appendChild(cardDiv);
             });
@@ -213,7 +213,7 @@
         const gradeIcon = '⭐'.repeat(card.grade || 1);
         const detailPanel = document.createElement('div');
         detailPanel.className = 'pokedex-detail-panel';
-        detailPanel.innerHTML = `
+        detailPanel.innerHTML = translateText(`
             <button class="pokedex-detail-close" title="关闭 (ESC)">✕</button>
             <div class="pokedex-detail-titlebar grade-${card.grade}">
                 <h2>${card.name}</h2>
@@ -228,32 +228,44 @@
                 ${card.extraAttacks ? `<div class="stat-pill">⚔️×<b>${1 + card.extraAttacks}</b></div>` : ''}
             </div>
             ${(() => {
-                let passiveDesc = '';
-                let activeDesc = '';
-                if (card.desc) {
-                    if (card.desc.startsWith('技能：')) {
-                        activeDesc = card.desc.replace(/^技能：/, '');
+                // i18n: en uses hand-written English details; zh keeps original logic
+                const enD = cardDetailEN(card);
+                let introText = '无', passiveText = '无', activeText = '无';
+                if (enD) {
+                    // 完整信息展示：被动卡显示完整 desc；被动+技能卡按 "Skill:/Active:" 拆分，避免只显示被动名
+                    const introParts = [enD.passive, card.skill ? enD.skillDesc : null].filter(Boolean);
+                    introText = introParts.length > 0 ? introParts.join(' · ') : trText('无', 'None');
+                    passiveText = trText('无', 'None');
+                    activeText = trText('无', 'None');
+                    const splitM = enD.desc.match(/ Skill: | Active: /);
+                    if (enD.passive && card.skill && splitM) {
+                        passiveText = enD.desc.slice(0, splitM.index).trim();
+                        activeText = enD.desc.slice(splitM.index + splitM[0].length).trim();
+                    } else if (enD.passive) {
+                        passiveText = enD.desc;
+                    } else if (card.skill) {
+                        // 仅技能卡：显示完整技能描述（去掉开头 "Skill: "/"Active: " 前缀，避免与段落标题重复）
+                        activeText = enD.desc.replace(/^(Skill: |Active: )/, '');
                     } else {
-                        const parts = card.desc.split(/[。；]技能：/);
-                        if (parts.length > 1) {
-                            passiveDesc = parts[0];
-                            activeDesc = parts.slice(1).join('。');
+                        passiveText = enD.desc;
+                    }
+                    if (card.skill2) activeText += ' / ' + cardSkillDescDisplay(card, 2);
+                } else {
+                    let passiveDesc = '', activeDesc = '';
+                    if (card.desc) {
+                        if (card.desc.startsWith('技能：')) {
+                            activeDesc = card.desc.replace(/^技能：/, '');
                         } else {
-                            passiveDesc = card.desc;
+                            const parts = card.desc.split(/[。；]技能：/);
+                            if (parts.length > 1) { passiveDesc = parts[0]; activeDesc = parts.slice(1).join('。'); }
+                            else { passiveDesc = card.desc; }
                         }
                     }
-                }
-                const introParts = [card.passive, card.skill ? card.skillDesc : null].filter(Boolean);
-                const introText = introParts.length > 0 ? introParts.join(' · ') : '无';
-                let passiveText = '无';
-                if (card.passive) {
-                    passiveText = passiveDesc || card.passive;
-                } else if (passiveDesc && !card.skill) {
-                    passiveText = passiveDesc;
-                }
-                let activeText = '无';
-                if (card.skill) {
-                    activeText = activeDesc || card.skillDesc || '无';
+                    const introParts2 = [card.passive, card.skill ? card.skillDesc : null].filter(Boolean);
+                    introText = introParts2.length > 0 ? introParts2.join(' · ') : '无';
+                    if (card.passive) { passiveText = passiveDesc || card.passive; }
+                    else if (passiveDesc && !card.skill) { passiveText = passiveDesc; }
+                    if (card.skill) { activeText = activeDesc || card.skillDesc || '无'; }
                 }
                 return `
             <div class="pokedex-detail-section">
@@ -269,7 +281,7 @@
                 <p>${activeText}</p>
             </div>`;
             })()}
-        `;
+        `);
         detailOverlay.appendChild(detailPanel);
         document.body.appendChild(detailOverlay);
 
@@ -280,12 +292,12 @@
 
     function showTutorial() {
         // 新手引导教程进行中：不再叠加打开速查教程
-        if (tutorialState && tutorialState.active) { showToast('🎓 已经在新手教程中啦'); return; }
+        if (tutorialState && tutorialState.active) { showToast(trText('🎓 已经在新手教程中啦', "🎓 You are already in the tutorial")); return; }
         const overlay = document.createElement('div');
         overlay.className = 'tutorial-overlay';
         const panel = document.createElement('div');
         panel.className = 'tutorial-panel';
-        panel.innerHTML = `<h3>📘 黑暗中世纪 · 快速教程</h3>
+        panel.innerHTML = currentLang === 'en' ? TUTORIAL_QUICK_EN : translateText(`<h3>📘 黑暗中世纪 · 快速教程</h3>
 <div class="tutorial-content">
 <p><strong>🎯 胜利目标：</strong>摧毁对方城池（❤️10点生命），同时守住自己的城池。</p>
 
@@ -338,7 +350,7 @@
 <li>费用不够？→ 每回合自动增长（上限15），或使用带加费能力的单位</li>
 </ul>
 </div>
-<div class="custom-modal-buttons"><button class="custom-modal-btn confirm" id="closeTut">关闭</button></div>`;
+<div class="custom-modal-buttons"><button class="custom-modal-btn confirm" id="closeTut">关闭</button></div>`);
         overlay.appendChild(panel);
         document.body.appendChild(overlay);
         document.getElementById('closeTut').onclick = () => overlay.remove();
@@ -490,6 +502,8 @@
             mirrorId: null, mirrorSkillUsed: false, mirrorSwappedThisTurn: false, hephaestusUseCount: 0,
             riluoPlaced: false, riluoRow: -1, riluoCol: -1, riluoReleaseCount: 3, equipmentId: null,
             motCharging: false, motChargeTurns: 0, motReleaseTurn: false,
+            blazeCharging: false, blazeChargeTurns: 0, blazeReleaseTurn: false, blazeBonusDmg: 0,
+            qinmoCharging: false, qinmoTargetRow: -1, qinmoReleaseTurn: false,
         };
     }
 
@@ -539,7 +553,7 @@
         const old = document.getElementById('tutorialGuidePanel');
         if (old) old.remove();
         if (!tutorialState) return;
-        const stepDef = BEGINNER_TUTORIAL_STEPS[tutorialState.viewStep];
+        const stepDef = tutorialStepDisplay(tutorialState.viewStep); // i18n：en 时用英文步骤
         if (!stepDef) return;
         const isReviewing = tutorialState.viewStep < tutorialState.step;
         // 面板位置：步骤声明 panelPos（如高亮在页面顶部则面板放下方，避免遮挡教学区域）
@@ -547,7 +561,7 @@
         const panel = document.createElement('div');
         panel.id = 'tutorialGuidePanel';
         panel.style.cssText = `position:fixed;left:50%;${posTop ? 'top:8px;' : 'bottom:8px;'}transform:translateX(-50%);width:min(700px,94vw);background:rgba(30,22,13,0.96);border:2px solid #d4a847;border-radius:14px;padding:12px 18px;z-index:900;box-shadow:0 8px 34px rgba(0,0,0,0.75);color:#f9eec1;font-size:14px;line-height:1.65;box-sizing:border-box;max-height:42vh;overflow-y:auto;`;
-        panel.innerHTML = `
+        panel.innerHTML = translateText(`
             <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
                 <span style="font-size:20px;">${stepDef.icon}</span>
                 <b style="color:#ffd98a;font-size:16px;">${stepDef.title}</b>
@@ -559,7 +573,7 @@
                 ${(stepDef.requiresAction && !isReviewing) ? '<button id="tutSkipBtn" type="button" style="cursor:pointer;background:#4a3a28;border:1px solid #8a7a5a;border-radius:8px;padding:7px 14px;color:#f9eec1;font-size:13px;">跳过此步</button>' : ''}
                 ${(!stepDef.requiresAction || isReviewing) ? `<button id="tutNextBtn" type="button" style="cursor:pointer;background:linear-gradient(135deg,#b8862b,#8a6418);border:none;border-radius:8px;padding:7px 16px;color:#fff;font-size:13px;font-weight:bold;">${isReviewing ? `回到当前步骤（${tutorialState.step + 1}）` : (stepDef.buttonText || '下一步')}</button>` : ''}
                 <button id="tutExitBtn" type="button" style="cursor:pointer;background:transparent;border:1px solid #7a5a3a;border-radius:8px;padding:7px 12px;color:#c8b48a;font-size:13px;">退出教程</button>
-            </div>`;
+            </div>`);
         document.body.appendChild(panel);
         const nextBtn = document.getElementById('tutNextBtn');
         if (nextBtn) nextBtn.onclick = () => tutorialNextStep();
@@ -657,7 +671,7 @@
         if (panel) panel.remove();
         document.querySelectorAll('.tutorial-glow').forEach(el => el.classList.remove('tutorial-glow'));
         renderUI();
-        showToast('🎓 教程已结束');
+        showToast(trText('🎓 教程已结束', "🎓 Tutorial ended"));
         // 唤醒等待中的 startGame 循环，返回模式选择
         if (tutorialResolve) { const r = tutorialResolve; tutorialResolve = null; r(); }
     }
@@ -674,7 +688,7 @@
     }
 
     function tutorialBlock(what) {
-        showToast(`🎓 教程中请按提示操作（${what}暂不可用）`);
+        showToast(trText(trText(`🎓 教程中请按提示操作（${what}暂不可用）`, `🎓 tutorial please follow tip action ( ${what} temporarily not available)`), `🎓 tutorial please follow tip action ( ${what} temporarily not available)`));
     }
 
     // ════════════ 新手教程入口 ════════════
@@ -711,10 +725,10 @@
     }
 
     function openTestPanel() {
-        if (gameMode === 'custom') { showToast('自定义卡组模式下测试模式不可用'); return; }
-        if (gameMode === 'ai') { showToast('人机对战模式下测试模式不可用'); return; }
-        if (tutorialState && tutorialState.active) { showToast('新手教程中测试模式不可用'); return; }
-        if (networkActive()) { showToast('🌐 远程联机中测试模式不可用'); return; }
+        if (gameMode === 'custom') { showToast(trText('自定义卡组模式下测试模式不可用', "Test Mode unavailable in Custom Deck mode")); return; }
+        if (gameMode === 'ai') { showToast(trText('人机对战模式下测试模式不可用', "Test Mode unavailable in VS AI mode")); return; }
+        if (tutorialState && tutorialState.active) { showToast(trText('新手教程中测试模式不可用', "Test Mode unavailable during the tutorial")); return; }
+        if (networkActive()) { showToast(trText('🌐 远程联机中测试模式不可用', "🌐 Test Mode unavailable during online play")); return; }
         if (testPanelOverlay) {
             testPanelOverlay.remove();
             testPanelOverlay = null;
@@ -725,7 +739,7 @@
         overlay.id = 'testPanelOverlay';
         const panel = document.createElement('div');
         panel.className = 'test-panel';
-        panel.innerHTML = `
+        panel.innerHTML = translateText(`
             <h3>🧪 测试模式</h3>
             <div class="test-group">
                 <h4>调试工具</h4>
@@ -748,14 +762,14 @@
             <div class="test-panel-buttons">
                 <button class="custom-modal-btn confirm" id="closeTestPanel">关闭</button>
             </div>
-        `;
+        `);
         overlay.appendChild(panel);
         document.body.appendChild(overlay);
         testPanelOverlay = overlay;
 
         const toggleBtn = document.getElementById('testToggleInfiniteMana');
         function updateToggleBtn() {
-            toggleBtn.innerText = infiniteManaEnabled ? "💰 无限费: ON" : "💰 无限费: OFF";
+            toggleBtn.innerText = translateText(infiniteManaEnabled ? "💰 无限费: ON" : "💰 无限费: OFF");
             toggleBtn.style.background = infiniteManaEnabled ? "#2c6e6e" : "#b85c00";
         }
         updateToggleBtn();
@@ -765,18 +779,18 @@
             if (infiniteManaEnabled) {
                 gameState.players[0].mana = gameState.players[0].manaMax;
                 gameState.players[1].mana = gameState.players[1].manaMax;
-                showToast(`无限费模式已开启，费用已满`);
-                addLog(`无限费模式开启，双方费用设为15`);
+                showToast(trText(`无限费模式已开启，费用已满`, `Unlimited mana mode ON, mana maxed`));
+                addLog(trText(trText(`无限费模式开启，双方费用设为15`, `Unlimited Mana mode enabled, both sides cost set to 15`), `Unlimited Mana mode enabled, both sides cost set to 15`));
             } else {
-                showToast(`无限费模式已关闭`);
-                addLog(`无限费模式关闭`);
+                showToast(trText(`无限费模式已关闭`, `Unlimited mana mode OFF`));
+                addLog(trText(`无限费模式关闭`, `Unlimited Mana mode Close`));
             }
             renderUI();
         };
         document.getElementById('testClearUnits').onclick = () => {
             gameState.units = [];
-            addLog(`[测试] 清除所有单位`);
-            showToast(`🧹 所有单位已清除`);
+            addLog(trText(`[测试] 清除所有单位`, `[Test] Clear All Units`));
+            showToast(trText(`🧹 所有单位已清除`, `🧹 All units cleared`));
             renderUI();
         };
         const cardGrid = document.getElementById('testCardGrid');
@@ -795,20 +809,29 @@
                 const cardDiv = document.createElement('div');
                 cardDiv.className = 'test-card-item';
                 const gradeStars = '⭐'.repeat(card.grade);
-                cardDiv.innerHTML = `<b>${card.name}</b><br><span style="font-size:11px;color:#9a8a6a;">${gradeStars} 💰${card.cost} ❤️${card.life} ${card.dmgType}${card.dmgValue} 🏃${card.speed}${card.extraAttacks ? ' ⚔️×' + (1 + card.extraAttacks) : ''}</span>`;
+                cardDiv.innerHTML = translateText(`<b>${card.name}</b><br><span style="font-size:11px;color:#9a8a6a;">${gradeStars} 💰${card.cost} ❤️${card.life} ${card.dmgType}${card.dmgValue} 🏃${card.speed}${card.extraAttacks ? ' ⚔️×' + (1 + card.extraAttacks) : ''}</span>`);
                 cardDiv.onclick = () => {
                     const side = gameState.turn;
-                    const newCard = { ...card };
+                    const newCard = { ...card, _fromTestPanel: true };
                     if (gameState.players[side].hand.length >= gameState.players[side].handMax) {
                         const discarded = gameState.players[side].hand.shift();
-                        addLog(`[测试] 手牌已满，自动弃掉 ${discarded.name} 以便添加 ${card.name}`);
-                        showToast(`⚠️ 手牌满，自动弃掉 ${discarded.name}`);
+                        if (discarded) {
+                            if (!discarded._fromTestPanel) {
+                                const cardCopy = { ...discarded };
+                                delete cardCopy._fromTestPanel;
+                                cardCopy.disabled = false; cardCopy.disabledBy = null; cardCopy.disabledTurns = 0;
+                                gameState.players[side].deck.push(cardCopy);
+                                shuffleDeck(side);
+                            }
+                            addLog(trText(trText(`[测试] 手牌已满，自动弃掉 ${discarded.name} 以便添加 ${card.name}`, `[Test] hand is full, auto-discard ${discarded.name} so that add ${card.name}`), `[Test] hand is full, auto-discard ${discarded.name} so that add ${card.name}`));
+                            showToast(trText(trText(`⚠️ 手牌满，自动弃掉 ${discarded.name}`, `⚠️ hand full, auto-discard ${discarded.name}`), `⚠️ hand full, auto-discard ${discarded.name}`));
+                        }
                         if (gameState.selectedCardIdx === 0) gameState.selectedCardIdx = -1;
                         else if (gameState.selectedCardIdx > 0) gameState.selectedCardIdx--;
                     }
                     gameState.players[side].hand.push(newCard);
-                    addLog(`[测试] 为${side===0?"蓝方":"红方"}添加手牌: ${card.name}`);
-                    showToast(`🧪 添加手牌: ${card.name}`);
+                    addLog(trText(`[测试] 为${side===0?"蓝方":"红方"}添加手牌: ${card.name}`, `[Test] is ${side===0?"蓝方":"红方"} Add Cards: ${card.name}`));
+                    showToast(trText(`🧪 添加手牌: ${card.name}`, `🧪 Add Cards: ${card.name}`));
                     renderUI();
                 };
                 cardGrid.appendChild(cardDiv);
@@ -854,9 +877,9 @@
         }
         if (e.altKey && e.code === 'KeyE') {
             e.preventDefault();
-            if (gameState.awaitingSkillTarget) { showToast("正在选择技能目标，请先完成或取消"); return; }
+            if (gameState.awaitingSkillTarget) { showToast(trText("正在选择技能目标，请先完成或取消", 'Selecting a skill target, finish or cancel first')); return; }
             const selectedUnit = gameState.selectedUnitId ? gameState.units.find(u => u.id === gameState.selectedUnitId) : null;
-            if (!selectedUnit || selectedUnit.side !== gameState.turn) { showToast("请先选中一个己方单位"); return; }
+            if (!selectedUnit || selectedUnit.side !== gameState.turn) { showToast(trText("请先选中一个己方单位", 'Select one of your units first')); return; }
             // 远程联机：非自己回合只读；客机回合技能转发给主机
             if (networkForward({ type: 'skill', id: selectedUnit.id })) return;
             useSelectedUnitSkill(selectedUnit);
@@ -865,7 +888,7 @@
             e.preventDefault();
             // 新手教程：禁止弃牌/爆牌
             if (tutorialState && tutorialState.active) { tutorialBlock('弃牌/爆牌'); return; }
-            if (gameState.awaitingSkillTarget) { showToast(`正在选择技能目标，请先完成或取消`); return; }
+            if (gameState.awaitingSkillTarget) { showToast(trText(`正在选择技能目标，请先完成或取消`, `currently select skill target, please complete or cancel`)); return; }
             // 远程联机：非自己回合只读；客机回合弃牌/爆牌转发给主机
             if (networkActive()) {
                 const ng = networkGate();
@@ -873,7 +896,7 @@
                 if (ng === 'forward') {
                     if (gameState.selectedCardIdx !== -1) networkSendAction({ type: 'discard', idx: gameState.selectedCardIdx });
                     else if (gameState.selectedUnitId !== null) networkSendAction({ type: 'pop', id: gameState.selectedUnitId });
-                    else showToast("没有选中的手牌或单位");
+                    else showToast(trText("没有选中的手牌或单位", 'No hand card or unit selected'));
                     return;
                 }
             }
@@ -884,12 +907,12 @@
                     popUnit(selectedUnit.id);
                     gameState.selectedUnitId = null;
                     renderUI();
-                } else showToast("没有选中有效的己方单位");
-            } else showToast("没有选中的手牌或单位");
+                } else showToast(trText("没有选中有效的己方单位", 'No valid friendly unit selected'));
+            } else showToast(trText("没有选中的手牌或单位", 'No hand card or unit selected'));
         }
         else if (!e.altKey && !e.ctrlKey && !e.shiftKey && !e.metaKey && /^Digit[1-6]$/.test(e.code)) {
             // 技能选择目标期间，禁止选取手牌
-            if (gameState.awaitingSkillTarget) { showToast(`正在选择技能目标，请先完成或取消`); return; }
+            if (gameState.awaitingSkillTarget) { showToast(trText(`正在选择技能目标，请先完成或取消`, `currently select skill target, please complete or cancel`)); return; }
             // 联机：非自己回合只读，禁止选中对方手牌
             if (typeof networkActive === 'function' && networkActive() && gameState.turn !== networkMySide()) return;
             // 1~6 数字键直接选取对应手牌
@@ -899,7 +922,7 @@
                 if (gameState.selectedCardIdx === idx) {
                     // 再次按相同数字取消选择
                     gameState.selectedCardIdx = -1;
-                    showToast(`已取消选择手牌`);
+                    showToast(trText(`已取消选择手牌`, `cancelled select hand`));
                 } else {
                     gameState.selectedCardIdx = idx;
                     gameState.selectedUnitId = null;
@@ -913,7 +936,7 @@
                 if (typeof networkForward === 'function' && networkForward({ type: 'skipGlide' })) return;
                 gameState.awaitingGlide = false;
                 gameState.glideUnitId = null;
-                addLog("跳过滑步。");
+                addLog(trText("跳过滑步。", 'Glide skipped.'));
                 renderUI();
                 return;
             }
@@ -922,14 +945,14 @@
                 if (typeof networkForward === 'function' && networkForward({ type: 'cancelMirrorAttack' })) return;
                 gameState.awaitingMirrorAttack = false;
                 gameState.mirrorAttackUnitId = null;
-                addLog("取消攻击。");
+                addLog(trText("取消攻击。", 'Attack cancelled.'));
                 renderUI();
                 return;
             }
             // ESC 取消装备购买选择
             if (gameState.awaitingEquipmentTarget) {
                 clearEquipmentTarget();
-                addLog("已取消装备购买。");
+                addLog(trText("已取消装备购买。", 'Equipment purchase cancelled.'));
                 return;
             }
             // ESC 取消技能选择或手牌选择
@@ -938,11 +961,11 @@
                 const caster = gameState.units.find(u => u.id === gameState.skillCasterId);
                 if (caster) caster.skillUsedThisTurn = false;
                 clearSkillTarget();
-                addLog("已取消技能释放。");
+                addLog(trText("已取消技能释放。", 'Skill release cancelled.'));
                 renderUI();
             } else if (gameState.selectedCardIdx !== -1) {
                 gameState.selectedCardIdx = -1;
-                showToast("已取消手牌选择");
+                showToast(trText("已取消手牌选择", 'Hand selection cancelled'));
                 renderUI();
             }
         }
@@ -968,12 +991,12 @@
             panel.style.cssText = 'max-width:420px; padding:16px;';
 
             const h2 = document.createElement('h2');
-            h2.textContent = '选择要变形的单位';
+            h2.textContent = translateText('选择要变形的单位');
             panel.appendChild(h2);
 
             const searchInput = document.createElement('input');
             searchInput.type = 'text';
-            searchInput.placeholder = '🔍 搜索单位名称';
+            searchInput.placeholder = translateText('🔍 搜索单位名称');
             searchInput.style.cssText = 'width:100%; padding:6px 10px; margin:8px 0; border-radius:6px; border:1px solid rgba(212,168,71,0.3); background:rgba(0,0,0,0.4); color:#f9eec1; font-size:13px; box-sizing:border-box;';
             panel.appendChild(searchInput);
 
@@ -984,7 +1007,7 @@
             const closeBtn = document.createElement('button');
             closeBtn.type = 'button';
             closeBtn.className = 'mode-btn';
-            closeBtn.textContent = '取消 (ESC)';
+            closeBtn.textContent = translateText('取消 (ESC)');
             closeBtn.style.cssText = 'margin-top:8px; cursor:pointer;';
             panel.appendChild(closeBtn);
 
@@ -994,7 +1017,7 @@
                     ? candidates.filter(c => c.name.toLowerCase().includes(filter.toLowerCase()))
                     : candidates;
                 if (filtered.length === 0) {
-                    listDiv.innerHTML = '<div style="color:#999; padding:10px; text-align:center;">无匹配单位</div>';
+                    listDiv.innerHTML = translateText('<div style="color:#999; padding:10px; text-align:center;">无匹配单位</div>');
                     return;
                 }
                 filtered.forEach(card => {
@@ -1036,7 +1059,8 @@
         const stats = gameState.matchStats || {};
         const events = gameState.matchEvents || [];
         const sideName = s => s === 0 ? '蓝方' : '红方';
-        const loserSide = 1 - winnerSide;
+        const isDraw = winnerSide === -1;
+        const loserSide = isDraw ? -1 : 1 - winnerSide;
 
         // AI 生成点评
         const commentary = generateRecapCommentary(winnerSide, stats, events);
@@ -1055,9 +1079,9 @@
             const panel = document.createElement('div');
             panel.className = 'recap-panel';
 
-            panel.innerHTML = `
+            panel.innerHTML = translateText(`
                 <h2>🏆 对局复盘</h2>
-                <div class="recap-winner">🎉 ${sideName(winnerSide)} 胜利！</div>
+                <div class="recap-winner">${isDraw ? '🤝 平局！' : `🎉 ${sideName(winnerSide)} 胜利！`}</div>
 
                 <div class="recap-section">
                     <h3>📊 战绩统计</h3>
@@ -1090,7 +1114,7 @@
                 <div class="recap-buttons">
                     <button class="custom-modal-btn confirm recap-continue">继续</button>
                 </div>
-            `;
+            `);
 
             overlay.appendChild(panel);
             document.body.appendChild(overlay);
@@ -1106,12 +1130,15 @@
     // AI 复盘点评生成：根据统计数据生成分析文本
     function generateRecapCommentary(winnerSide, stats, events) {
         const sideName = s => s === 0 ? '蓝方' : '红方';
-        const loserSide = 1 - winnerSide;
+        const isDraw = winnerSide === -1;
+        const loserSide = isDraw ? -1 : 1 - winnerSide;
         let lines = [];
 
         // 1. 总体评价（节奏与风格）
         const turns = stats.turnCount || 0;
-        if (turns <= 6) {
+        if (isDraw) {
+            lines.push(`本局共 ${turns} 回合，双方在死亡回合中均无法击败对方本体，以平局收场。`);
+        } else if (turns <= 6) {
             lines.push(`本局仅 ${turns} 回合便分出胜负，${sideName(winnerSide)}以凌厉攻势速战速决。`);
         } else if (turns <= 12) {
             lines.push(`本局共 ${turns} 回合，节奏适中。${sideName(winnerSide)}凭借更稳健的运营取得胜利。`);

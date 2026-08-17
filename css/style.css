@@ -568,6 +568,34 @@ body {
     border: 1px solid rgba(212,168,71,0.2);
     text-shadow: 0 1px 3px rgba(0,0,0,0.6);
     transition: transform 0.2s ease, background 0.2s ease, border-color 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+.big-round-badge {
+    font-size: 12px;
+    background: linear-gradient(135deg, rgba(212,168,71,0.25), rgba(180,140,50,0.15));
+    padding: 2px 8px;
+    border-radius: var(--r-full);
+    border: 1px solid rgba(212,168,71,0.35);
+    color: #f0d090;
+    white-space: nowrap;
+    text-shadow: none;
+}
+
+.big-round-extreme {
+    background: linear-gradient(135deg, rgba(100,180,255,0.3), rgba(60,120,200,0.2));
+    border-color: rgba(100,180,255,0.5);
+    color: #aaddff;
+}
+
+.big-round-death {
+    background: linear-gradient(135deg, rgba(200,60,60,0.35), rgba(140,30,30,0.25));
+    border-color: rgba(255,80,80,0.5);
+    color: #ffaaaa;
 }
 
 /* 手牌区域 */
@@ -1129,6 +1157,20 @@ button:active {
     background: linear-gradient(135deg, #6a3828, #4a2018) !important;
     color: #d0a890 !important;
     text-shadow: 0 1px 2px rgba(0,0,0,0.3) !important;
+}
+
+.prepick-selected {
+    background: linear-gradient(135deg, #b8862b, #8a6418) !important;
+    border-color: #f0d090 !important;
+    color: #fff !important;
+    box-shadow: 0 0 12px rgba(212,168,71,0.5), inset 0 1px 0 rgba(255,255,255,0.2) !important;
+}
+
+.discard-selected {
+    background: linear-gradient(135deg, #c0392b, #922b21) !important;
+    border-color: #ff6655 !important;
+    color: #fff !important;
+    box-shadow: 0 0 12px rgba(231,76,60,0.5), inset 0 1px 0 rgba(255,255,255,0.1) !important;
 }
 
 /* 选择列表弹窗 */
@@ -2572,7 +2614,8 @@ button:active {
     .right-panel { min-width: auto; gap: 6px; }
     .info-bar { font-size: 10px; padding: 5px 8px; border-radius: 24px; gap: 4px; }
     .player-card { min-width: 100px; font-size: 9px; padding: 2px 5px; }
-    .turn-indicator { font-size: 14px; padding: 3px 10px; }
+    .turn-indicator { font-size: 14px; padding: 3px 10px; gap: 4px; }
+    .big-round-badge { font-size: 9px; padding: 1px 5px; }
     .hand-title { font-size: 11px; margin-bottom: 4px; }
     button { padding: 8px 14px; font-size: 13px; margin: 3px; min-height: 42px; min-width: 42px; }
     .pop-btn, .skill-btn, .cancel-btn { font-size: 12px; padding: 6px 12px; min-height: 42px; min-width: 42px; }
@@ -2626,7 +2669,8 @@ button:active {
     .card-passive { font-size: 6px; }
     .info-bar { font-size: 9px; padding: 4px 6px; border-radius: 16px; flex-direction: column; gap: 2px; }
     .player-card { min-width: 80px; font-size: 8px; padding: 1px 4px; }
-    .turn-indicator { font-size: 12px; padding: 2px 8px; }
+    .turn-indicator { font-size: 12px; padding: 2px 8px; gap: 3px; }
+    .big-round-badge { font-size: 8px; padding: 1px 4px; }
     .hand-title { font-size: 10px; }
     button { padding: 6px 12px; font-size: 12px; margin: 2px; min-height: 38px; min-width: 38px; border-radius: 24px; }
     .pop-btn, .skill-btn, .cancel-btn { padding: 4px 10px; font-size: 11px; min-height: 38px; min-width: 38px; }
@@ -2650,3 +2694,106 @@ button:active {
     .kbd-hint { display: none; }
     .card-key-hint { display: none; }
 }
+
+/* ========== 语言选择（与模式选择并列） ========== */
+.mode-select-panel.wide {
+    max-width: 780px;
+    width: 94%;
+}
+
+.mode-select-wrap {
+    display: flex;
+    gap: 28px;
+    align-items: stretch;
+    justify-content: center;
+    text-align: left;
+}
+
+.lang-column,
+.mode-column {
+    flex: 1;
+    min-width: 0;
+}
+
+.lang-column {
+    border-right: 1px solid rgba(212, 168, 71, 0.25);
+    padding-right: 26px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.lang-column h3,
+.mode-column h3 {
+    font-size: 15px;
+    letter-spacing: 2px;
+    color: var(--gold-bright);
+    margin: 0 0 12px;
+    text-align: center;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
+}
+
+/* 语言按钮：与模式按钮同尺寸同风格，配色区分中/英 */
+.mode-btn.lang-btn {
+    padding: 14px 12px;
+    margin: 8px 0;
+    font-size: 15px;
+    color: #f9eec1;
+    border-color: rgba(212, 168, 71, 0.35);
+    box-shadow: var(--shadow-md), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    transition: transform 0.2s ease, box-shadow 0.2s ease, outline 0.2s ease;
+}
+
+.mode-btn.lang-btn small {
+    color: #c8b48a;
+    font-size: 11px;
+}
+
+.mode-btn.lang-btn-zh {
+    background: linear-gradient(135deg, #8a3a2a, #6a2418);
+    border-color: rgba(255, 140, 90, 0.45);
+}
+
+.mode-btn.lang-btn-en {
+    background: linear-gradient(135deg, #2a5d8a, #1a3d6a);
+    border-color: rgba(90, 170, 220, 0.45);
+}
+
+.mode-btn.lang-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-lg), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.mode-btn.lang-btn.active {
+    outline: 2px solid #ffd98a;
+    outline-offset: 2px;
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-lg), 0 0 18px rgba(255, 217, 138, 0.25);
+}
+
+.lang-column .lang-note {
+    font-size: 11px;
+    color: var(--text-secondary);
+    text-align: center;
+    margin: 10px 0 0;
+    line-height: 1.5;
+}
+
+/* 移动端 / 窄屏：两列改为上下堆叠，语言列置顶并加分隔线 */
+@media (max-width: 680px) {
+    .mode-select-wrap {
+        flex-direction: column;
+        gap: 18px;
+    }
+    .lang-column {
+        border-right: none;
+        border-bottom: 1px solid rgba(212, 168, 71, 0.25);
+        padding-right: 0;
+        padding-bottom: 16px;
+    }
+    .lang-column h3,
+    .mode-column h3 {
+        margin-bottom: 8px;
+    }
+}
+

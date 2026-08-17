@@ -235,6 +235,16 @@
           passive: "", desc: "技能：将场上一个友方（不能是自己）变为同化者（3血1法伤，射程1移速1）；场上所有同阵营同化者共享生命，新增同化者会立即将生命加入共享，共享生命归零时所有同化者死亡（每回合限用一次）", onDeathPassive: null,
           skill: "assimilate", skillTargetType: "friendly", skillDesc: "同化" }, // 机制：同化/共享生命
 
+        // --- 魔矢/标记 ---
+        magicArrow: { id: "magicArrow", name: "魔矢人", grade: 2, cost: 2, life: 3, dmgType: "🔮", dmgValue: 1, range: 3, speed: 1,
+          passive: "正前方3格", desc: "攻击距离为正前方同列1~3格。主动：选最近的敌方单位，其基础伤害-1，自己+1法伤，目标或自身死亡时加成消失。不能选0伤单位，不能被霸体/净化解除，目标死亡前不能再使用技能", onDeathPassive: null,
+          skill: "magicArrowSkill", skillTargetType: "enemy", skillDesc: "魔矢标记" }, // 机制：标记/增伤/减伤
+
+        // --- 蓄力/攻速 ---
+        blazeArcher: { id: "blazeArcher", name: "炽炎射手", grade: 2, cost: 2, life: 3, dmgType: "🔮", dmgValue: 1, range: 3, speed: 1,
+          passive: "正前方3格", desc: "攻击距离为正前方同列1~3格。主动：蓄力1/2/3回合（期间不能攻击，可以移动），蓄力完成的回合攻击速度+1/2/3次，每次攻击+0/1/1法伤（蓄力完成的回合不能再蓄力）", onDeathPassive: null,
+          skill: "blazeArcherCharge", skillTargetType: "self", skillDesc: "蓄力" }, // 机制：蓄力/攻速加成
+
         // --- 绫罗/回程 ---
         riluo: { id: "riluo", name: "绫罗", grade: 2, cost: 2, life: 2, dmgType: "⚔️", dmgValue: 1, range: 3, speed: 1,
           passive: "绫罗", desc: "攻击范围正前方三格；绫罗离身时攻击次数+1。技能：放绫罗——将绫罗放至所在格及九宫格内任一格；位移留绫罗——位移至周围一格并将绫罗留在原地。绫罗离身时只能回绫罗（己方回合可自主回，敌方回合受致命伤时免疫并自动回）。只能放出3次。", onDeathPassive: null,
@@ -393,6 +403,27 @@
         spearman: { id: "spearman", name: "标枪手", grade: 2, cost: 2, life: 3, dmgType: "⚔️", dmgValue: 1, range: 1, speed: 1,
           passive: "每回合开始强化普攻", desc: "每回合开始获得1次强化普攻（最多存2次）。技能：强化普攻（突刺）：+1物伤，向前突进1格并对前一格所有敌人造成AOE伤害。击杀后本回合普攻次数刷新。有强化普攻时不能普通攻击。", onDeathPassive: null,
           skill: "spearmanThrust", skillTargetType: "self", skillDesc: "突刺" }, // 机制：强化普攻/突进/AoE/击杀刷新
+
+        // --- 蓄力/横行AOE ---
+        qinmo: { id: "qinmo", name: "琴魔", grade: 2, cost: 2, life: 1, dmgType: "🔮", dmgValue: 3, range: 1, speed: 1,
+          passive: "蓄力横行", desc: "主动：蓄力选中一横行（不能攻击，可以移动），下个我方回合对该横行所有敌人造成3点法伤。蓄力完成回合不能再蓄力或进行普通攻击", onDeathPassive: null,
+          skill: "qinmoCharge", skillTargetType: "grid", skillDesc: "蓄力横行" }, // 机制：蓄力/横行AOE
+
+        // --- 弱化攻击 ---
+        mage: { id: "mage", name: "法师", grade: 3, cost: 1, life: 2, dmgType: "🔮", dmgValue: 1, range: 2, speed: 1,
+          passive: "弱化攻击", desc: "攻击范围正前方2格，被法师攻击后受到弱化效果（持续2小回合）", onDeathPassive: null,
+          skill: null, skillTargetType: null, skillDesc: "" }, // 机制：弱化攻击
+
+        // --- AOE攻击/击杀成长 ---
+        swordsman: { id: "swordsman", name: "剑客", grade: 3, cost: 2, life: 3, dmgType: "🔮", dmgValue: 1, range: 2, speed: 1,
+          passive: "AOE攻击", desc: "攻击为AOE，攻击范围为正前方同列2格内所有敌人。造成击杀后攻击范围+1", onDeathPassive: null,
+          skill: null, skillTargetType: null, skillDesc: "" }, // 机制：AOE攻击/击杀成长
+
+        // --- 风女：远程+能量系统 ---
+        windGirl: { id: "windGirl", name: "风女", grade: 2, cost: 2, life: 2, dmgType: "🔮", dmgValue: 1, range: 3, speed: 1,
+          passive: "风之步", desc: "攻击范围正前方3格，普通攻击后可自由移动一格（不消耗移速，每回合1次）。每回合只能用一次主动技能",
+          onDeathPassive: null,
+          skill: "windGirlSkill", skillTargetType: "self", skillDesc: "风暴冲击/能量爆发" }, // 机制：远程/能量/自由移动
     };
     // CARD_LIBRARY 由 CARD_TEMPLATES 自动派生，保持数组形态供现有代码使用
     const CARD_LIBRARY = Object.values(CARD_TEMPLATES);

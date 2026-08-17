@@ -102,11 +102,35 @@
                 { type: "debuff", debuff: "eagleEyeTurns", turns: 2, checkFireImmune: true }
             ]
         },
+        magicArrowSkill: {
+            icon: "🎯", label: "魔矢标记", targetType: "enemy", cooldown: 0,
+            desc: "选择最近的敌方单位，其基础伤害-1，自己+1法伤。目标死亡前不能再使用",
+            targetFilter: { nearestOnly: true, minDmgValue: 1, notMarked: true },
+            preCheck: (unit) => {
+                if (unit.magicArrowTargetId != null) {
+                    const target = gameState.units.find(u => u.id === unit.magicArrowTargetId);
+                    if (target && target.life > 0) {
+                        showToast(trText(trText(`🎯 魔矢标记已在 ${target.cardName} 身上，需等待其死亡`, `🎯 magic arrow mark at ${target.cardName} on, must wait its died`), `🎯 magic arrow mark at ${target.cardName} on, must wait its died`));
+                        return false;
+                    }
+                    unit.magicArrowTargetId = null;
+                }
+                const enemies = gameState.units.filter(u => u.side !== unit.side && u.life > 0 && !u.isMirror && u.dmgValue > 0 && u.magicArrowMarkerId == null);
+                if (enemies.length === 0) {
+                    showToast(trText(`🎯 没有可标记的敌方单位`, `🎯 no can mark of enemy unit`));
+                    return false;
+                }
+                return true;
+            },
+            effects: [
+                { type: "magicArrowMark" }
+            ]
+        },
         drunkardInvincible: {
             icon: "🍺", label: "醉意无敌", targetType: "self", cooldown: 0, oneTime: "drunkardInvincibleUsed",
             desc: "两回合内免疫死亡（仅一次）",
             preCheck: (unit) => {
-                if (unit.invincibleTurns > 0) { showToast(`已处于无敌状态`); return false; }
+                if (unit.invincibleTurns > 0) { showToast(trText(`已处于无敌状态`, `is in invincible state`)); return false; }
                 return true;
             },
             effects: [
@@ -120,7 +144,7 @@
             targetFilter: { attackedOnly: true },
             preCheck: (unit) => {
                 const has = (gameState.attackedEnemyIds || []).length > 0;
-                if (!has) { showToast(`本回合没有敌方被攻击过`); return false; }
+                if (!has) { showToast(trText(trText(`本回合没有敌方被攻击过`, `this turn no enemy been attacked`), `this turn no enemy been attacked`)); return false; }
                 return true;
             },
             effects: [
@@ -133,7 +157,7 @@
             preCheck: (unit) => {
                 // 与 damage 效果的目标过滤一致：同列必须有可命中的敌人（排除绝对免疫/镜像），避免自爆打空
                 const has = gameState.units.some(u => u.side !== unit.side && u.col === unit.col && u.life > 0 && !u.isMirror && (u.absoluteImmunityTurns || 0) <= 0);
-                if (!has) { showToast(`同列没有可命中的敌方单位，无法自爆`); return false; }
+                if (!has) { showToast(trText(`同列没有可命中的敌方单位，无法自爆`, `same column no can hits of enemy unit, cannot self-destruct`)); return false; }
                 return true;
             },
             effects: [
@@ -147,7 +171,7 @@
             desc: "干扰敌方下回合首次行动",
             perTurnField: "nerdJamUsed", activeField: "nerdJamActive",
             preCheck: (unit) => {
-                if (unit.nerdJamUsed) { showToast(`本回合已使用过干扰`); return false; }
+                if (unit.nerdJamUsed) { showToast(trText(`本回合已使用过干扰`, `already used this turn Action Jam`)); return false; }
                 return true;
             },
             effects: [
@@ -164,9 +188,9 @@
             icon: "🌬️", label: "狂风", targetType: "self", cooldown: 0, oneTime: "windSkillUsed",
             desc: "全场敌人击退2格（仅一次）",
             preCheck: (unit) => {
-                if (unit.windSkillUsed) { showToast(`狂风技能仅限一次`); return false; }
+                if (unit.windSkillUsed) { showToast(trText(`狂风技能仅限一次`, `gale skill only limited to once`)); return false; }
                 const enemies = gameState.units.filter(u => u.side !== unit.side && u.life > 0);
-                if (enemies.length === 0) { showToast(`场上没有敌方单位`); return false; }
+                if (enemies.length === 0) { showToast(trText(`场上没有敌方单位`, `on board no enemy unit`)); return false; }
                 return true;
             },
             effects: [
@@ -179,9 +203,9 @@
             preCheck: (unit) => {
                 const forward = getForwardDelta(unit.side);
                 const frontRow = unit.row + forward;
-                if (frontRow < 0 || frontRow > 4) { showToast(`前方没有横行`); return false; }
+                if (frontRow < 0 || frontRow > 4) { showToast(trText(`前方没有横行`, `front no row`)); return false; }
                 const has = gameState.units.some(u => u.side !== unit.side && u.row === frontRow);
-                if (!has) { showToast(`前方横行没有敌人`); return false; }
+                if (!has) { showToast(trText(`前方横行没有敌人`, `front row no enemies`)); return false; }
                 return true;
             },
             effects: [
@@ -201,7 +225,7 @@
             desc: "位移至任一友方处",
             targetFilter: { excludeSelf: true },
             preCheck: (unit) => {
-                if (unit.shaLinBindTurn > 0) { showToast(`🪞 ${unit.cardName} 被纱琳定身，无法位移！`); return false; }
+                if (unit.shaLinBindTurn > 0) { showToast(trText(`🪞 ${unit.cardName} 被纱琳定身，无法位移！`, `🪞 ${unit.cardName} rooted by Shalin, cannot displace!`)); return false; }
                 return true;
             },
             effects: [
@@ -213,7 +237,7 @@
             desc: "瞬移至任意格，同格友方+2护盾",
             gridFilter: "noEnemy",
             preCheck: (unit) => {
-                if (unit.shaLinBindTurn > 0) { showToast(`🪞 ${unit.cardName} 被纱琳定身，无法瞬移！`); return false; }
+                if (unit.shaLinBindTurn > 0) { showToast(trText(`🪞 ${unit.cardName} 被纱琳定身，无法瞬移！`, `🪞 ${unit.cardName} rooted by Shalin, cannot teleport!`)); return false; }
                 return true;
             },
             effects: [
@@ -246,9 +270,9 @@
             step1: { type: "any", excludeSelf: true },
             step2: { type: "any", excludeSelf: true },
             preCheck: (unit) => {
-                if ((unit.cupidUseCount || 0) >= 2) { showToast(`爱神技能已用完（最多2次）`); return false; }
+                if ((unit.cupidUseCount || 0) >= 2) { showToast(trText(`爱神技能已用完（最多2次）`, `Cupid skill uses exhausted (up to 2 times)`)); return false; }
                 const others = gameState.units.filter(u => u.id !== unit.id);
-                if (others.length < 2) { showToast(`场上需要至少2个其他单位`); return false; }
+                if (others.length < 2) { showToast(trText(`场上需要至少2个其他单位`, `on board needs at least 2 other unit`)); return false; }
                 return true;
             },
             effects: [
@@ -261,7 +285,7 @@
             useCountField: "shaLinUseCount", useCountMax: 2,
             gridFilter: "any",
             preCheck: (unit) => {
-                if ((unit.shaLinUseCount || 0) >= 2) { showToast(`纱琳技能已用完（最多2次）`); return false; }
+                if ((unit.shaLinUseCount || 0) >= 2) { showToast(trText(`纱琳技能已用完（最多2次）`, `Shalin skill uses exhausted (up to 2 times)`)); return false; }
                 return true;
             },
             effects: [
@@ -283,7 +307,7 @@
             maxSelect: 2, range: 1, excludeSelf: true,
             preCheck: (unit) => {
                 const friends = gameState.units.filter(u => u.side === unit.side && u !== unit && Math.abs(u.row - unit.row) <= 1 && Math.abs(u.col - unit.col) <= 1);
-                if (friends.length < 2) { showToast(`鼓手周围友方不足2个`); return false; }
+                if (friends.length < 2) { showToast(trText(trText(`鼓手周围友方不足2个`, `Drummer nearby allies not enough 2`), `Drummer nearby allies not enough 2`)); return false; }
                 return true;
             },
             effects: [
@@ -306,7 +330,7 @@
             desc: "治疗3个友方+1血（每回合1次）",
             maxSelect: 3,
             preCheck: (unit) => {
-                if (unit.zhongyiHealUsed) { showToast(`${unit.cardName} 本回合已治疗`); return false; }
+                if (unit.zhongyiHealUsed) { showToast(trText(`${unit.cardName} 本回合已治疗`, `${unit.cardName} this turn heal`)); return false; }
                 return true;
             },
             effects: [
@@ -320,7 +344,7 @@
             preSelect: async (unit) => {
                 const countOpts = ["1", "2", "3"];
                 const sel = await showSelect(countOpts.map(c => `${c}. 庇护${c}个友方（每人法伤-${4-parseInt(c)}）`), `魔女选择庇护人数`);
-                if (sel === -1) { showToast(`取消庇护`); return false; }
+                if (sel === -1) { showToast(trText(`取消庇护`, `cancel shelter`)); return false; }
                 gameState.declarativeMaxSelect = parseInt(countOpts[sel]);
                 gameState.declarativeWitchReduce = 4 - parseInt(countOpts[sel]);
                 return true;
@@ -354,8 +378,8 @@
             chargingField: "halberdierCharging",
             desc: "蓄力横扫，下回合3真伤（仅一次）",
             preCheck: (unit) => {
-                if (unit.halberdierSkillUsed) { showToast(`戟兵已经使用过蓄力横扫`); return false; }
-                if (unit.attacksLeftThisTurn <= 0) { showToast(`本回合已经行动过，无法蓄力`); return false; }
+                if (unit.halberdierSkillUsed) { showToast(trText(trText(`戟兵已经使用过蓄力横扫`, `Halberdier has already used charge sweep`), `Halberdier has already used charge sweep`)); return false; }
+                if (unit.attacksLeftThisTurn <= 0) { showToast(trText(trText(`本回合已经行动过，无法蓄力`, `already this turn acted, cannot charge`), `this turn has already acted, cannot charge`)); return false; }
                 return true;
             },
             effects: [
@@ -369,17 +393,58 @@
             chargingField: "motCharging",
             desc: "蓄力1/2/3回合，蓄力完成的回合移速+3/6/9（蓄力期间不能移动，蓄力完成的回合不能再蓄力）",
             preCheck: (unit) => {
-                if (unit.motCharging) { showToast(`${unit.cardName} 正在蓄力中`); return false; }
-                if (unit.motReleaseTurn) { showToast(`${unit.cardName} 蓄力完成的回合不能再蓄力`); return false; }
-                if (unit.moved) { showToast(`${unit.cardName} 已经移动过，无法蓄力`); return false; }
+                if (unit.motCharging) { showToast(trText(`${unit.cardName} 正在蓄力中`, `${unit.cardName} currently while charging`)); return false; }
+                if (unit.motReleaseTurn) { showToast(trText(`${unit.cardName} 蓄力完成的回合不能再蓄力`, `${unit.cardName} charge complete of turn cannot then charge`)); return false; }
+                if (unit.moved) { showToast(trText(trText(`${unit.cardName} 已经移动过，无法蓄力`, `${unit.cardName} already move, cannot charge`), `${unit.cardName} already move, cannot charge`)); return false; }
                 return true;
             },
             effects: [
                 { type: "motorcyclistCharge" }
             ]
         },
+        // 炽炎射手蓄力：点击技能进入蓄力，每个我方回合开始选择继续蓄力或释放
+        blazeArcherCharge: {
+            icon: "🔥", label: "蓄力", targetType: "self", cooldown: 0, selectMode: "self",
+            chargingField: "blazeCharging",
+            desc: "蓄力1/2/3回合（期间不能攻击，可以移动），蓄力完成的回合攻击速度+1/2/3次，每次攻击+0/1/1法伤（蓄力完成的回合不能再蓄力）",
+            preCheck: (unit) => {
+                if (unit.blazeCharging) { showToast(trText(`${unit.cardName} 正在蓄力中`, `${unit.cardName} currently while charging`)); return false; }
+                if (unit.blazeReleaseTurn) { showToast(trText(`${unit.cardName} 蓄力完成的回合不能再蓄力`, `${unit.cardName} charge complete of turn cannot then charge`)); return false; }
+                return true;
+            },
+            effects: [
+                { type: "blazeArcherCharge" }
+            ]
+        },
+        // 琴魔蓄力：选中一横行，下个我方回合对该行所有敌人造成3点法伤
+        qinmoCharge: {
+            icon: "🎵", label: "蓄力横行", targetType: "grid", cooldown: 0, selectMode: "grid",
+            desc: "蓄力选中一横行（不能攻击，可以移动），下个我方回合对该横行所有敌人造成3点法伤",
+            gridFilter: "any",
+            preCheck: (unit) => {
+                if (unit.qinmoCharging) { showToast(trText(`${unit.cardName} 正在蓄力中`, `${unit.cardName} currently while charging`)); return false; }
+                if (unit.qinmoReleaseTurn) { showToast(trText(`${unit.cardName} 蓄力完成的回合不能再蓄力`, `${unit.cardName} charge complete of turn cannot then charge`)); return false; }
+                return true;
+            },
+            effects: [
+                { type: "qinmoCharge" }
+            ]
+        },
         // 双剑已改为普通攻击形式（点击敌人自动蓄力），不再需要技能按钮
         // dualswordAOE 的蓄力逻辑由 performAttack → autoDualswordCharge 处理
+
+        // 风女：二选一技能（风暴冲击/能量爆发）
+        windGirlSkill: {
+            icon: "🌪️", label: "风女技能", targetType: "self", cooldown: 0, selectMode: "confirm",
+            desc: "二选一：1.风暴冲击—对正前方3格内最近敌人所在格所有敌人造成1法伤并得1能量(上限3) 2.能量爆发—消耗所有能量，每点+1普攻次数",
+            preCheck: (unit) => {
+                if (unit.windGirlSkillUsedThisTurn) { showToast(trText(`${unit.cardName} 本回合已使用过技能`, `${unit.cardName} this turn skill already used`)); return false; }
+                return true;
+            },
+            effects: [
+                { type: "windGirlChoice" }
+            ]
+        },
 
         // --- 特殊类 ---
         knightExecute: {
@@ -387,8 +452,8 @@
             desc: "秒杀正前方1格敌人（仅一次）",
             targetFilter: { frontAdjacent: true },
             preCheck: (unit) => {
-                if (unit.attacksLeftThisTurn <= 0) { showToast(`${unit.cardName} 已经攻击过，不能使用秒杀`); return false; }
-                if (unit.knightSkillUsed) { showToast(`骑士已经使用过秒杀技能`); return false; }
+                if (unit.attacksLeftThisTurn <= 0) { showToast(trText(trText(`${unit.cardName} 已经攻击过，不能使用秒杀`, `${unit.cardName} has already attacked, cannot use execute`), `${unit.cardName} has already attacked, cannot use execute`)); return false; }
+                if (unit.knightSkillUsed) { showToast(trText(trText(`骑士已经使用过秒杀技能`, `Knight has already used execute skill`), `Knight has already used execute skill`)); return false; }
                 return true;
             },
             effects: [
@@ -401,9 +466,9 @@
             icon: "⛓️", label: "变形", targetType: "self", cooldown: 0, oneTime: "transformUsed",
             desc: "消耗三张奴隶变形为任意单位",
             preCheck: (unit) => {
-                if (unit.transformUsed) { showToast(`已经使用过变形技能`); return false; }
+                if (unit.transformUsed) { showToast(trText(trText(`已经使用过变形技能`, `has already used transform skill`), `has already used transform skill`)); return false; }
                 const slaveCards = gameState.players[unit.side].hand.filter(c => c.name === "奴隶");
-                if (slaveCards.length < 2) { showToast(`手牌中需要至少两张奴隶卡牌才能变形`); return false; }
+                if (slaveCards.length < 2) { showToast(trText(trText(`手牌中需要至少两张奴隶卡牌才能变形`, `hand needs at least two Slave card card to transform`), `hand needs at least two Slave card card to transform`)); return false; }
                 return true;
             },
             effects: [
@@ -415,7 +480,7 @@
             desc: "禁用对手一张手牌（持续1大回合）",
             preCheck: (unit) => {
                 const enemySide = unit.side === SIDE_PLAYER0 ? SIDE_PLAYER1 : SIDE_PLAYER0;
-                if (gameState.players[enemySide].hand.length === 0) { showToast(`对手没有手牌可以禁用`); return false; }
+                if (gameState.players[enemySide].hand.length === 0) { showToast(trText(`对手没有手牌可以禁用`, `opponent no hand can disabled`)); return false; }
                 return true;
             },
             effects: [
@@ -435,13 +500,13 @@
                     const executable = gameState.units.filter(u => marked.includes(u.id) && u.life > 0 && u.life <= 2);
                     if (executable.length > 0) options.push(`斩杀：消灭${executable.length}个被标记且HP≤2的敌人`);
                 }
-                if (options.length === 0) { showToast(`没有可执行的操作`); return false; }
+                if (options.length === 0) { showToast(trText(`没有可执行的操作`, `no can executes of action`)); return false; }
                 const aiChoice = (opts) => {
                     for (let i = 0; i < opts.length; i++) { if (opts[i].includes('斩杀')) return i; }
                     return 0;
                 };
                 const choice = await showSelect(options, `🔪 斩月：选择操作`, { aiChoice });
-                if (choice === -1) { showToast(`取消斩月技能`); return false; }
+                if (choice === -1) { showToast(trText(`取消斩月技能`, `cancel Crescent Blade skill`)); return false; }
                 gameState.declarativeZhanYueChoice = choice;
                 return true;
             },
@@ -457,8 +522,8 @@
             ignoresBlind: true,
             desc: "消耗1次强化普攻，+1物伤，向前突进1格并对前一格所有敌人造成AOE伤害。击杀后本回合普攻次数刷新。",
             preCheck: (unit) => {
-                if ((unit.spearmanCharges || 0) <= 0) { showToast(`没有强化普攻可用`); return false; }
-                if (unit.attacksLeftThisTurn <= 0) { showToast(`本回合攻击次数已用完`); return false; }
+                if ((unit.spearmanCharges || 0) <= 0) { showToast(trText(trText(`没有强化普攻可用`, `no empower basic attack available`), `no empower basic attack available`)); return false; }
+                if (unit.attacksLeftThisTurn <= 0) { showToast(trText(`本回合攻击次数已用完`, `this turn attack count exhausted`)); return false; }
                 return true;
             },
             effects: [
@@ -472,8 +537,8 @@
             useCountField: "counterUseCount", useCountMax: 2,
             desc: "自己获得2点护盾，本回合禁止移动和普通攻击；下回合爆炸；护盾损耗转化为下次普攻增伤",
             preCheck: (unit) => {
-                if ((unit.counterUseCount || 0) >= 2) { showToast(`蓄势反击已用完（最多2次）`); return false; }
-                if (unit.braceActive) { showToast(`已经处于蓄势反击状态`); return false; }
+                if ((unit.counterUseCount || 0) >= 2) { showToast(trText(`蓄势反击已用完（最多2次）`, `Brace Counter used up (up to 2 times)`)); return false; }
+                if (unit.braceActive) { showToast(trText(`已经处于蓄势反击状态`, `already is in Brace Counter state`)); return false; }
                 return true;
             },
             effects: [
@@ -485,7 +550,7 @@
             icon: "🔥", label: "强化", targetType: "self", cooldown: 0, oneTime: "fireGodSkillUsed",
             desc: "本回合及下两个我方回合内攻击范围+1，普通攻击变为竖排3格AOE（目标及前方2格，仅一次）",
             preCheck: (unit) => {
-                if (unit.fireGodSkillUsed) { showToast(`火神强化已使用（仅一次）`); return false; }
+                if (unit.fireGodSkillUsed) { showToast(trText(`火神强化已使用（仅一次）`, `Fire God empower use (only once)`)); return false; }
                 return true;
             },
             effects: [
@@ -498,22 +563,22 @@
             desc: "对正前方同列距离3内的一个敌方造成2点法伤（无可选目标则空放）",
             targetFilter: { shadowFanRange: true },
             preCheck: (unit) => {
-                if ((unit.fanCooldown || 0) > 0) { showToast(`飞扇冷却中`); return false; }
-                if (unit.attacksLeftThisTurn <= 0) { showToast(`本回合已经攻击过，无法使用飞扇`); return false; }
+                if ((unit.fanCooldown || 0) > 0) { showToast(trText(`飞扇冷却中`, `Flying Fan on cooldown`)); return false; }
+                if (unit.attacksLeftThisTurn <= 0) { showToast(trText(trText(`本回合已经攻击过，无法使用飞扇`, `already this turn attacked, cannot use Flying Fan`), `this turn has already attacked, cannot use Flying Fan`)); return false; }
                 return true;
             },
             preSelect: async (unit) => {
                 const forward = getForwardDelta(unit.side);
                 const hasTarget = gameState.units.some(u => u.side !== unit.side && u.life > 0 && !u.isMirror && u.absoluteImmunityTurns <= 0 && u.col === unit.col && (u.row - unit.row) * forward > 0 && (u.row - unit.row) * forward <= 3);
                 if (!hasTarget) {
-                    addLog(`🪭 ${unit.cardName} 飞扇空放（无目标）`);
-                    showToast(`🪭 飞扇空放`);
+                    addLog(trText(`🪭 ${unit.cardName} 飞扇空放（无目标）`, `🪭 ${unit.cardName} Flying Fan wasted (no target)`));
+                    showToast(trText(`🪭 飞扇空放`, `🪭 Flying Fan wasted`));
                     unit.attacksLeftThisTurn = Math.max(0, unit.attacksLeftThisTurn - 1);
                     unit.fanCooldown = 4;
                     if (unit.life > 0) {
                         gameState.awaitingGlide = true;
                         gameState.glideUnitId = unit.id;
-                        showToast(`💃 可自由滑步1格`);
+                        showToast(trText(`💃 可自由滑步1格`, `💃 can freely glide 1 tiles`));
                     }
                     return 'consumed';
                 }
@@ -530,9 +595,9 @@
             gridFilter: "distance2",
             desc: "位移2格（任意方向，可原地释放），对终点所在横行的所有敌方造成1点法伤并眩晕2回合",
             preCheck: (unit) => {
-                if ((unit.kickCooldown || 0) > 0) { showToast(`旋风踢冷却中`); return false; }
-                if (unit.attacksLeftThisTurn <= 0) { showToast(`本回合已经攻击过，无法使用旋风踢`); return false; }
-                if (unit.shaLinBindTurn > 0) { showToast(`🪞 ${unit.cardName} 被纱琳定身，无法位移！`); return false; }
+                if ((unit.kickCooldown || 0) > 0) { showToast(trText(`旋风踢冷却中`, `Tornado Kick on cooldown`)); return false; }
+                if (unit.attacksLeftThisTurn <= 0) { showToast(trText(trText(`本回合已经攻击过，无法使用旋风踢`, `already this turn attacked, cannot use Tornado Kick`), `this turn has already attacked, cannot use Tornado Kick`)); return false; }
+                if (unit.shaLinBindTurn > 0) { showToast(trText(`🪞 ${unit.cardName} 被纱琳定身，无法位移！`, `🪞 ${unit.cardName} rooted by Shalin, cannot displace!`)); return false; }
                 return true;
             },
             effects: [
@@ -545,8 +610,8 @@
             icon: "🪞", label: "生成镜像", targetType: "self", cooldown: 0, oneTime: "mirrorSkillUsed",
             desc: "以中线为对称轴生成镜像（仅一次）",
             preCheck: (unit) => {
-                if (unit.mirrorSkillUsed) { showToast(`生成镜像已使用（仅一次）`); return false; }
-                if (getMirrorOf(unit)) { showToast(`已有镜像`); return false; }
+                if (unit.mirrorSkillUsed) { showToast(trText(`生成镜像已使用（仅一次）`, `spawns mirror use (only once)`)); return false; }
+                if (getMirrorOf(unit)) { showToast(trText(`已有镜像`, `has mirror`)); return false; }
                 return true;
             },
             effects: [
@@ -560,7 +625,7 @@
             gridFilter: "notEnemyCastle",
             desc: "在非敌方城池格生成方块（敌方不可走入/走出），对方块格及十字4格敌人造成1法伤",
             preCheck: (unit) => {
-                if ((unit.hephaestusUseCount || 0) >= 3) { showToast(`锻造方块已用完（最多3次）`); return false; }
+                if ((unit.hephaestusUseCount || 0) >= 3) { showToast(trText(`锻造方块已用完（最多3次）`, `forge block used up (up to 3 times)`)); return false; }
                 return true;
             },
             effects: [
@@ -574,7 +639,7 @@
             desc: "将一个友方变为同化者（3血1法伤，共享生命）",
             preCheck: (unit) => {
                 const friends = gameState.units.filter(u => u.side === unit.side && u.id !== unit.id && u.life > 0 && !u.isAssimilator);
-                if (friends.length === 0) { showToast(`没有可同化的友方单位`); return false; }
+                if (friends.length === 0) { showToast(trText(`没有可同化的友方单位`, `no can assimilate of ally unit`)); return false; }
                 return true;
             },
             effects: [
@@ -587,8 +652,8 @@
             gridFilter: "nearby1",
             desc: "将绫罗放至所在格及九宫格内任一格",
             preCheck: (unit) => {
-                if ((unit.riluoReleaseCount || 0) <= 0) { showToast(`绫罗已放出3次，无法再放出`); return false; }
-                if (unit.riluoPlaced) { showToast(`绫罗已离身，只能回绫罗`); return false; }
+                if ((unit.riluoReleaseCount || 0) <= 0) { showToast(trText(trText(`绫罗已放出3次，无法再放出`, `Ling Luo release 3 times, cannot release again`), `Ling Luo release 3 times, cannot release again`)); return false; }
+                if (unit.riluoPlaced) { showToast(trText(trText(`绫罗已离身，只能回绫罗`, `Ling Luo leaves, can only recall Ling Luo`), `Ling Luo leaves, can only recall Ling Luo`)); return false; }
                 return true;
             },
             effects: [
@@ -601,8 +666,8 @@
             gridFilter: "adjacent1",
             desc: "位移至周围一格并将绫罗留在原地",
             preCheck: (unit) => {
-                if ((unit.riluoReleaseCount || 0) <= 0) { showToast(`绫罗已放出3次，无法再放出`); return false; }
-                if (unit.riluoPlaced) { showToast(`绫罗已离身，只能回绫罗`); return false; }
+                if ((unit.riluoReleaseCount || 0) <= 0) { showToast(trText(trText(`绫罗已放出3次，无法再放出`, `Ling Luo release 3 times, cannot release again`), `Ling Luo release 3 times, cannot release again`)); return false; }
+                if (unit.riluoPlaced) { showToast(trText(trText(`绫罗已离身，只能回绫罗`, `Ling Luo leaves, can only recall Ling Luo`), `Ling Luo leaves, can only recall Ling Luo`)); return false; }
                 return true;
             },
             effects: [
@@ -616,7 +681,8 @@
     function getSkillBtnText(unit, skillName) {
         const def = SKILL_DEFS[skillName];
         if (!def) return skillName;
-        let text = `${def.icon || ""} ${def.label || skillName}`;
+        const labelText = (currentLang === 'en' && SKILL_LABELS_EN[def.label]) ? SKILL_LABELS_EN[def.label] : (def.label || skillName);
+        let text = `${def.icon || ""} ${labelText}`;
         // 状态后缀（优先级从高到低）
         const cdField = def.cooldownField || 'skillCooldown';
         if (def.cooldown > 0 && (unit[cdField] || 0) > 0) {
@@ -640,21 +706,21 @@
         } else if (unit.skillUsedThisTurn) {
             text += " (已使用)";
         }
-        return text;
+        return translateText(text); // i18n：技能按钮文本整体翻译
     }
 
     // ========== 统一前置检查 ==========
     function checkSkillPrerequisites(unit, skillName) {
         const def = SKILL_DEFS[skillName];
         if (!def) return true;
-        if (unit.stun > 0) { showToast(`${unit.cardName} 眩晕无法使用技能`); return false; }
-        if (unit.silenced > 0) { showToast(`${unit.cardName} 被沉默，无法使用技能`); return false; }
-        if (unit.eagleEyeTurns > 0 && !def.ignoresBlind) { showToast(`${unit.cardName} 被致盲，技能失效`); return false; }
+        if (unit.stun > 0) { showToast(trText(`${unit.cardName} 眩晕无法使用技能`, `${unit.cardName} stun cannot use skill`)); return false; }
+        if (unit.silenced > 0) { showToast(trText(`${unit.cardName} 被沉默，无法使用技能`, `${unit.cardName} was silenced, cannot use skill`)); return false; }
+        if (unit.eagleEyeTurns > 0 && !def.ignoresBlind) { showToast(trText(`${unit.cardName} 被致盲，技能失效`, `${unit.cardName} was blinded, skill fails`)); return false; }
         const _cdField = def.cooldownField || 'skillCooldown';
         if (def.cooldown > 0 && (unit[_cdField] || 0) > 0) {
-            showToast(`技能冷却中，还需 ${Math.ceil((unit[_cdField] || 0)/2)}大回合`); return false;
+            showToast(trText(trText(`技能冷却中，还需 ${Math.ceil((unit[_cdField] || 0)/2)}大回合`, `skill on cooldown, still need ${Math.ceil((unit[_cdField] || 0)/2)} Big Round`), `skill on cooldown, still need ${Math.ceil((unit[_cdField] || 0)/2)} Big Round`)); return false;
         }
-        if (!def.isAttackSubstitute && unit.skillUsedThisTurn) { showToast(`本回合已经使用过技能`); return false; }
+        if (!def.isAttackSubstitute && unit.skillUsedThisTurn) { showToast(trText(trText(`本回合已经使用过技能`, `already this turn used skill`), `this turn has already used skill`)); return false; }
         if (def.preCheck && !def.preCheck(unit)) return false;
         return true;
     }
@@ -663,29 +729,29 @@
 
     function isControlImmune(target, effect) {
         if (target.absoluteImmunityTurns > 0) {
-            addLog(`${target.cardName} 绝对免疫！`); return true;
+            addLog(trText(`${target.cardName} 绝对免疫！`, `${target.cardName} absolute immunity!`)); return true;
         }
         if (target.superCharging) {
-            addLog(`${target.cardName} 霸体免疫控制！`); return true;
+            addLog(trText(`${target.cardName} 霸体免疫控制！`, `${target.cardName} Super Armor immune to control!`)); return true;
         }
         if ((effect.type === "stun" || effect.checkFireImmune) && isFireImmune(target)) {
-            addLog(`${target.cardName} 火人同列免疫控制！`); return true;
+            addLog(trText(`${target.cardName} 火人同列免疫控制！`, `${target.cardName} Fireling same column immune to control!`)); return true;
         }
         return false;
     }
 
     function isDisplacementImmune(target) {
         if (target.absoluteImmunityTurns > 0) {
-            addLog(`${target.cardName} 绝对免疫，免疫位移！`); return true;
+            addLog(trText(`${target.cardName} 绝对免疫，免疫位移！`, `${target.cardName} absolute immunity, immune to displacement!`)); return true;
         }
         if (target.superCharging) {
-            addLog(`⚡⚡ ${target.cardName} 处于霸体状态，免疫位移！`); return true;
+            addLog(trText(`⚡⚡ ${target.cardName} 处于霸体状态，免疫位移！`, `⚡⚡ ${target.cardName} is in Super Armor state, immune to displacement!`)); return true;
         }
         if (target.shaLinBindTurn > 0) {
-            addLog(`🪞 ${target.cardName} 被纱琳定身，免疫位移！`); return true;
+            addLog(trText(`🪞 ${target.cardName} 被纱琳定身，免疫位移！`, `🪞 ${target.cardName} rooted by Shalin, immune to displacement!`)); return true;
         }
         if (target.isSweepCharging) {
-            addLog(`⚔️ ${target.cardName} 正在横扫蓄力，免疫位移！`); return true;
+            addLog(trText(`⚔️ ${target.cardName} 正在横扫蓄力，免疫位移！`, `⚔️ ${target.cardName} currently sweep charge, immune to displacement!`)); return true;
         }
         return false;
     }
@@ -722,15 +788,15 @@
             caster.moved = true;
             caster.movesLeftThisTurn = 0;
             caster.attacksLeftThisTurn = 0;
-            addLog(`🛡️ ${caster.cardName} 发动蓄势反击，获得2点护盾，本回合无法移动和普通攻击`);
-            showToast(`🛡️ 蓄势反击！+2护盾`);
+            addLog(trText(`🛡️ ${caster.cardName} 发动蓄势反击，获得2点护盾，本回合无法移动和普通攻击`, `🛡️ ${caster.cardName} triggers Brace Counter, gains 2 shield, this turn cannot move and basic attack`));
+            showToast(trText(`🛡️ 蓄势反击！+2护盾`, `🛡️ Brace Counter! +2 shield`));
             return;
         }
         if (effect.type === "fireGodEmpower") {
             caster.fireGodBuffTurns = 6;  // 3个我方回合 = 6个小回合
             caster.range += 1;
-            addLog(`🔥 ${caster.cardName} 强化自身：攻击范围+1（当前${caster.range}），普通攻击变为AOE，持续3个我方回合`);
-            showToast(`🔥 火神强化！范围+1，攻击变AOE`);
+            addLog(trText(`🔥 ${caster.cardName} 强化自身：攻击范围+1（当前${caster.range}），普通攻击变为AOE，持续3个我方回合`, `🔥 ${caster.cardName} empowers itself: Attack Range +1 (current ${caster.range} ), basic attack becomes AOE, lasts 3 your turn`));
+            showToast(trText(trText(`🔥 火神强化！范围+1，攻击变AOE`, `🔥 Fire God empower! range +1, attack becomes AOE`), `🔥 Fire God empower! range +1, attack becomes AOE`));
             return;
         }
         if (effect.type === "shadowFan") {
@@ -743,31 +809,45 @@
                 if (d > 0 && d <= 3 && d < bestDist) { bestDist = d; target = u; }
             }
             if (!target) {
-                addLog(`🪭 ${caster.cardName} 飞扇空放（无目标）`);
-                showToast(`🪭 飞扇空放`);
+                addLog(trText(`🪭 ${caster.cardName} 飞扇空放（无目标）`, `🪭 ${caster.cardName} Flying Fan wasted (no target)`));
+                showToast(trText(`🪭 飞扇空放`, `🪭 Flying Fan wasted`));
                 return;
             }
             const source = { cardName: caster.cardName, side: caster.side, dmgType: "🔮", id: caster.id, fromSkill: true };
             await applyDamageWithSource(target, 2, source, false, "🔮");
-            addLog(`🪭 ${caster.cardName} 飞扇命中 ${target.cardName}，造成2点法伤`);
-            showToast(`🪭 飞扇！2法伤`);
+            addLog(trText(`🪭 ${caster.cardName} 飞扇命中 ${target.cardName}，造成2点法伤`, `🪭 ${caster.cardName} Flying Fan hits ${target.cardName} , deals 2 magic damage`));
+            showToast(trText(`🪭 飞扇！2法伤`, `🪭 Flying Fan! 2 magic damage`));
+            return;
+        }
+        if (effect.type === "magicArrowMark") {
+            if (!target || target.side === caster.side) return;
+            if (target.magicArrowMarkerId != null) { showToast(trText(`${target.cardName} 已被魔矢标记`, `${target.cardName} already magic arrow mark`)); return; }
+            if (target.dmgValue <= 0) { showToast(trText(`${target.cardName} 无伤害，无法标记`, `${target.cardName} no damage, cannot mark`)); return; }
+            target.dmgValue -= 1;
+            target.magicArrowDebuff = 1;
+            target.magicArrowMarkerId = caster.id;
+            caster.dmgValue += 1;
+            caster.magicArrowBuff = 1;
+            caster.magicArrowTargetId = target.id;
+            addLog(trText(`🎯 ${caster.cardName} 标记 ${target.cardName}：伤害-1(→${target.dmgValue})，自己+1法伤(→${caster.dmgValue})`, `🎯 ${caster.cardName} mark ${target.cardName} : damage -1(→ ${target.dmgValue} ), itself +1 magic damage (→ ${caster.dmgValue} )`));
+            showToast(trText(`🎯 魔矢标记！${target.cardName} 伤害-1`, `🎯 magic arrow mark! ${target.cardName} damage -1`));
             return;
         }
         if (effect.type === "shadowKick") {
             const gridRow = gameState.declarativeGridRow;
             const gridCol = gameState.declarativeGridCol;
-            if (gridRow === null || gridCol === null) { showToast(`请选择旋风踢的落点`); return; }
+            if (gridRow === null || gridCol === null) { showToast(trText(`请选择旋风踢的落点`, `Please choose Tornado Kick of landing tile`)); return; }
             const dr = Math.abs(gridRow - caster.row), dc = Math.abs(gridCol - caster.col);
             const totalDist = dr + dc;
-            if (totalDist !== 0 && totalDist !== 2) { showToast(`旋风踢只能位移2格或原地释放`); return; }
+            if (totalDist !== 0 && totalDist !== 2) { showToast(trText(`旋风踢只能位移2格或原地释放`, `Tornado Kick can only displace 2 tiles or in place casts`)); return; }
             if (totalDist === 2) {
-                if (!canAddUnit(gridRow, gridCol, caster.side)) { showToast(`目标格己方已满`); return; }
-                if (caster.side === SIDE_PLAYER0 && gridRow < 1) { showToast(`不能进入敌方城池`); return; }
-                if (caster.side === SIDE_PLAYER1 && gridRow > 3) { showToast(`不能进入敌方城池`); return; }
+                if (!canAddUnit(gridRow, gridCol, caster.side)) { showToast(trText(trText(`目标格己方已满`, `target tile your is full`), `target tile your is full`)); return; }
+                if (caster.side === SIDE_PLAYER0 && gridRow < 1) { showToast(trText(`不能进入敌方城池`, `cannot enter enemy castle`)); return; }
+                if (caster.side === SIDE_PLAYER1 && gridRow > 3) { showToast(trText(`不能进入敌方城池`, `cannot enter enemy castle`)); return; }
             }
             caster.row = gridRow;
             caster.col = gridCol;
-            addLog(`🦵 ${caster.cardName} 旋风踢位移至 ${ROW_NAMES[gridRow]}${COLS[gridCol]}`);
+            addLog(trText(`🦵 ${caster.cardName} 旋风踢位移至 ${ROW_NAMES[gridRow]}${COLS[gridCol]}`, `🦵 ${caster.cardName} Tornado Kick displace to ${ROW_NAMES[gridRow]} ${COLS[gridCol]}`));
             applyShaLinCellBinding(caster);
             const targets = gameState.units.filter(u => u.side !== caster.side && u.life > 0 && u.row === gridRow);
             for (let t of targets) {
@@ -776,10 +856,10 @@
                 if (gameState.units.some(u => u.id === t.id) && !isControlImmune(t, { type: "stun" })) {
                     t.stun = 2;
                     t.stunnedBy = caster.id;
-                    addLog(`  ${t.cardName} 被眩晕2回合`);
+                    addLog(trText(`  ${t.cardName} 被眩晕2回合`, `${t.cardName} was stunned 2 turns`));
                 }
             }
-            showToast(`🦵 旋风踢！`);
+            showToast(trText(`🦵 旋风踢！`, `🦵 Tornado Kick!`));
             return;
         }
         if (effect.type === "mirrorSpawn") {
@@ -788,19 +868,19 @@
             const mirror = createMirrorUnit(caster, mirrorRow, mirrorCol);
             gameState.units.push(mirror);
             caster.mirrorId = mirror.id;
-            addLog(`🪞 ${caster.cardName} 生成镜像（${ROW_NAMES[mirrorRow]}${COLS[mirrorCol]}）`);
-            showToast(`🪞 镜像生成！`);
+            addLog(trText(`🪞 ${caster.cardName} 生成镜像（${ROW_NAMES[mirrorRow]}${COLS[mirrorCol]}）`, `🪞 ${caster.cardName} spawns mirror ( ${ROW_NAMES[mirrorRow]} ${COLS[mirrorCol]} )`));
+            showToast(trText(`🪞 镜像生成！`, `🪞 mirror spawns!`));
             return;
         }
         if (effect.type === "hephaestusBlock") {
             const gridRow = gameState.declarativeGridRow;
             const gridCol = gameState.declarativeGridCol;
-            if (gridRow === null || gridCol === null) { showToast(`请选择方块位置`); return; }
+            if (gridRow === null || gridCol === null) { showToast(trText(`请选择方块位置`, `Please choose block position`)); return; }
             const enemyCastleRow = caster.side === SIDE_PLAYER0 ? 0 : 4;
-            if (gridRow === enemyCastleRow) { showToast(`不能放在敌方城池`); return; }
+            if (gridRow === enemyCastleRow) { showToast(trText(`不能放在敌方城池`, `cannot place at enemy castle`)); return; }
             gameState.hephaestusBlocks.push({ row: gridRow, col: gridCol, turnsLeft: 2, side: caster.side });
-            addLog(`🧱 ${caster.cardName} 在 ${ROW_NAMES[gridRow]}${COLS[gridCol]} 生成方块`);
-            showToast(`🧱 方块生成！`);
+            addLog(trText(`🧱 ${caster.cardName} 在 ${ROW_NAMES[gridRow]}${COLS[gridCol]} 生成方块`, `🧱 ${caster.cardName} at ${ROW_NAMES[gridRow]} ${COLS[gridCol]} spawns a block`));
+            showToast(trText(`🧱 方块生成！`, `🧱 block spawns!`));
             const cells = [[gridRow, gridCol], [gridRow-1, gridCol], [gridRow+1, gridCol], [gridRow, gridCol-1], [gridRow, gridCol+1]];
             const targets = gameState.units.filter(u => u.side !== caster.side && u.life > 0 && !u.isMirror && cells.some(([r,c]) => u.row === r && u.col === c));
             for (let t of targets) {
@@ -812,26 +892,26 @@
         if (effect.type === "riluoRelease") {
             const gridRow = gameState.declarativeGridRow;
             const gridCol = gameState.declarativeGridCol;
-            if (gridRow === null || gridCol === null) { showToast(`请选择绫罗位置`); return; }
-            if (caster.side === SIDE_PLAYER0 && gridRow === 0) { showToast(`不能把绫罗放到敌方城池`); return; }
-            if (caster.side === SIDE_PLAYER1 && gridRow === 4) { showToast(`不能把绫罗放到敌方城池`); return; }
+            if (gridRow === null || gridCol === null) { showToast(trText(`请选择绫罗位置`, `Please choose Ling Luo position`)); return; }
+            if (caster.side === SIDE_PLAYER0 && gridRow === 0) { showToast(trText(`不能把绫罗放到敌方城池`, `cannot Ling Luo place at enemy castle`)); return; }
+            if (caster.side === SIDE_PLAYER1 && gridRow === 4) { showToast(trText(`不能把绫罗放到敌方城池`, `cannot Ling Luo place at enemy castle`)); return; }
             caster.riluoPlaced = true;
             caster.riluoRow = gridRow;
             caster.riluoCol = gridCol;
             caster.riluoReleaseCount = Math.max(0, (caster.riluoReleaseCount || 0) - 1);
-            addLog(`🧵 ${caster.cardName} 放出绫罗（${ROW_NAMES[gridRow]}${COLS[gridCol]}）`);
-            showToast(`🧵 放出绫罗！`);
+            addLog(trText(trText(`🧵 ${caster.cardName} 放出绫罗（${ROW_NAMES[gridRow]}${COLS[gridCol]}）`, `🧵 ${caster.cardName} release Ling Luo ( ${ROW_NAMES[gridRow]} ${COLS[gridCol]} )`), `🧵 ${caster.cardName} release Ling Luo ( ${ROW_NAMES[gridRow]} ${COLS[gridCol]} )`));
+            showToast(trText(trText(`🧵 放出绫罗！`, `🧵 release Ling Luo!`), `🧵 release Ling Luo!`));
             return;
         }
         if (effect.type === "riluoDash") {
             const gridRow = gameState.declarativeGridRow;
             const gridCol = gameState.declarativeGridCol;
-            if (gridRow === null || gridCol === null) { showToast(`请选择位移位置`); return; }
-            if (caster.shaLinBindTurn > 0) { showToast(`🪞 ${caster.cardName} 被纱琳定身，无法位移！`); return; }
-            if (caster.side === SIDE_PLAYER0 && gridRow === 0) { showToast(`不能进入敌方城池`); return; }
-            if (caster.side === SIDE_PLAYER1 && gridRow === 4) { showToast(`不能进入敌方城池`); return; }
-            if (gameState.units.some(u => u.row === gridRow && u.col === gridCol && u.side !== caster.side && u.life > 0)) { showToast(`目标格有敌方单位`); return; }
-            if (!canAddUnit(gridRow, gridCol, caster.side)) { showToast(`目标格己方已满`); return; }
+            if (gridRow === null || gridCol === null) { showToast(trText(`请选择位移位置`, `Please choose displace position`)); return; }
+            if (caster.shaLinBindTurn > 0) { showToast(trText(`🪞 ${caster.cardName} 被纱琳定身，无法位移！`, `🪞 ${caster.cardName} rooted by Shalin, cannot displace!`)); return; }
+            if (caster.side === SIDE_PLAYER0 && gridRow === 0) { showToast(trText(`不能进入敌方城池`, `cannot enter enemy castle`)); return; }
+            if (caster.side === SIDE_PLAYER1 && gridRow === 4) { showToast(trText(`不能进入敌方城池`, `cannot enter enemy castle`)); return; }
+            if (gameState.units.some(u => u.row === gridRow && u.col === gridCol && u.side !== caster.side && u.life > 0)) { showToast(trText(`目标格有敌方单位`, `target tile has enemy unit`)); return; }
+            if (!canAddUnit(gridRow, gridCol, caster.side)) { showToast(trText(trText(`目标格己方已满`, `target tile your is full`), `target tile your is full`)); return; }
             const oldRow = caster.row, oldCol = caster.col;
             caster.row = gridRow;
             caster.col = gridCol;
@@ -839,8 +919,8 @@
             caster.riluoRow = oldRow;
             caster.riluoCol = oldCol;
             caster.riluoReleaseCount = Math.max(0, (caster.riluoReleaseCount || 0) - 1);
-            addLog(`💨 ${caster.cardName} 位移至 ${ROW_NAMES[gridRow]}${COLS[gridCol]}，绫罗留在原地`);
-            showToast(`💨 位移留绫罗！`);
+            addLog(trText(`💨 ${caster.cardName} 位移至 ${ROW_NAMES[gridRow]}${COLS[gridCol]}，绫罗留在原地`, `💨 ${caster.cardName} displace to ${ROW_NAMES[gridRow]} ${COLS[gridCol]} , Ling Luo leave at in place`));
+            showToast(trText(`💨 位移留绫罗！`, `💨 displace leave Ling Luo!`));
             applyShaLinCellBinding(caster);
             return;
         }
@@ -851,14 +931,14 @@
         if (effect.type === "setNerdJam") {
             const enemySide = caster.side === SIDE_PLAYER0 ? SIDE_PLAYER1 : SIDE_PLAYER0;
             gameState.nerdJamPending[enemySide] = true;
-            addLog(`👓 ${caster.cardName} 启动行动干扰！`);
+            addLog(trText(`👓 ${caster.cardName} 启动行动干扰！`, `👓 ${caster.cardName} starts Action Jam!`));
             return;
         }
         if (effect.type === "startCharge") {
             if (effect.chargeType === "halberdier") {
                 caster.halberdierCharging = true;
-                addLog(`${caster.cardName} 开始蓄力横扫，下回合对前一横行所有敌人造成3真伤！`);
-                showToast(`⚔️ 戟兵蓄力中...`);
+                addLog(trText(`${caster.cardName} 开始蓄力横扫，下回合对前一横行所有敌人造成3真伤！`, `${caster.cardName} start charge sweep, next turn to the one in front row all enemies deals 3 true damage!`));
+                showToast(trText(`⚔️ 戟兵蓄力中...`, `⚔️ Halberdier while charging...`));
             }
             return;
         }
@@ -868,8 +948,68 @@
             caster.movesLeftThisTurn = 0;
             caster.attacksLeftThisTurn = 0;
             caster.moved = true;
-            addLog(`🏍️ ${caster.cardName} 开始蓄力（1/3回合）！蓄力期间不能移动。`);
-            showToast(`🏍️ ${caster.cardName} 蓄力中...`);
+            addLog(trText(`🏍️ ${caster.cardName} 开始蓄力（1/3回合）！蓄力期间不能移动。`, `🏍️ ${caster.cardName} start charge (1/3 turns)! while charging cannot move.`));
+            showToast(trText(`🏍️ ${caster.cardName} 蓄力中...`, `🏍️ ${caster.cardName} while charging...`));
+            return;
+        }
+        if (effect.type === "blazeArcherCharge") {
+            caster.blazeCharging = true;
+            caster.blazeChargeTurns = 1;
+            caster.attacksLeftThisTurn = 0;
+            addLog(trText(`🔥 ${caster.cardName} 开始蓄力（1/3回合）！蓄力期间不能攻击，可以移动。`, `🔥 ${caster.cardName} start charge (1/3 turns)! while charging cannot attack, can move.`));
+            showToast(trText(`🔥 ${caster.cardName} 蓄力中...`, `🔥 ${caster.cardName} while charging...`));
+            return;
+        }
+        if (effect.type === "qinmoCharge") {
+            const gridRow = gameState.declarativeGridRow;
+            if (gridRow === null || gridRow === undefined) { showToast(trText(`请选择横行`, `Please choose row`)); return; }
+            caster.qinmoCharging = true;
+            caster.qinmoTargetRow = gridRow;
+            caster.attacksLeftThisTurn = 0;
+            addLog(trText(`🎵 ${caster.cardName} 开始蓄力，选中${ROW_NAMES[gridRow]}！下个我方回合对该行所有敌人造成3点法伤`, `🎵 ${caster.cardName} start charge, selected ${ROW_NAMES[gridRow]} ! next of your turns to the row all enemies deals 3 magic damage`));
+            showToast(trText(`🎵 ${caster.cardName} 蓄力中...`, `🎵 ${caster.cardName} while charging...`));
+            return;
+        }
+        if (effect.type === "windGirlChoice") {
+            const energy = caster.windGirlEnergy || 0;
+            const options = ["1. 风暴冲击（1法伤+1能量）", "2. 能量爆发（消耗能量换普攻）"];
+            const aiChoice = (opts) => {
+                // AI优先：有能量时用能量爆发（获得额外攻击），否则用风暴冲击
+                return energy > 0 ? 1 : 0;
+            };
+            const selectedIdx = await showSelect(options, "选择技能", { aiChoice });
+            if (selectedIdx === -1) { showToast(trText(`取消技能`, `cancel skill`)); throw SKILL_CANCELLED; }
+            if (selectedIdx === 0) {
+                // 风暴冲击：对正前方3格内最近敌人所在格所有敌人造成1法伤，获得1能量（不可空放）
+                const forward = getForwardDelta(caster.side);
+                let nearestEnemy = null, nearestDist = Infinity;
+                for (const e of gameState.units) {
+                    if (e.side === caster.side || e.life <= 0 || e.col !== caster.col || e.isMirror) continue;
+                    const dist = (e.row - caster.row) * forward;
+                    if (dist >= 1 && dist <= 3 && dist < nearestDist) {
+                        nearestDist = dist;
+                        nearestEnemy = e;
+                    }
+                }
+                if (!nearestEnemy) { showToast(trText(`正前方3格内没有敌人，风暴冲击不可空放`, `directly in front 3 tiles within no enemies, storm impact cannot be wasted`)); throw SKILL_CANCELLED; }
+                caster.windGirlSkillUsedThisTurn = true;
+                const targets = gameState.units.filter(u => u.side !== caster.side && u.life > 0 && u.row === nearestEnemy.row && u.col === nearestEnemy.col);
+                for (const t of targets) {
+                    await applyDamageWithSource(t, 1, caster, false, "🔮");
+                }
+                caster.windGirlEnergy = Math.min(3, (caster.windGirlEnergy || 0) + 1);
+                addLog(trText(`🌪️ ${caster.cardName} 风暴冲击！对${ROW_NAMES[nearestEnemy.row]}${COLS[nearestEnemy.col]}的${targets.length}个敌人造成1法伤，获得1能量（当前${caster.windGirlEnergy}）`, `🌪️ ${caster.cardName} storm impact! to ${ROW_NAMES[nearestEnemy.row]} ${COLS[nearestEnemy.col]} of ${targets.length} enemy deals 1 magic damage, gains 1 energy (current ${caster.windGirlEnergy} )`));
+                showToast(trText(`🌪️ 风暴冲击！能量${caster.windGirlEnergy}/3`, `🌪️ storm impact! energy ${caster.windGirlEnergy} /3`));
+            } else {
+                // 能量爆发：消耗所有能量，每点+1普攻次数
+                if (energy === 0) { showToast(trText(`能量为0，能量爆发无效`, `energy is 0, energy burst invalid`)); throw SKILL_CANCELLED; }
+                caster.windGirlSkillUsedThisTurn = true;
+                caster.attacksLeftThisTurn = (caster.attacksLeftThisTurn || 0) + energy;
+                caster.windGirlEnergy = 0;
+                addLog(trText(trText(`🌪️ ${caster.cardName} 能量爆发！消耗${energy}点能量，本回合普攻+${energy}次`, `🌪️ ${caster.cardName} energy burst! costs ${energy} energy, this turn basic attack + ${energy} times`), `🌪️ ${caster.cardName} energy burst! costs ${energy} energy, this turn basic attack + ${energy} time`));
+                showToast(trText(`🌪️ 能量爆发！+${energy}次普攻`, `🌪️ energy burst! + ${energy} time basic attack`));
+            }
+            renderUI();
             return;
         }
         if (effect.type === "modifyAttacks") {
@@ -883,7 +1023,7 @@
                 const oldMoves = t.movesLeftThisTurn;
                 t.movesLeftThisTurn = Math.max(0, oldMoves + effect.value);
                 if (oldMoves > 1 && t.movesLeftThisTurn > 0) {
-                    addLog(`${t.cardName} 剩余移动次数降至 ${parseFloat(t.movesLeftThisTurn.toFixed(2))}`);
+                    addLog(trText(`${t.cardName} 剩余移动次数降至 ${parseFloat(t.movesLeftThisTurn.toFixed(2))}`, `${t.cardName} left move times drops to ${parseFloat(t.movesLeftThisTurn.toFixed(2))}`));
                 }
             }
             return;
@@ -894,7 +1034,7 @@
         }
         if (effect.type === "transform") {
             const targetCard = await showSlaveTransformSelect();
-            if (!targetCard) { showToast(`取消变形`); throw SKILL_CANCELLED; }
+            if (!targetCard) { showToast(trText(`取消变形`, `cancel transform`)); throw SKILL_CANCELLED; }
             let removed = 0;
             for (let i = gameState.players[caster.side].hand.length-1; i >=0 && removed<2; i--) {
                 if (gameState.players[caster.side].hand[i].name === "奴隶") {
@@ -921,8 +1061,8 @@
             caster.passive = targetCard.passive;
             caster.desc = targetCard.desc;
             caster.skillCooldown = 0;
-            addLog(`奴隶消耗自身+两张手牌变形为 ${targetCard.name}！`);
-            showToast(`🔄 奴隶变形为 ${targetCard.name}`);
+            addLog(trText(`奴隶消耗自身+两张手牌变形为 ${targetCard.name}！`, `Slave costs itself +two hand transform is ${targetCard.name} !`));
+            showToast(trText(`🔄 奴隶变形为 ${targetCard.name}`, `🔄 Slave transform is ${targetCard.name}`));
             return;
         }
         if (effect.type === "disableHandCard") {
@@ -930,13 +1070,13 @@
             const enemyHand = gameState.players[enemySide].hand;
             const options = enemyHand.map((c, idx) => `${idx+1}. ${c.name}`);
             const selectedIdx = await showSelect(options, `选择要禁用的对手手牌`);
-            if (selectedIdx === -1) { showToast(`取消禁用`); throw SKILL_CANCELLED; }
+            if (selectedIdx === -1) { showToast(trText(`取消禁用`, `cancel disabled`)); throw SKILL_CANCELLED; }
             const targetCard = enemyHand[selectedIdx];
             targetCard.disabled = true;
             targetCard.disabledBy = caster.id;
             targetCard.disabledTurns = 2;
-            addLog(`禁卫禁用了对手的手牌 ${targetCard.name}，该牌不能放置（持续1大回合），但可以弃牌。`);
-            showToast(`🔒 禁用 ${targetCard.name}`);
+            addLog(trText(`禁卫禁用了对手的手牌 ${targetCard.name}，该牌不能放置（持续1大回合），但可以弃牌。`, `Royal Guard disabled opponent of hand ${targetCard.name} , the card cannot place (lasts Big Round 1), but can discard.`));
+            showToast(trText(`🔒 禁用 ${targetCard.name}`, `🔒 disabled ${targetCard.name}`));
             return;
         }
         if (effect.type === "zhanYue") {
@@ -959,18 +1099,18 @@
                         }
                     }
                 }
-                addLog(`🔪 斩月标记了 ${newMarked} 个新敌人（共${gameState.zhanYueMarkedEnemyIds.length}个标记）`);
-                showToast(`🔪 标记 ${newMarked} 个敌人`);
+                addLog(trText(trText(`🔪 斩月标记了 ${newMarked} 个新敌人（共${gameState.zhanYueMarkedEnemyIds.length}个标记）`, `🔪 Crescent Blade marked ${newMarked} new enemies (${gameState.zhanYueMarkedEnemyIds.length} marks total)`), `🔪 Crescent Blade marked ${newMarked} new enemies (${gameState.zhanYueMarkedEnemyIds.length} marks total)`));
+                showToast(trText(`🔪 标记 ${newMarked} 个敌人`, `🔪 mark ${newMarked} enemy`));
             } else {
                 // 斩杀
                 const executable = gameState.units.filter(u => marked.includes(u.id) && u.life > 0 && u.life <= 2);
                 let killed = 0;
                 for (let e of executable) {
-                    if (e.absoluteImmunityTurns > 0) { addLog(`🔪 ${e.cardName} 处于绝对免疫，跳过斩杀`); continue; }
+                    if (e.absoluteImmunityTurns > 0) { addLog(trText(`🔪 ${e.cardName} 处于绝对免疫，跳过斩杀`, `🔪 ${e.cardName} is in absolute immunity, skip execute`)); continue; }
                     // 无敌：免疫死亡，无敌结束后因斩杀死亡
                     if (e.invincibleTurns > 0) {
-                        addLog(`🔪 ${e.cardName} 处于无敌状态，免疫斩杀！无敌结束后将死亡。`);
-                        showToast(`🍺 ${e.cardName} 无敌免疫斩杀`);
+                        addLog(trText(`🔪 ${e.cardName} 处于无敌状态，免疫斩杀！无敌结束后将死亡。`, `🔪 ${e.cardName} is in invincible state, immune execute! invincible will died.`));
+                        showToast(trText(`🍺 ${e.cardName} 无敌免疫斩杀`, `🍺 ${e.cardName} invincible immune execute`));
                         e.life = 1;
                         e.pendingDeath = true;
                         continue;
@@ -978,18 +1118,18 @@
                     if (tryRiluoLethalEscape(e)) continue;
                     // 枷锁猎手：自带护盾未被击破时受到秒杀，先破盾触发绝对免疫
                     if (e.cardName === "枷锁猎手" && (e.nativeShieldValue || 0) > 0) {
-                        addLog(`🔪 ${e.cardName} 自带护盾被斩月击碎！触发绝对免疫！`);
+                        addLog(trText(`🔪 ${e.cardName} 自带护盾被斩月击碎！触发绝对免疫！`, `🔪 ${e.cardName} innate shield by Crescent Blade shattered! triggers absolute immunity!`));
                         e.nativeShieldValue = 0;
                         recalcShieldValue(e);
                         triggerChainedHunterImmunity(e);
-                        showToast(`🔓 ${e.cardName} 护盾破碎，绝对免疫！`);
+                        showToast(trText(`🔓 ${e.cardName} 护盾破碎，绝对免疫！`, `🔓 ${e.cardName} shield breaks, absolute immunity!`));
                         continue;
                     }
                     // 麻木者被动：每次受伤（含秒杀）只减少1点生命
                     if (e.cardName === "麻木者") {
                         e.life = Math.max(0, e.life - 1);
-                        addLog(`🔪 ${e.cardName} 被斩月斩杀，但被动使其只减少1点生命！`);
-                        showToast(`💙 ${e.cardName} 只掉1血`);
+                        addLog(trText(trText(`🔪 ${e.cardName} 被斩月斩杀，但被动使其只减少1点生命！`, `🔪 ${e.cardName} executed by Crescent Blade, but its passive reduces the loss to only 1 HP!`), `🔪 ${e.cardName} executed by Crescent Blade, but its passive reduces the loss to only 1 HP!`));
+                        showToast(trText(`💙 ${e.cardName} 只掉1血`, `💙 ${e.cardName} only loses 1 HP`));
                         if (e.life <= 0) {
                             lastDamageDealer = { name: caster.cardName, side: caster.side };
                             e._killRewardDone = true;
@@ -1001,7 +1141,7 @@
                         }
                         continue;
                     }
-                    addLog(`🔪 斩月斩杀 ${e.cardName}！`);
+                    addLog(trText(`🔪 斩月斩杀 ${e.cardName}！`, `🔪 Crescent Blade execute ${e.cardName} !`));
                     lastDamageDealer = { name: caster.cardName, side: caster.side };
                     e.life = 0;
                     e._killRewardDone = true;
@@ -1011,8 +1151,8 @@
                     const idx = gameState.zhanYueMarkedEnemyIds.indexOf(e.id);
                     if (idx >= 0) gameState.zhanYueMarkedEnemyIds.splice(idx, 1);
                 }
-                addLog(`🔪 斩月共斩杀 ${killed} 个敌人`);
-                showToast(`🔪 斩杀 ${killed} 个敌人`);
+                addLog(trText(`🔪 斩月共斩杀 ${killed} 个敌人`, `🔪 Crescent Blade executed a total of ${killed} enemies`));
+                showToast(trText(`🔪 斩杀 ${killed} 个敌人`, `🔪 execute ${killed} enemy`));
             }
             return;
         }
@@ -1043,7 +1183,7 @@
                 case "damage": {
                     // 酒鬼被动「免疫饮酒debuff」：调酒师的送酒不造成伤害（buff 仍生效）
                     if (t.cardName === "酒鬼" && (effect.sourceName === "调酒师" || caster.cardName === "调酒师")) {
-                        addLog(`🍺 ${t.cardName} 免疫饮酒伤害（送酒只加buff不扣血）`);
+                        addLog(trText(`🍺 ${t.cardName} 免疫饮酒伤害（送酒只加buff不扣血）`, `🍺 ${t.cardName} immune to wine damage (the wine only buffs, never damages)`));
                         break;
                     }
                     const source = { dmgType: effect.dmgType || caster.dmgType, cardName: effect.sourceName || caster.cardName, side: caster.side, id: caster.id, fromSkill: true };
@@ -1052,28 +1192,28 @@
                 }
                 case "heal": {
                     if (t.noHeal || t.cardName === "麻木者") {
-                        addLog(`🩸 ${t.cardName} 无法被治疗${t.cardName === "麻木者" ? "（麻木者被动）" : "（禁疗状态）"}`);
+                        addLog(trText(`🩸 ${t.cardName} 无法被治疗${t.cardName === "麻木者" ? "（麻木者被动）" : "（禁疗状态）"}`, `🩸 ${t.cardName} cannot be healed ${t.cardName === "麻木者" ? "（麻木者被动）" : "（禁疗状态）"}`));
                         break;
                     }
                     if (t.isAssimilator) {
                         // 同化者：治疗加到共享生命池
                         gameState.assimilatorHp[t.side] = Math.min(gameState.assimilatorHp[t.side] + effect.value, gameState.assimilatorMaxHp[t.side]);
                         syncAssimilators(t.side);
-                        addLog(`🧬 同化者共享生命恢复${effect.value}点（当前${gameState.assimilatorHp[t.side]}）`);
+                        addLog(trText(`🧬 同化者共享生命恢复${effect.value}点（当前${gameState.assimilatorHp[t.side]}）`, `🧬 Assimilator shared HP recovers ${effect.value} point (current ${gameState.assimilatorHp[t.side]} )`));
                     } else {
                         const maxLife = t.maxLife || (CARD_LIBRARY.find(c => c.name === t.cardName)?.life || t.life + effect.value);
                         t.life = Math.min(t.life + effect.value, maxLife);
                         if (effect.clearPendingDeath) t.pendingDeath = false;
-                        addLog(`${t.cardName} 恢复${effect.value}点生命`);
+                        addLog(trText(trText(`${t.cardName} 恢复${effect.value}点生命`, `${t.cardName} recovers ${effect.value} HP`), `${t.cardName} recovers ${effect.value} HP`));
                     }
                     break;
                 }
                 case "kill": {
-                    if (t.absoluteImmunityTurns > 0) { addLog(`${t.cardName} 绝对免疫，免于秒杀！`); break; }
+                    if (t.absoluteImmunityTurns > 0) { addLog(trText(trText(`${t.cardName} 绝对免疫，免于秒杀！`, `${t.cardName} absolute immunity, saved from execution!`), `${t.cardName} absolute immunity, saved from execution!`)); break; }
                     // 无敌：免疫死亡，无敌结束后因秒杀死亡
                     if (t.invincibleTurns > 0) {
-                        addLog(`${t.cardName} 处于无敌状态，免疫秒杀！无敌结束后将死亡。`);
-                        showToast(`🍺 ${t.cardName} 无敌免疫秒杀`);
+                        addLog(trText(`${t.cardName} 处于无敌状态，免疫秒杀！无敌结束后将死亡。`, `${t.cardName} is in invincible state, immune to execution! invincible will died.`));
+                        showToast(trText(`🍺 ${t.cardName} 无敌免疫秒杀`, `🍺 ${t.cardName} invincible immune to execution`));
                         t.life = 1;
                         t.pendingDeath = true;
                         break;
@@ -1081,18 +1221,18 @@
                     if (tryRiluoLethalEscape(t)) break;
                     // 枷锁猎手：自带护盾未被击破时受到秒杀，先破盾触发绝对免疫
                     if (t.cardName === "枷锁猎手" && (t.nativeShieldValue || 0) > 0) {
-                        addLog(`${t.cardName} 自带护盾被秒杀击碎！触发绝对免疫！`);
+                        addLog(trText(`${t.cardName} 自带护盾被秒杀击碎！触发绝对免疫！`, `${t.cardName} innate shield shattered by execution! triggers absolute immunity!`));
                         t.nativeShieldValue = 0;
                         recalcShieldValue(t);
                         triggerChainedHunterImmunity(t);
-                        showToast(`🔓 ${t.cardName} 护盾破碎，绝对免疫！`);
+                        showToast(trText(`🔓 ${t.cardName} 护盾破碎，绝对免疫！`, `🔓 ${t.cardName} shield breaks, absolute immunity!`));
                         break;
                     }
                     // 麻木者被动：每次受伤（含秒杀）只减少1点生命
                     if (t.cardName === "麻木者") {
                         t.life = Math.max(0, t.life - 1);
-                        addLog(`${t.cardName} 被秒杀，但被动使其只减少1点生命！`);
-                        showToast(`💙 ${t.cardName} 只掉1血`);
+                        addLog(trText(trText(`${t.cardName} 被秒杀，但被动使其只减少1点生命！`, `${t.cardName} was executed, but its passive reduces the loss to only 1 HP!`), `${t.cardName} was executed, but its passive reduces the loss to only 1 HP!`));
+                        showToast(trText(`💙 ${t.cardName} 只掉1血`, `💙 ${t.cardName} only loses 1 HP`));
                         if (t.life <= 0) {
                             lastDamageDealer = { name: caster.cardName, side: caster.side };
                             t._killRewardDone = true;
@@ -1108,14 +1248,14 @@
                     // 复活甲拦截：单位未被移除（pendingRevive），标记击杀奖励防重入，防止后续伤害绕过复活甲直接移除
                     if (gameState.units.some(u => u.id === t.id && u.pendingRevive)) {
                         lastDamageDealer = null;
-                        addLog(`💀 ${t.cardName} 的复活甲拦截了秒杀，将在下个我方回合复活`);
+                        addLog(trText(`💀 ${t.cardName} 的复活甲拦截了秒杀，将在下个我方回合复活`, `💀 ${t.cardName} of Revive Armor intercepts execute, at next of your turns revive`));
                     } else if (typeof resolveKillRewards === 'function') {
                         await resolveKillRewards(caster, t);  // 秒杀计入连杀/悬赏/击杀被动
                     }
                     break;
                 }
                 case "assimilate": {
-                    if (t.isAssimilator) { showToast(`该单位已是同化者`); break; }
+                    if (t.isAssimilator) { showToast(trText(`该单位已是同化者`, `the unit is Assimilator`)); break; }
                     const oldName = t.cardName;
                     t.cardName = "同化者";
                     t.isAssimilator = true;
@@ -1163,18 +1303,39 @@
                         if (u.scapegoatProtectorId === t.id) u.scapegoatProtectorId = null;
                     }
                     t.scapegoatProtectorId = null;
+                    // 魔矢标记清理：同化时清除所有标记关系
+                    if (t.magicArrowTargetId != null) {
+                        const mTarget = gameState.units.find(u => u.id === t.magicArrowTargetId);
+                        if (mTarget && mTarget.magicArrowMarkerId === t.id) {
+                            mTarget.dmgValue += (mTarget.magicArrowDebuff || 0);
+                            mTarget.magicArrowDebuff = 0;
+                            mTarget.magicArrowMarkerId = null;
+                        }
+                        t.magicArrowTargetId = null;
+                        t.magicArrowBuff = 0;
+                    }
+                    if (t.magicArrowMarkerId != null) {
+                        const marker = gameState.units.find(u => u.id === t.magicArrowMarkerId);
+                        if (marker) {
+                            marker.dmgValue -= (marker.magicArrowBuff || 0);
+                            marker.magicArrowBuff = 0;
+                            marker.magicArrowTargetId = null;
+                        }
+                        t.magicArrowMarkerId = null;
+                        t.magicArrowDebuff = 0;
+                    }
                     gameState.assimilatorHp[t.side] += 3;
                     gameState.assimilatorMaxHp[t.side] += 3;
                     syncAssimilators(t.side);
-                    addLog(`🧬 ${caster.cardName} 将 ${oldName} 同化为同化者（共享生命 ${gameState.assimilatorHp[t.side]}）`);
-                    showToast(`🧬 同化！`);
+                    addLog(trText(`🧬 ${caster.cardName} 将 ${oldName} 同化为同化者（共享生命 ${gameState.assimilatorHp[t.side]}）`, `🧬 ${caster.cardName} ${oldName} assimilate is Assimilator (shared HP ${gameState.assimilatorHp[t.side]} )`));
+                    showToast(trText(`🧬 同化！`, `🧬 assimilate!`));
                     break;
                 }
                 case "stun": {
                     if (isControlImmune(t, effect)) break;
                     t.stun = effect.turns;
                     t.stunnedBy = caster.id;
-                    addLog(`${t.cardName} 被眩晕${effect.turns}回合`);
+                    addLog(trText(`${t.cardName} 被眩晕${effect.turns}回合`, `${t.cardName} was stunned ${effect.turns} turn`));
                     break;
                 }
                 case "buff": {
@@ -1188,7 +1349,7 @@
                 case "debuff": {
                     if (isControlImmune(t, effect)) break;
                     t[effect.debuff] = effect.turns;
-                    addLog(`${t.cardName} 被施加${effect.debuff}`);
+                    addLog(trText(trText(`${t.cardName} 被施加${effect.debuff}`, `${t.cardName} is afflicted with ${effect.debuff}`), `${t.cardName} is afflicted with ${effect.debuff}`));
                     break;
                 }
                 case "reduceCooldown": {
@@ -1201,7 +1362,7 @@
                     const newRow = t.row + moveDir * effect.value;
                     if (newRow < 0 || newRow > 4) {
                         t.row = t.side === SIDE_PLAYER0 ? 4 : 0;
-                        addLog(`${t.cardName} 被击退到城池！`);
+                        addLog(trText(trText(`${t.cardName} 被击退到城池！`, `${t.cardName} was knocked back to castle!`), `${t.cardName} was knocked back to castle!`));
                     } else {
                         t.row = newRow;
                     }
@@ -1212,15 +1373,15 @@
                     if (isDisplacementImmune(t)) break;
                     const moveDir = caster.side === SIDE_PLAYER0 ? 1 : -1;
                     const newRow = t.row + moveDir * effect.value;
-                    if (newRow < 0 || newRow > 4) { showToast(`不能拉出棋盘边界`); break; }
+                    if (newRow < 0 || newRow > 4) { showToast(trText(trText(`不能拉出棋盘边界`, `cannot pull out board bounds`), `cannot pull out board bounds`)); break; }
                     const isForbiddenCastle = (caster.side === SIDE_PLAYER0 && newRow === 4) || (caster.side === SIDE_PLAYER1 && newRow === 0);
-                    if (isForbiddenCastle) { showToast(`不能将敌人拉入己方城池`); break; }
+                    if (isForbiddenCastle) { showToast(trText(trText(`不能将敌人拉入己方城池`, `cannot enemy pull into your castle`), `cannot enemy pull into your castle`)); break; }
                     const hasAlly = gameState.units.some(u => u.row === newRow && u.col === t.col && u.side === caster.side);
-                    if (hasAlly) { showToast(`目标格子有己方单位，无法拉拽`); break; }
+                    if (hasAlly) { showToast(trText(`目标格子有己方单位，无法拉拽`, `target tile has your unit, cannot pull`)); break; }
                     const oldRow = t.row;
                     t.row = newRow;
-                    addLog(`${caster.cardName} 将 ${t.cardName} 从 ${ROW_NAMES[oldRow]} 拉到 ${ROW_NAMES[newRow]}！`);
-                    showToast(`🧜‍♀️ ${caster.cardName} 拉拽 ${t.cardName}`);
+                    addLog(trText(`${caster.cardName} 将 ${t.cardName} 从 ${ROW_NAMES[oldRow]} 拉到 ${ROW_NAMES[newRow]}！`, `${caster.cardName} ${t.cardName} from ${ROW_NAMES[oldRow]} pull to ${ROW_NAMES[newRow]} !`));
+                    showToast(trText(`🧜‍♀️ ${caster.cardName} 拉拽 ${t.cardName}`, `🧜‍♀️ ${caster.cardName} pull ${t.cardName}`));
                     applyShaLinCellBinding(t);
                     break;
                 }
@@ -1230,7 +1391,7 @@
                     t.row = caster.row + forward;
                     t.col = caster.col;
                     t.moved = true;
-                    addLog(`  ${t.cardName} 被吸引至 (${ROW_NAMES[caster.row + forward]},${COLS[caster.col]})`);
+                    addLog(trText(trText(`  ${t.cardName} 被吸引至 (${ROW_NAMES[caster.row + forward]},${COLS[caster.col]})`, `${t.cardName} was pulled to ( ${ROW_NAMES[caster.row + forward]} , ${COLS[caster.col]} )`), `${t.cardName} was pulled to ( ${ROW_NAMES[caster.row + forward]} , ${COLS[caster.col]} )`));
                     applyShaLinCellBinding(t);
                     break;
                 }
@@ -1239,13 +1400,13 @@
                     const gridRow = gameState.declarativeGridRow;
                     const gridCol = gameState.declarativeGridCol;
                     const hasEnemy = gameState.units.some(u => u.row === gridRow && u.col === gridCol && u.side !== caster.side);
-                    if (hasEnemy) { showToast(`目标格有敌方单位，无法拉动`); break; }
-                    if (!canAddUnit(gridRow, gridCol, t.side)) { showToast(`目标格己方已满，无法拉动`); break; }
+                    if (hasEnemy) { showToast(trText(`目标格有敌方单位，无法拉动`, `target tile has enemy unit, cannot pull`)); break; }
+                    if (!canAddUnit(gridRow, gridCol, t.side)) { showToast(trText(trText(`目标格己方已满，无法拉动`, `target tile your is full, cannot pull`), `target tile your is full, cannot pull`)); break; }
                     const oldRow = t.row, oldCol = t.col;
                     t.row = gridRow;
                     t.col = gridCol;
-                    addLog(`🤠 ${caster.cardName} 将 ${t.cardName} 从 (${ROW_NAMES[oldRow]},${COLS[oldCol]}) 拉至 (${ROW_NAMES[gridRow]},${COLS[gridCol]})`);
-                    showToast(`🤠 拉动 ${t.cardName}`);
+                    addLog(trText(`🤠 ${caster.cardName} 将 ${t.cardName} 从 (${ROW_NAMES[oldRow]},${COLS[oldCol]}) 拉至 (${ROW_NAMES[gridRow]},${COLS[gridCol]})`, `🤠 ${caster.cardName} ${t.cardName} from ( ${ROW_NAMES[oldRow]} , ${COLS[oldCol]} ) pulls to ( ${ROW_NAMES[gridRow]} , ${COLS[gridCol]} )`));
+                    showToast(trText(`🤠 拉动 ${t.cardName}`, `🤠 pull ${t.cardName}`));
                     t.displacedByAllySkillThisTurn = true;
                     applyShaLinCellBinding(t);
                     break;
@@ -1253,13 +1414,13 @@
                 case "swapPositions": {
                     const first = ctx && ctx.firstTarget;
                     if (!first || !t) break;
-                    if (isDisplacementImmune(first)) { showToast(`${first.cardName} 无法位移！`); break; }
-                    if (isDisplacementImmune(t)) { showToast(`${t.cardName} 无法位移！`); break; }
+                    if (isDisplacementImmune(first)) { showToast(trText(`${first.cardName} 无法位移！`, `${first.cardName} cannot displace!`)); break; }
+                    if (isDisplacementImmune(t)) { showToast(trText(`${t.cardName} 无法位移！`, `${t.cardName} cannot displace!`)); break; }
                     const fr = first.row, fc = first.col, tr = t.row, tc = t.col;
                     first.row = tr; first.col = tc;
                     t.row = fr; t.col = fc;
-                    addLog(`🎤 ${caster.cardName} 将 ${first.cardName} 与 ${t.cardName} 的位置互换`);
-                    showToast(`🎤 交换位置`);
+                    addLog(trText(`🎤 ${caster.cardName} 将 ${first.cardName} 与 ${t.cardName} 的位置互换`, `🎤 ${caster.cardName} ${first.cardName} with ${t.cardName} of position swap`));
+                    showToast(trText(`🎤 交换位置`, `🎤 swap positions`));
                     first.displacedByAllySkillThisTurn = true;
                     t.displacedByAllySkillThisTurn = true;
                     applyShaLinCellBinding(first);
@@ -1270,27 +1431,27 @@
                     const gridRow = gameState.declarativeGridRow;
                     const gridCol = gameState.declarativeGridCol;
                     const hasEnemy = gameState.units.some(u => u.row === gridRow && u.col === gridCol && u.side !== caster.side && !u.isMirror);
-                    if (hasEnemy) { showToast(`目标格有敌方单位，无法瞬移`); break; }
+                    if (hasEnemy) { showToast(trText(`目标格有敌方单位，无法瞬移`, `target tile has enemy unit, cannot teleport`)); break; }
                     // 护援兵不占位置，但仍禁止进入敌方城池行（与其它位移技能规则一致）
                     const enemyCastleRow = caster.side === SIDE_PLAYER0 ? 0 : 4;
-                    if (gridRow === enemyCastleRow) { showToast(`不能瞬移到敌方城池行`); break; }
+                    if (gridRow === enemyCastleRow) { showToast(trText(trText(`不能瞬移到敌方城池行`, `cannot teleport to enemy castle row`), `cannot teleport to enemy castle row`)); break; }
                     // 消耗移动（护援兵瞬移后本回合不能移动）
                     caster.row = gridRow;
                     caster.col = gridCol;
                     caster.moved = true;
                     caster.movesLeftThisTurn = 0;
-                    addLog(`🚛 护援兵瞬移至 (${ROW_NAMES[gridRow]},${COLS[gridCol]})`);
+                    addLog(trText(trText(`🚛 护援兵瞬移至 (${ROW_NAMES[gridRow]},${COLS[gridCol]})`, `🚛 Shield Support teleport to ( ${ROW_NAMES[gridRow]} , ${COLS[gridCol]} )`), `🚛 Shield Support teleport to ( ${ROW_NAMES[gridRow]} , ${COLS[gridCol]} )`));
                     applyShaLinCellBinding(caster);
                     break;
                 }
                 case "teleportToTarget": {
-                    if (caster.shaLinBindTurn > 0) { showToast(`🪞 ${caster.cardName} 被纱琳定身，无法位移！`); break; }
-                    if (!canAddUnit(t.row, t.col, caster.side)) { showToast(`目标格已有2个我方单位，无法位移`); break; }
+                    if (caster.shaLinBindTurn > 0) { showToast(trText(`🪞 ${caster.cardName} 被纱琳定身，无法位移！`, `🪞 ${caster.cardName} rooted by Shalin, cannot displace!`)); break; }
+                    if (!canAddUnit(t.row, t.col, caster.side)) { showToast(trText(`目标格已有2个我方单位，无法位移`, `target tile has 2 your side unit, cannot displace`)); break; }
                     const oldRow = caster.row, oldCol = caster.col;
                     caster.row = t.row;
                     caster.col = t.col;
-                    addLog(`📡 通讯员从 (${ROW_NAMES[oldRow]},${COLS[oldCol]}) 位移至 (${ROW_NAMES[t.row]},${COLS[t.col]})`);
-                    showToast(`📡 通讯员位移至友方`);
+                    addLog(trText(`📡 通讯员从 (${ROW_NAMES[oldRow]},${COLS[oldCol]}) 位移至 (${ROW_NAMES[t.row]},${COLS[t.col]})`, `📡 Messenger from ( ${ROW_NAMES[oldRow]} , ${COLS[oldCol]} ) displace to ( ${ROW_NAMES[t.row]} , ${COLS[t.col]} )`));
+                    showToast(trText(`📡 通讯员位移至友方`, `📡 Messenger displace to ally`));
                     caster.moved = true;
                     caster.movesLeftThisTurn = 0;
                     applyShaLinCellBinding(caster);
@@ -1303,24 +1464,24 @@
                     // 每个来源（每个护援兵）独立上限 = effect.value（护援兵为 2），不同护援兵可各自叠加
                     t.externalShieldSources[sourceId] = Math.min(cur + effect.value, effect.value);
                     recalcShieldValue(t);
-                    addLog(`${t.cardName} 获得来自 ${caster.cardName} 的外来护盾（当前总护盾${t.shieldValue}）`);
+                    addLog(trText(trText(`${t.cardName} 获得来自 ${caster.cardName} 的外来护盾（当前总护盾${t.shieldValue}）`, `${t.cardName} gains from ${caster.cardName} of external shield (current total shield ${t.shieldValue} )`), `${t.cardName} gains from ${caster.cardName} of external shield (current total shield ${t.shieldValue} )`));
                     break;
                 }
                 case "setScapegoat": {
                     t.scapegoatProtectorId = caster.id;
-                    addLog(`🐑 ${t.cardName} 被替罪羊绑定替死`);
+                    addLog(trText(`🐑 ${t.cardName} 被替罪羊绑定替死`, `🐑 ${t.cardName} bound by Scapegoat bound take the fall`));
                     break;
                 }
                 case "setCupidPair": {
                     const first = ctx && ctx.firstTarget;
                     if (!first || !t) break;
-                    if (first.id === t.id) { showToast(`两个单位必须不同`); break; }
-                    if (first.cupidPair) { showToast(`${first.cardName} 已被爱神绑定`); break; }
-                    if (t.cupidPair) { showToast(`${t.cardName} 已被爱神绑定`); break; }
+                    if (first.id === t.id) { showToast(trText(`两个单位必须不同`, `two unit must different`)); break; }
+                    if (first.cupidPair) { showToast(trText(`${first.cardName} 已被爱神绑定`, `${first.cardName} already Cupid bound`)); break; }
+                    if (t.cupidPair) { showToast(trText(`${t.cardName} 已被爱神绑定`, `${t.cardName} already Cupid bound`)); break; }
                     first.cupidPair = { partnerId: t.id, partnerSide: t.side };
                     t.cupidPair = { partnerId: first.id, partnerSide: first.side };
-                    addLog(`💘 ${first.cardName} 和 ${t.cardName} 被爱神绑定共生死！`);
-                    showToast(`💘 共生死绑定！`);
+                    addLog(trText(`💘 ${first.cardName} 和 ${t.cardName} 被爱神绑定共生死！`, `💘 ${first.cardName} and ${t.cardName} bound by Cupid bound linked fate!`));
+                    showToast(trText(`💘 共生死绑定！`, `💘 linked fate bound!`));
                     break;
                 }
                 case "setShaLinBind": {
@@ -1343,20 +1504,20 @@
                         existing.turnsLeft = 4;
                         existing.side = caster.side;
                     }
-                    if (bound === 0) { addLog(`🪞 纱琳对该格下咒，走入的敌人会被定身`); showToast(`🪞 该格被下咒！`); }
-                    else { addLog(`🪞 纱琳将 ${bound} 个敌人定身！下个敌方+我方回合内不能位移，受到物伤法伤+1`); showToast(`🪞 定身！`); }
+                    if (bound === 0) { addLog(trText(trText(`🪞 纱琳对该格下咒，走入的敌人会被定身`, `🪞 Shalin to that tile cursed, walk into of enemy will was rooted`), `🪞 Shalin to that tile cursed, walk into of enemy will was rooted`)); showToast(trText(trText(`🪞 该格被下咒！`, `🪞 that tile is cursed!`), `🪞 that tile is cursed!`)); }
+                    else { addLog(trText(`🪞 纱琳将 ${bound} 个敌人定身！下个敌方+我方回合内不能位移，受到物伤法伤+1`, `🪞 Shalin ${bound} enemy root! next enemy +your turn within cannot displace, takes physical damage magic damage +1`)); showToast(trText(`🪞 定身！`, `🪞 root!`)); }
                     break;
                 }
                 case "knightKill": {
                     if (t.absoluteImmunityTurns > 0) {
-                        addLog(`${t.cardName} 处于绝对免疫，免疫秒杀！`);
-                        showToast(`🔒 绝对免疫，秒杀无效`);
+                        addLog(trText(`${t.cardName} 处于绝对免疫，免疫秒杀！`, `${t.cardName} is in absolute immunity, immune to execution!`));
+                        showToast(trText(`🔒 绝对免疫，秒杀无效`, `🔒 absolute immunity, execute invalid`));
                         break;
                     }
                     // 无敌：免疫死亡，无敌结束后因秒杀死亡
                     if (t.invincibleTurns > 0) {
-                        addLog(`${t.cardName} 处于无敌状态，免疫秒杀！无敌结束后将死亡。`);
-                        showToast(`🍺 ${t.cardName} 无敌免疫秒杀`);
+                        addLog(trText(`${t.cardName} 处于无敌状态，免疫秒杀！无敌结束后将死亡。`, `${t.cardName} is in invincible state, immune to execution! invincible will died.`));
+                        showToast(trText(`🍺 ${t.cardName} 无敌免疫秒杀`, `🍺 ${t.cardName} invincible immune to execution`));
                         t.life = 1;
                         t.pendingDeath = true;
                         break;
@@ -1365,22 +1526,22 @@
                     if (tryRiluoLethalEscape(t)) break;
                     // 枷锁猎手：自带护盾未被击破时受到秒杀，先破盾触发绝对免疫
                     if (t.cardName === "枷锁猎手" && (t.nativeShieldValue || 0) > 0) {
-                        addLog(`${t.cardName} 自带护盾被秒杀击碎！触发绝对免疫！`);
+                        addLog(trText(`${t.cardName} 自带护盾被秒杀击碎！触发绝对免疫！`, `${t.cardName} innate shield shattered by execution! triggers absolute immunity!`));
                         t.nativeShieldValue = 0;
                         recalcShieldValue(t);
                         triggerChainedHunterImmunity(t);
-                        showToast(`🔓 ${t.cardName} 护盾破碎，绝对免疫！`);
+                        showToast(trText(`🔓 ${t.cardName} 护盾破碎，绝对免疫！`, `🔓 ${t.cardName} shield breaks, absolute immunity!`));
                         break;
                     }
-                    showToast(`⚔️ 骑士秒杀！`);
+                    showToast(trText(`⚔️ 骑士秒杀！`, `⚔️ Knight execute!`));
                     // 麻木者被动：秒杀只掉1血
                     if (t.cardName === "麻木者") {
                         t.life = Math.max(0, t.life - 1);
-                        addLog(`${t.cardName} 被秒杀，但被动使其只减少1点生命！`);
-                        showToast(`💙 ${t.cardName} 只掉1血`);
+                        addLog(trText(trText(`${t.cardName} 被秒杀，但被动使其只减少1点生命！`, `${t.cardName} was executed, but its passive reduces the loss to only 1 HP!`), `${t.cardName} was executed, but its passive reduces the loss to only 1 HP!`));
+                        showToast(trText(`💙 ${t.cardName} 只掉1血`, `💙 ${t.cardName} only loses 1 HP`));
                         if (t.life <= 0) { lastDamageDealer = { name: caster.cardName, side: caster.side }; removeUnit(t.id, t.row, t.col, t.side); }
                     } else {
-                        addLog(`${caster.cardName} 使用技能秒杀 ${t.cardName}！`);
+                        addLog(trText(`${caster.cardName} 使用技能秒杀 ${t.cardName}！`, `${caster.cardName} uses skill execute ${t.cardName} !`));
                         lastDamageDealer = { name: caster.cardName, side: caster.side };
                         t.life = 0;
                         removeUnit(t.id, t.row, t.col, t.side);
@@ -1399,8 +1560,8 @@
                         }
                     }
                     caster[effect.buff] = (caster[effect.buff] || 0) + damageDealt;
-                    addLog(`${caster.cardName} 献祭了 ${damageDealt} 个友方单位，${effect.buff} +${damageDealt}！`);
-                    showToast(`💪 超雄祭献 ${damageDealt} 友方，下次攻击+${damageDealt}`);
+                    addLog(trText(`${caster.cardName} 献祭了 ${damageDealt} 个友方单位，${effect.buff} +${damageDealt}！`, `${caster.cardName} sacrifice ${damageDealt} ally unit, ${effect.buff} + ${damageDealt} !`));
+                    showToast(trText(`💪 超雄祭献 ${damageDealt} 友方，下次攻击+${damageDealt}`, `💪 Chad sacrifice ${damageDealt} ally, below time attack + ${damageDealt}`));
                     break;
                 }
                 case "witchProtect": {
@@ -1415,8 +1576,8 @@
                             count++;
                         }
                     }
-                    addLog(`🔮 魔女庇护了 ${count} 个友方，本回合受法伤-${reduce}`);
-                    showToast(`🔮 庇护${count}人！`);
+                    addLog(trText(`🔮 魔女庇护了 ${count} 个友方，本回合受法伤-${reduce}`, `🔮 Witch shielded ${count} allies, this turn takes magic damage - ${reduce}`));
+                    showToast(trText(`🔮 庇护${count}人！`, `🔮 shelter ${count} !`));
                     break;
                 }
             }
@@ -1476,7 +1637,7 @@
         if (caster.cardName === "影舞姬" && caster.life > 0) {
             gameState.awaitingGlide = true;
             gameState.glideUnitId = caster.id;
-            showToast(`💃 可自由滑步1格`);
+            showToast(trText(`💃 可自由滑步1格`, `💃 can freely glide 1 tiles`));
         }
         renderUI();
     }
@@ -1490,11 +1651,11 @@
         // 检查是否需要至少选一个（sacrifice/witchProtect/setScapegoat/号角兵等 maxSelect>0 的群体技能均不可空放）
         const selectedIds = gameState.declarativeSelected || [];
         if (selectedIds.length === 0 && (def.effects.some(e => e.type === "sacrifice" || e.type === "witchProtect") || (def.maxSelect > 0))) {
-            showToast(`请至少选择一个目标`);
+            showToast(trText(trText(`请至少选择一个目标`, `please at least select one target`), `please at least select one target`));
             return;
         }
         if (selectedIds.length === 0 && def.effects.some(e => e.type === "setScapegoat")) {
-            showToast(`请至少选择一个友方`);
+            showToast(trText(trText(`请至少选择一个友方`, `please at least select one allies`), `please at least select one ally`));
             return;
         }
         (async () => {
@@ -1591,7 +1752,7 @@
             gameState.declarativeSkillName = skillName;
             gameState.declarativeSelectMode = "grid";
             gameState.declarativeGridFilter = def.gridFilter || "any";
-            addLog(`请点击棋盘上一个格子`);
+            addLog(trText(trText(`请点击棋盘上一个格子`, `please click board on one tile`), `please click board on one tile`));
             renderUI();
             return true;
         }
@@ -1610,9 +1771,9 @@
             gameState.declarativeConfirmButton = def.confirmButton || false;
             const targetText = def.targetType === "enemy" ? "敌方" : "友方";
             if (def.confirmButton) {
-                addLog(`请选择${targetText}单位（可多选），完成后点击确认按钮`);
+                addLog(trText(trText(`请选择${targetText}单位（可多选），完成后点击确认按钮`, `please choose ${targetText} unit (can more pick), complete after click confirm button`), `please choose ${targetText} unit (can more pick), complete after click confirm button`));
             } else {
-                addLog(`请依次点击${def.maxSelect}个${targetText}单位`);
+                addLog(trText(trText(`请依次点击${def.maxSelect}个${targetText}单位`, `please in order click ${def.maxSelect} ${targetText} unit`), `please in order click ${def.maxSelect} ${targetText} unit`));
             }
             renderUI();
             return true;
@@ -1629,7 +1790,7 @@
             gameState.declarativeFirstTarget = null;
             const step1Type = def.step1?.type || "friendly";
             const step1Text = step1Type === "enemy" ? "敌方" : step1Type === "any" ? "" : "友方";
-            addLog(`请点击第一个${step1Text}单位`);
+            addLog(trText(trText(`请点击第一个${step1Text}单位`, `please click one ${step1Text} unit`), `please click one ${step1Text} unit`));
             renderUI();
             return true;
         }
@@ -1641,7 +1802,7 @@
         gameState.declarativeSkillName = skillName;
         gameState.declarativeSelectMode = "single";
         const targetTypeText = def.targetType === "enemy" ? "敌方" : def.targetType === "friendly" ? "友方" : def.targetType === "any" ? "" : "友方";
-        addLog(`请点击一个${targetTypeText}单位`);
+        addLog(trText(trText(`请点击一个${targetTypeText}单位`, `please click one ${targetTypeText} unit`), `please click one ${targetTypeText} unit`));
         renderUI();
         return true;
     }
@@ -1652,18 +1813,18 @@
         if (typeof tutorialAllowAction === 'function' && !tutorialAllowAction('skill')) { tutorialBlock('使用技能'); return false; }
         const cardDef = CARD_LIBRARY.find(c => c.name === unit.cardName);
         const sk = skillName || (cardDef && cardDef.skill);
-        if (!cardDef || !sk) { showToast("该单位没有主动技能"); return false; }
+        if (!cardDef || !sk) { showToast(trText("该单位没有主动技能", 'This unit has no active skill')); return false; }
         if (consumeNerdJamPending(unit, "技能")) return false;
         if (!checkSkillPrerequisites(unit, sk)) return false;
 
         const def = SKILL_DEFS[sk];
-        if (!def || !def.effects) { showToast("未知技能"); return false; }
+        if (!def || !def.effects) { showToast(trText("未知技能", 'Unknown skill')); return false; }
 
         try {
             return startDeclarativeSkill(unit, sk);
         } catch (err) {
             console.error(err);
-            showToast("技能执行出错，请查看控制台");
+            showToast(trText("技能执行出错，请查看控制台", 'Skill execution error, check the console'));
             return false;
         }
     }

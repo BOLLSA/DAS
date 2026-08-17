@@ -6,6 +6,7 @@
 $ErrorActionPreference = 'Continue'
 Set-Location -Path (Split-Path -Parent $PSScriptRoot)   # 切换到游戏根目录（Attention 的父目录），保证相对路径可用
 $files = @(
+    'js/i18n.js',
     'js/cards.js',
     'js/game-state.js',
     'js/battle-engine.js',

@@ -50,6 +50,18 @@
             if (selected.length >= (gameState.declarativeMaxSelect || 1)) return [];
         }
 
+        // nearestOnly：预计算最近敌方距离
+        let _nearestEnemyDist = Infinity;
+        if (effectiveFilter && effectiveFilter.nearestOnly) {
+            for (let u of gameState.units) {
+                if (u.side === caster.side || u.life <= 0 || u.isMirror) continue;
+                if (effectiveFilter.minDmgValue && u.dmgValue < effectiveFilter.minDmgValue) continue;
+                if (effectiveFilter.notMarked && u.magicArrowMarkerId != null) continue;
+                const d = Math.abs(u.row - caster.row) + Math.abs(u.col - caster.col);
+                if (d < _nearestEnemyDist) _nearestEnemyDist = d;
+            }
+        }
+
         return gameState.units.filter(unit => {
             // excludeSelf
             if (effectiveExcludeSelf && unit.id === caster.id) return false;
@@ -84,6 +96,13 @@
                 if (effectiveFilter.pullable && !canPullForward(caster, unit)) return false;
                 if (effectiveFilter.checkBind && (unit.shaLinBindTurn > 0 || unit.isSweepCharging || unit.superCharging)) return false;
                 if (effectiveFilter.notAssimilator && unit.isAssimilator) return false;
+                if (effectiveFilter.minDmgValue && unit.dmgValue < effectiveFilter.minDmgValue) return false;
+                if (effectiveFilter.notMarked && unit.magicArrowMarkerId != null) return false;
+                if (effectiveFilter.nearestOnly) {
+                    if (_nearestEnemyDist === Infinity) return false;
+                    const d = Math.abs(unit.row - caster.row) + Math.abs(unit.col - caster.col);
+                    if (d !== _nearestEnemyDist) return false;
+                }
                 if (effectiveFilter.shadowFanRange) {
                     const forward = getForwardDelta(caster.side);
                     const d = (unit.row - caster.row) * forward;
@@ -123,7 +142,7 @@
             const atkUnit = gameState.units.find(u => u.id === gameState.mirrorAttackUnitId);
             if (!atkUnit) { gameState.awaitingMirrorAttack = false; gameState.mirrorAttackUnitId = null; renderUI(); return; }
             const adist = Math.abs(row - atkUnit.row) + Math.abs(col - atkUnit.col);
-            if (adist > 1) { showToast(`只能攻击自身格或相邻格`); return; }
+            if (adist > 1) { showToast(trText(`只能攻击自身格或相邻格`, `can only attack itself tile or adjacent tile`)); return; }
             gameState.awaitingMirrorAttack = false;
             gameState.mirrorAttackUnitId = null;
             await performMirrorPersonAttack(atkUnit, row, col);
@@ -134,14 +153,14 @@
             const glideUnit = gameState.units.find(u => u.id === gameState.glideUnitId);
             if (!glideUnit) { gameState.awaitingGlide = false; gameState.glideUnitId = null; renderUI(); return; }
             const dist = Math.abs(row - glideUnit.row) + Math.abs(col - glideUnit.col);
-            if (dist !== 1) { showToast(`滑步只能位移1格`); return; }
-            if (glideUnit.shaLinBindTurn > 0) { showToast(`🪞 ${glideUnit.cardName} 被纱琳定身，无法滑步`); return; }
-            if (!canAddUnit(row, col, glideUnit.side)) { showToast(`目标格己方已满`); return; }
-            if (glideUnit.side === SIDE_PLAYER0 && row < 1) { showToast(`不能进入敌方城池`); return; }
-            if (glideUnit.side === SIDE_PLAYER1 && row > 3) { showToast(`不能进入敌方城池`); return; }
+            if (dist !== 1) { showToast(trText(`滑步只能位移1格`, `glide can only displace 1 tiles`)); return; }
+            if (glideUnit.shaLinBindTurn > 0) { showToast(trText(`🪞 ${glideUnit.cardName} 被纱琳定身，无法滑步`, `🪞 ${glideUnit.cardName} rooted by Shalin, cannot glide`)); return; }
+            if (!canAddUnit(row, col, glideUnit.side)) { showToast(trText(trText(`目标格己方已满`, `target tile your is full`), `target tile your is full`)); return; }
+            if (glideUnit.side === SIDE_PLAYER0 && row < 1) { showToast(trText(`不能进入敌方城池`, `cannot enter enemy castle`)); return; }
+            if (glideUnit.side === SIDE_PLAYER1 && row > 3) { showToast(trText(`不能进入敌方城池`, `cannot enter enemy castle`)); return; }
             glideUnit.row = row;
             glideUnit.col = col;
-            addLog(`💃 ${glideUnit.cardName} 滑步至 ${ROW_NAMES[row]}${COLS[col]}`);
+            addLog(trText(trText(`💃 ${glideUnit.cardName} 滑步至 ${ROW_NAMES[row]}${COLS[col]}`, `💃 ${glideUnit.cardName} glide to ${ROW_NAMES[row]} ${COLS[col]}`), `💃 ${glideUnit.cardName} glide to ${ROW_NAMES[row]} ${COLS[col]}`));
             const targets = getUnitsAt(row, col).filter(u => u.side !== glideUnit.side && u.life > 0);
             for (let t of targets) {
                 const source = { cardName: glideUnit.cardName, side: glideUnit.side, dmgType: "🔮", id: glideUnit.id, fromSkill: true };
@@ -156,7 +175,7 @@
         }
         // 装备穿戴选择模式：只允许点击己方单位（单位点击在ui.js中处理）
         if (gameState.awaitingEquipmentTarget) {
-            showToast(`请点击己方单位穿戴装备，或按ESC取消`);
+            showToast(trText(trText(`请点击己方单位穿戴装备，或按ESC取消`, `please click your unit equip equipment, or by ESC cancel`), `please click your unit equip equipment, or by ESC cancel`));
             return;
         }
         if (gameState.awaitingSkillTarget) {
@@ -170,45 +189,45 @@
         }
         // 技能选择目标期间，禁止放置手牌单位
         if (gameState.awaitingSkillTarget) {
-            showToast(`请先完成技能目标选择或取消技能`);
+            showToast(trText(`请先完成技能目标选择或取消技能`, `please complete skill target select or cancel skill`));
             return;
         }
         if (gameState.selectedCardIdx !== -1) {
             const card = gameState.players[gameState.turn].hand[gameState.selectedCardIdx];
             if (card) {
                 const ownRow = getOwnCastleRow(gameState.turn);
-                if (card.name === "无中生有") { showToast(`无中生有不能放置到场上，请在手中使用`); gameState.selectedCardIdx = -1; renderUI(); return; }
-                if (card.name === "鼠疫") { showToast(`鼠疫不能放置到场上，请在手中使用`); gameState.selectedCardIdx = -1; renderUI(); return; }
+                if (card.name === "无中生有") { showToast(trText(trText(`无中生有不能放置到场上，请在手中使用`, `Out of Thin Air cannot place onto on board, please from your hand use`), `Out of Thin Air cannot place onto on board, please from your hand use`)); gameState.selectedCardIdx = -1; renderUI(); return; }
+                if (card.name === "鼠疫") { showToast(trText(trText(`鼠疫不能放置到场上，请在手中使用`, `Plague cannot place onto on board, please from your hand use`), `Plague cannot place onto on board, please from your hand use`)); gameState.selectedCardIdx = -1; renderUI(); return; }
                 if (card.name === "军营") {
                     const belowCastleRow = ownRow + getForwardDelta(gameState.turn);
-                    if (row !== ownRow && row !== belowCastleRow) { showToast(`军营只能放置在己方城池（${ROW_NAMES[ownRow]}）或城下（${ROW_NAMES[belowCastleRow]}）`); gameState.selectedCardIdx = -1; renderUI(); return; }
+                    if (row !== ownRow && row !== belowCastleRow) { showToast(trText(`军营只能放置在己方城池（${ROW_NAMES[ownRow]}）或城下（${ROW_NAMES[belowCastleRow]}）`, `Barracks can only place at your castle ( ${ROW_NAMES[ownRow]} ) or gate ( ${ROW_NAMES[belowCastleRow]} )`)); gameState.selectedCardIdx = -1; renderUI(); return; }
                 } else if (card.name === "稻草人") {
                     const belowCastleRow = ownRow + getForwardDelta(gameState.turn);
-                    if (row !== ownRow && row !== belowCastleRow && row !== 2) { showToast(`稻草人只能放置在己方城池（${ROW_NAMES[ownRow]}）、城下（${ROW_NAMES[belowCastleRow]}）或中线上`); gameState.selectedCardIdx = -1; renderUI(); return; }
+                    if (row !== ownRow && row !== belowCastleRow && row !== 2) { showToast(trText(`稻草人只能放置在己方城池（${ROW_NAMES[ownRow]}）、城下（${ROW_NAMES[belowCastleRow]}）或中线上`, `Scarecrow can only place at your castle ( ${ROW_NAMES[ownRow]} ), gate ( ${ROW_NAMES[belowCastleRow]} ) or Mid Line on`)); gameState.selectedCardIdx = -1; renderUI(); return; }
                 } else {
                     const nearBarracks = gameState.units.some(u => u.side === gameState.turn && u.cardName === "军营" && u.life > 0 && Math.abs(u.row - row) <= 1 && Math.abs(u.col - col) <= 1);
                     const enemyCastleRow = gameState.turn === SIDE_PLAYER0 ? 0 : 4;
                     const isEnemyCastleRow = row === enemyCastleRow;
-                    if (row !== ownRow && (!nearBarracks || isEnemyCastleRow)) { showToast(`只能在你方的城池行（${ROW_NAMES[ownRow]}）或军营周围放置，不可在敌方城池行放置`); gameState.selectedCardIdx = -1; renderUI(); return; }
+                    if (row !== ownRow && (!nearBarracks || isEnemyCastleRow)) { showToast(trText(trText(`只能在你方的城池行（${ROW_NAMES[ownRow]}）或军营周围放置，不可在敌方城池行放置`, `can only at your side of castle row ( ${ROW_NAMES[ownRow]} ) or Barracks around place, cannot at enemy castle row place`), `can only at your side of castle row ( ${ROW_NAMES[ownRow]} ) or Barracks around place, cannot at enemy castle row place`)); gameState.selectedCardIdx = -1; renderUI(); return; }
                 }
                 await placeUnit(gameState.turn, card, row, col, gameState.selectedCardIdx);
                 renderUI();
                 return;
-            } else { gameState.selectedCardIdx = -1; renderUI(); showToast('⚠️ 选中的手牌不存在！'); return; }
+            } else { gameState.selectedCardIdx = -1; renderUI(); showToast(trText('⚠️ 选中的手牌不存在！', "⚠️ The selected hand card does not exist!")); return; }
         }
         if (gameState.selectedUnitId !== null) {
             const unit = gameState.units.find(u => u.id === gameState.selectedUnitId);
             if (!unit || unit.side !== gameState.turn) { gameState.selectedUnitId = null; renderUI(); return; }
             const enemyBaseRow = unit.side === SIDE_PLAYER0 ? 0 : 4;
-            if (unit.cardName === "掠影" && row === enemyBaseRow && col === unit.col) { showToast(`掠影不可攻击敌方城池及其内的敌方`); gameState.selectedUnitId = null; renderUI(); return; }
+            if (unit.cardName === "掠影" && row === enemyBaseRow && col === unit.col) { showToast(trText(`掠影不可攻击敌方城池及其内的敌方`, `Passing Shadow cannot attack enemy castle and its within of enemy`)); gameState.selectedUnitId = null; renderUI(); return; }
             if (row === enemyBaseRow && col === unit.col && canAttackBase(unit)) { await attackBase(unit); gameState.selectedUnitId = null; renderUI(); return; }
-            if (unit.shaLinBindTurn > 0) { showToast(`🪞 ${unit.cardName} 被纱琳定身，不能移动`); gameState.selectedUnitId = null; renderUI(); return; }
+            if (unit.shaLinBindTurn > 0) { showToast(trText(`🪞 ${unit.cardName} 被纱琳定身，不能移动`, `🪞 ${unit.cardName} rooted by Shalin, cannot move`)); gameState.selectedUnitId = null; renderUI(); return; }
             await tryMoveUnit(unit, row, col);
             gameState.selectedUnitId = null;
             renderUI();
             return;
         }
-        showToast(`请先点击手牌或己方单位`);
+        showToast(trText(`请先点击手牌或己方单位`, `please click hand or your unit`));
     }
 
 // --- 技能目标分发表（仅 declarative + 蓄力攻击） ---
@@ -222,7 +241,7 @@
 
             // ── confirm 模式：点击格子无效，需用确认按钮 ──
             if (mode === "confirm") {
-                showToast(`请点击"确认"按钮执行技能`);
+                showToast(trText(trText(`请点击"确认"按钮执行技能`, `please click "confirm "button executes skill`), `please click "confirm "button executes skill`));
                 return;
             }
 
@@ -257,7 +276,7 @@
                 if (caster.side === SIDE_PLAYER0 && row === 0) { applyAxemanChargeTarget(caster, { type: 'base', row, col, side: SIDE_PLAYER1 }); return; }
                 if (caster.side === SIDE_PLAYER1 && row === 4) { applyAxemanChargeTarget(caster, { type: 'base', row, col, side: SIDE_PLAYER0 }); return; }
             }
-            showToast(`请点击正前方1格内的敌方单位或敌方城池格子`);
+            showToast(trText(trText(`请点击正前方1格内的敌方单位或敌方城池格子`, `please click directly in front 1 tiles within of enemy unit or enemy castle tile`), `please click directly in front 1 tiles within of enemy unit or enemy castle tile`));
         },
         heavyAxeman(caster, row, col, clickedUnit) {
             const enemyUnit = (clickedUnit && clickedUnit.side !== caster.side) ? clickedUnit : getUnitsAt(row, col).find(u => u.side !== caster.side);
@@ -267,7 +286,7 @@
                 if (caster.side === SIDE_PLAYER0 && row === 0) { applyHeavyAxemanChargeTarget(caster, { type: 'base', row, col, side: SIDE_PLAYER1 }); return; }
                 if (caster.side === SIDE_PLAYER1 && row === 4) { applyHeavyAxemanChargeTarget(caster, { type: 'base', row, col, side: SIDE_PLAYER0 }); return; }
             }
-            showToast(`请点击正前方1格内的敌方单位或敌方城池格子`);
+            showToast(trText(trText(`请点击正前方1格内的敌方单位或敌方城池格子`, `please click directly in front 1 tiles within of enemy unit or enemy castle tile`), `please click directly in front 1 tiles within of enemy unit or enemy castle tile`));
         },
         crossbow(caster, row, col, clickedUnit) {
             const enemyUnit = (clickedUnit && clickedUnit.side !== caster.side) ? clickedUnit : getUnitsAt(row, col).find(u => u.side !== caster.side);
@@ -277,7 +296,7 @@
                 if (caster.side === SIDE_PLAYER0 && row === 0) { applyCrossbowChargeTarget(caster, { type: 'base', row, col, side: SIDE_PLAYER1 }); return; }
                 if (caster.side === SIDE_PLAYER1 && row === 4) { applyCrossbowChargeTarget(caster, { type: 'base', row, col, side: SIDE_PLAYER0 }); return; }
             }
-            showToast(`请点击正前方1格内的敌方单位或敌方城池格子`);
+            showToast(trText(trText(`请点击正前方1格内的敌方单位或敌方城池格子`, `please click directly in front 1 tiles within of enemy unit or enemy castle tile`), `please click directly in front 1 tiles within of enemy unit or enemy castle tile`));
         },
     };
 
@@ -296,35 +315,35 @@
             else if (needAny) u = unitsHere[0];
         }
 
-        if (!u) { showToast(`请点击一个${needEnemy ? "敌方" : needFriendly ? "友方" : ""}单位！`); return; }
+        if (!u) { showToast(trText(`请点击一个${needEnemy ? "敌方" : needFriendly ? "友方" : ""}单位！`, `please click one ${needEnemy ? "敌方" : needFriendly ? "友方" : ""} unit!`)); return; }
 
         // 目标类型校验
-        if (needEnemy && u.side === caster.side) { showToast(`请点击一个敌方单位！`); return; }
-        if (needFriendly && u.side !== caster.side) { showToast(`请点击一个友方单位！`); return; }
-        if (def.excludeSelf && u.id === caster.id) { showToast(`不能选择自身！`); return; }
+        if (needEnemy && u.side === caster.side) { showToast(trText(trText(`请点击一个敌方单位！`, `please click one enemy unit!`), `please click one enemy unit!`)); return; }
+        if (needFriendly && u.side !== caster.side) { showToast(trText(trText(`请点击一个友方单位！`, `please click one ally unit!`), `please click one ally unit!`)); return; }
+        if (def.excludeSelf && u.id === caster.id) { showToast(trText(`不能选择自身！`, `cannot select itself!`)); return; }
 
         // targetFilter 校验
         if (def.targetFilter) {
-            if (def.targetFilter.sameColumn && u.col !== caster.col) { showToast(`目标必须与施法者同列！`); return; }
-            if (def.targetFilter.attackedOnly && !(gameState.attackedEnemyIds || []).includes(u.id)) { showToast(`目标必须本回合被攻击过！`); return; }
+            if (def.targetFilter.sameColumn && u.col !== caster.col) { showToast(trText(`目标必须与施法者同列！`, `target must with caster same column!`)); return; }
+            if (def.targetFilter.attackedOnly && !(gameState.attackedEnemyIds || []).includes(u.id)) { showToast(trText(trText(`目标必须本回合被攻击过！`, `target must this turn been attacked!`), `target must this turn been attacked!`)); return; }
             if (def.targetFilter.frontAdjacent) {
                 const forward = getForwardDelta(caster.side);
-                if (u.row !== caster.row + forward || u.col !== caster.col) { showToast(`目标必须在正前方1格！`); return; }
+                if (u.row !== caster.row + forward || u.col !== caster.col) { showToast(trText(`目标必须在正前方1格！`, `target must at directly in front 1 tiles!`)); return; }
             }
-            if (def.targetFilter.pullable && !canPullForward(caster, u)) { showToast(`该目标无法被拉拽！`); return; }
-            if (def.targetFilter.notAssimilator && u.isAssimilator) { showToast(`该单位已是同化者`); return; }
+            if (def.targetFilter.pullable && !canPullForward(caster, u)) { showToast(trText(trText(`该目标无法被拉拽！`, `the target cannot can be pulled!`), `the target cannot can be pulled!`)); return; }
+            if (def.targetFilter.notAssimilator && u.isAssimilator) { showToast(trText(`该单位已是同化者`, `the unit is Assimilator`)); return; }
             if (def.targetFilter.shadowFanRange) {
                 const forward = getForwardDelta(caster.side);
                 const d = (u.row - caster.row) * forward;
-                if (u.col !== caster.col || d <= 0 || d > 3 || u.isMirror || u.life <= 0 || u.absoluteImmunityTurns > 0) { showToast(`飞扇只能攻击正前方同列距离3内的敌人`); return; }
+                if (u.col !== caster.col || d <= 0 || d > 3 || u.isMirror || u.life <= 0 || u.absoluteImmunityTurns > 0) { showToast(trText(`飞扇只能攻击正前方同列距离3内的敌人`, `Flying Fan can only attack directly in front same column distance 3 within of enemy`)); return; }
                 // 飞扇只能攻击「最近的敌人」（同格多个均可选）
                 const sameColEnemies = gameState.units.filter(x =>
                     x.side !== caster.side && x.life > 0 && !x.isMirror && x.col === caster.col &&
                     (x.row - caster.row) * forward > 0 && (x.row - caster.row) * forward <= 3
                 );
-                if (sameColEnemies.length === 0) { showToast(`前方同列没有可攻击的敌人`); return; }
+                if (sameColEnemies.length === 0) { showToast(trText(`前方同列没有可攻击的敌人`, `front same column no can attack of enemy`)); return; }
                 const minD = Math.min(...sameColEnemies.map(x => (x.row - caster.row) * forward));
-                if (d !== minD) { showToast(`飞扇只能攻击最近的敌人（距离${minD}格）`); return; }
+                if (d !== minD) { showToast(trText(`飞扇只能攻击最近的敌人（距离${minD}格）`, `Flying Fan can only attack nearest of enemy (distance ${minD} tile)`)); return; }
             }
         }
 
@@ -354,16 +373,16 @@
             else u = unitsHere.find(x => x.id !== caster.id);
         }
 
-        if (!u) { showToast(`请点击一个单位！`); return; }
-        if (needEnemy && u.side === caster.side) { showToast(`请点击敌方单位！`); return; }
-        if (needFriendly && u.side !== caster.side) { showToast(`请点击友方单位！`); return; }
-        if (def.excludeSelf && u.id === caster.id) { showToast(`不能选择自身！`); return; }
+        if (!u) { showToast(trText(trText(`请点击一个单位！`, `please click one unit!`), `please click one unit!`)); return; }
+        if (needEnemy && u.side === caster.side) { showToast(trText(trText(`请点击敌方单位！`, `please click enemy unit!`), `please click enemy unit!`)); return; }
+        if (needFriendly && u.side !== caster.side) { showToast(trText(trText(`请点击友方单位！`, `please click ally unit!`), `please click ally unit!`)); return; }
+        if (def.excludeSelf && u.id === caster.id) { showToast(trText(`不能选择自身！`, `cannot select itself!`)); return; }
 
         // range 检查
         if (def.range > 0) {
             const dr = Math.abs(u.row - caster.row);
             const dc = Math.abs(u.col - caster.col);
-            if (dr > def.range || dc > def.range) { showToast(`目标不在范围内！`); return; }
+            if (dr > def.range || dc > def.range) { showToast(trText(`目标不在范围内！`, `target out of range!`)); return; }
         }
 
         const selected = gameState.declarativeSelected || [];
@@ -376,15 +395,15 @@
                 // 非 toggle 模式：达到上限后替换最早的
                 selected.shift();
             } else if (def.toggle && selected.length >= maxSel) {
-                showToast(`最多选择${maxSel}个目标`);
+                showToast(trText(`最多选择${maxSel}个目标`, `up to select ${maxSel} target`));
                 return;
             }
             selected.push(u.id);
-            addLog(`已选中 ${u.cardName}（${selected.length}/${maxSel}）`);
+            addLog(trText(`已选中 ${u.cardName}（${selected.length}/${maxSel}）`, `Selected ${u.cardName} ( ${selected.length} / ${maxSel} )`));
         } else {
             // 取消选择
             selected.splice(idx, 1);
-            addLog(`取消选中 ${u.cardName}（${selected.length}）`);
+            addLog(trText(`取消选中 ${u.cardName}（${selected.length}）`, `cancel selected ${u.cardName} ( ${selected.length} )`));
         }
 
         gameState.declarativeSelected = selected;
@@ -417,12 +436,12 @@
             else if (stepType === "any") u = unitsHere.find(x => x.id !== caster.id);
         }
 
-        if (!u) { showToast(`请点击一个单位！`); return; }
-        if (stepType === "enemy" && u.side === caster.side) { showToast(`请点击敌方单位！`); return; }
-        if (stepType === "friendly" && u.side !== caster.side) { showToast(`请点击友方单位！`); return; }
-        if (stepDef?.excludeSelf && u.id === caster.id) { showToast(`不能选择自身！`); return; }
+        if (!u) { showToast(trText(trText(`请点击一个单位！`, `please click one unit!`), `please click one unit!`)); return; }
+        if (stepType === "enemy" && u.side === caster.side) { showToast(trText(trText(`请点击敌方单位！`, `please click enemy unit!`), `please click enemy unit!`)); return; }
+        if (stepType === "friendly" && u.side !== caster.side) { showToast(trText(trText(`请点击友方单位！`, `please click ally unit!`), `please click ally unit!`)); return; }
+        if (stepDef?.excludeSelf && u.id === caster.id) { showToast(trText(`不能选择自身！`, `cannot select itself!`)); return; }
         if (stepDef?.checkBind && (u.shaLinBindTurn > 0 || u.isSweepCharging || u.superCharging)) {
-            showToast(`${u.cardName} 无法被位移！`); return;
+            showToast(trText(`${u.cardName} 无法被位移！`, `${u.cardName} cannot be displaced!`)); return;
         }
 
         if (step === 1) {
@@ -433,16 +452,16 @@
             const step2IsGrid = def.step2?.type === "grid";
             if (step2IsGrid) {
                 const gridHint = def.step2?.gridFilter === "casterRow" ? `（须在${ROW_NAMES[caster.row]}横线）` : "";
-                addLog(`请点击一个格子${gridHint}`);
+                addLog(trText(trText(`请点击一个格子${gridHint}`, `please click one tile ${gridHint}`), `please click one tile ${gridHint}`));
             } else {
-                addLog(`请点击第二个${step2Text}单位`);
+                addLog(trText(trText(`请点击第二个${step2Text}单位`, `please click two ${step2Text} unit`), `please click two ${step2Text} unit`));
             }
             renderUI();
         } else {
             // step 2：执行技能
             const first = gameState.declarativeFirstTarget;
-            if (!first) { showToast(`第一个目标已失效`); clearSkillTarget(); renderUI(); return; }
-            if (first.id === u.id) { showToast(`两个目标必须不同！`); return; }
+            if (!first) { showToast(trText(`第一个目标已失效`, `one target fails`)); clearSkillTarget(); renderUI(); return; }
+            if (first.id === u.id) { showToast(trText(`两个目标必须不同！`, `two target must different!`)); return; }
 
             (async () => {
                 try {
@@ -463,7 +482,7 @@
     function handleDeclarativeTwoStepGrid(caster, def, row, col) {
         const step2 = def.step2;
         if (step2?.gridFilter === "casterRow" && row !== caster.row) {
-            showToast(`只能选择施法者所在横线（${ROW_NAMES[caster.row]}）`);
+            showToast(trText(trText(`只能选择施法者所在横线（${ROW_NAMES[caster.row]}）`, `can only select the caster's row ( ${ROW_NAMES[caster.row]} )`), `can only select caster its row ( ${ROW_NAMES[caster.row]} )`));
             return;
         }
         // 存储格子坐标，然后执行
@@ -471,7 +490,7 @@
         gameState.declarativeGridCol = col;
 
         const first = gameState.declarativeFirstTarget;
-        if (!first) { showToast(`第一个目标已失效`); clearSkillTarget(); renderUI(); return; }
+        if (!first) { showToast(trText(`第一个目标已失效`, `one target fails`)); clearSkillTarget(); renderUI(); return; }
 
         (async () => {
             try {
@@ -495,25 +514,25 @@
         // 格子过滤
         if (filter === "noEnemy") {
             const hasEnemy = gameState.units.some(u => u.row === row && u.col === col && u.side !== caster.side);
-            if (hasEnemy) { showToast(`目标格有敌方单位，无法选择`); return; }
+            if (hasEnemy) { showToast(trText(`目标格有敌方单位，无法选择`, `target tile has enemy unit, cannot select`)); return; }
         }
         if (filter === "distance2") {
             const dist = Math.abs(row - caster.row) + Math.abs(col - caster.col);
-            if (dist !== 0 && dist !== 2) { showToast(`旋风踢只能位移2格或原地释放`); return; }
+            if (dist !== 0 && dist !== 2) { showToast(trText(`旋风踢只能位移2格或原地释放`, `Tornado Kick can only displace 2 tiles or in place casts`)); return; }
         }
         if (filter === "notEnemyCastle") {
             const enemyCastleRow = caster.side === SIDE_PLAYER0 ? 0 : 4;
-            if (row === enemyCastleRow) { showToast(`不能放在敌方城池`); return; }
+            if (row === enemyCastleRow) { showToast(trText(`不能放在敌方城池`, `cannot place at enemy castle`)); return; }
         }
         if (filter === "nearby1") {
             const dist = Math.abs(row - caster.row) + Math.abs(col - caster.col);
-            if (dist > 1) { showToast(`只能放至所在格及九宫格内`); return; }
-            if (caster.side === SIDE_PLAYER0 && row === 0) { showToast(`不能把绫罗放到敌方城池`); return; }
-            if (caster.side === SIDE_PLAYER1 && row === 4) { showToast(`不能把绫罗放到敌方城池`); return; }
+            if (dist > 1) { showToast(trText(`只能放至所在格及九宫格内`, `can only place at its tile and within a 3x3 area`)); return; }
+            if (caster.side === SIDE_PLAYER0 && row === 0) { showToast(trText(`不能把绫罗放到敌方城池`, `cannot Ling Luo place at enemy castle`)); return; }
+            if (caster.side === SIDE_PLAYER1 && row === 4) { showToast(trText(`不能把绫罗放到敌方城池`, `cannot Ling Luo place at enemy castle`)); return; }
         }
         if (filter === "adjacent1") {
             const dist = Math.abs(row - caster.row) + Math.abs(col - caster.col);
-            if (dist !== 1) { showToast(`只能位移至周围一格`); return; }
+            if (dist !== 1) { showToast(trText(`只能位移至周围一格`, `can only displace to around one tile`)); return; }
         }
 
         gameState.declarativeGridRow = row;

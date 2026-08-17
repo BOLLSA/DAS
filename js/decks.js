@@ -47,31 +47,93 @@
             // 用 createElement 显式构建节点，避免 innerHTML 在某些环境（如 file:// 协议、字符编码异常）
             // 下解析不完整导致 querySelector 返回 null、onclick 绑定失败、按钮点击无响应
             const panel = document.createElement('div');
-            panel.className = 'mode-select-panel';
+            panel.className = 'mode-select-panel wide'; // wide：容纳「语言 | 模式」两列并列
 
             const h2 = document.createElement('h2');
-            h2.textContent = '⚔️ 黑暗中世纪 1.01';
+            h2.setAttribute('data-i18n', 'game.title');
+            h2.textContent = t('game.title');
             panel.appendChild(h2);
 
-            const p = document.createElement('p');
-            p.textContent = '请选择游戏模式';
-            panel.appendChild(p);
+            // ════ 并列布局：左列 = 语言选择，右列 = 模式选择 ════
+            const wrap = document.createElement('div');
+            wrap.className = 'mode-select-wrap';
 
-            function makeBtn(text, sub, cls, extraStyle, value) {
+            // ▸ 左列：语言选择（简体中文 / English）
+            const langCol = document.createElement('div');
+            langCol.className = 'lang-column';
+
+            const langTitle = document.createElement('h3');
+            langTitle.setAttribute('data-i18n', 'lang.title');
+            langTitle.textContent = t('lang.title');
+            langCol.appendChild(langTitle);
+
+            function makeLangBtn(textKey, subKey, langVal, cls) {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'mode-btn lang-btn ' + cls;
+                btn.dataset.lang = langVal;
+                const main = document.createElement('span');
+                main.setAttribute('data-i18n', textKey);
+                main.textContent = t(textKey);
+                btn.appendChild(main);
+                btn.appendChild(document.createElement('br'));
+                const small = document.createElement('small');
+                small.setAttribute('data-i18n', subKey);
+                small.textContent = t(subKey);
+                btn.appendChild(small);
+                // 显式提升可点击性，避免被透明元素遮挡
+                btn.style.cursor = 'pointer';
+                btn.style.position = 'relative';
+                btn.style.zIndex = '2';
+                btn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setLanguage(langVal);   // 即时切换界面语言 + 自动保存
+                    updateLangHighlight();
+                });
+                langCol.appendChild(btn);
+                return btn;
+            }
+
+            makeLangBtn('lang.zh', 'lang.zh.sub', 'zh', 'lang-btn-zh');
+            makeLangBtn('lang.en', 'lang.en.sub', 'en', 'lang-btn-en');
+
+            function updateLangHighlight() {
+                langCol.querySelectorAll('.lang-btn').forEach((b) => {
+                    b.classList.toggle('active', b.dataset.lang === currentLang);
+                });
+            }
+            updateLangHighlight();
+
+            const langNote = document.createElement('p');
+            langNote.className = 'lang-note';
+            langNote.setAttribute('data-i18n', 'lang.note');
+            langNote.textContent = t('lang.note');
+            langCol.appendChild(langNote);
+
+            // ▸ 右列：模式选择
+            const modeCol = document.createElement('div');
+            modeCol.className = 'mode-column';
+
+            const modeTitle = document.createElement('h3');
+            modeTitle.setAttribute('data-i18n', 'mode.title');
+            modeTitle.textContent = t('mode.title');
+            modeCol.appendChild(modeTitle);
+
+            function makeBtn(textKey, subKey, cls, value) {
                 const btn = document.createElement('button');
                 btn.type = 'button'; // 避免 form 提交语义
                 btn.className = cls;
-                if (extraStyle) btn.setAttribute('style', extraStyle);
-                if (sub) {
-                    const main = document.createElement('span');
-                    main.textContent = text;
-                    btn.appendChild(main);
+                const main = document.createElement('span');
+                main.setAttribute('data-i18n', textKey);
+                main.textContent = t(textKey);
+                btn.appendChild(main);
+                if (subKey) {
                     btn.appendChild(document.createElement('br'));
                     const small = document.createElement('small');
-                    small.textContent = sub;
+                    small.setAttribute('data-i18n', subKey);
+                    small.textContent = t(subKey);
                     btn.appendChild(small);
-                } else {
-                    btn.textContent = text;
                 }
                 // 显式提升可点击性，避免被透明元素遮挡
                 btn.style.cursor = 'pointer';
@@ -83,16 +145,19 @@
                     if (overlay.parentNode) overlay.remove();
                     resolve(value);
                 });
-                panel.appendChild(btn);
+                modeCol.appendChild(btn);
                 return btn;
             }
 
-            makeBtn('📦 全卡池模式', '使用全部卡牌组成卡组', 'mode-btn full', null, 'full');
-            makeBtn('🎯 自定义卡组模式', '双方各自挑选卡牌组成 100 张卡组', 'mode-btn custom', null, 'custom');
-            makeBtn('🤖 人机对战模式', '与 AI 对战，可选难度', 'mode-btn ai', null, 'ai');
-            makeBtn('🌐 远程联机', '与朋友实时对战（P2P，需网络）', 'mode-btn online', null, 'online');
-            makeBtn('🎓 新手教程', '带领新手了解完整游戏流程与基础玩法', 'mode-btn tutorial', null, 'tutorial');
+            makeBtn('mode.full', 'mode.full.sub', 'mode-btn full', 'full');
+            makeBtn('mode.custom', 'mode.custom.sub', 'mode-btn custom', 'custom');
+            makeBtn('mode.ai', 'mode.ai.sub', 'mode-btn ai', 'ai');
+            makeBtn('mode.online', 'mode.online.sub', 'mode-btn online', 'online');
+            makeBtn('mode.tutorial', 'mode.tutorial.sub', 'mode-btn tutorial', 'tutorial');
 
+            wrap.appendChild(langCol);
+            wrap.appendChild(modeCol);
+            panel.appendChild(wrap);
             overlay.appendChild(panel);
             document.body.appendChild(overlay);
 
@@ -111,10 +176,10 @@
 
     async function showOnlineSetup() {
         // 按需加载 PeerJS（首次点击联机时才从 CDN 注入，成功前显示加载提示）
-        showToast('🌐 正在加载联机组件…');
+        showToast(trText('🌐 正在加载联机组件…', "🌐 Loading online component…"));
         const peerLoaded = await loadPeerJS();
         if (!peerLoaded) {
-            showToast('🌐 联机组件加载失败，请检查网络后重试');
+            showToast(trText('🌐 联机组件加载失败，请检查网络后重试', "🌐 Failed to load the online component. Check your network and retry"));
             return null;
         }
         // 第一步：创建 or 加入
@@ -123,7 +188,7 @@
             overlay.className = 'mode-select-overlay';
             const panel = document.createElement('div');
             panel.className = 'mode-select-panel';
-            panel.innerHTML = `<h2>🌐 远程联机</h2><p>与朋友实时对战：一人创建房间，另一人输入房间码加入。房间通过免费 P2P 信令服务建立，需要双方网络通畅。</p>`;
+            panel.innerHTML = translateText(`<h2>🌐 远程联机</h2><p>与朋友实时对战：一人创建房间，另一人输入房间码加入。房间通过免费 P2P 信令服务建立，需要双方网络通畅。</p>`);
             function mk(text, cls, val) {
                 const btn = document.createElement('button');
                 btn.type = 'button';
@@ -149,10 +214,10 @@
                 const panel = document.createElement('div');
                 panel.className = 'mode-select-panel';
                 panel.style.maxWidth = '640px';
-                panel.innerHTML = `<h2>🏠 创建房间 · 对局设置</h2>`;
+                panel.innerHTML = translateText(`<h2>🏠 创建房间 · 对局设置</h2>`);
                 // 卡组模式
                 const deckLabel = document.createElement('p');
-                deckLabel.textContent = '卡组模式（双方使用相同卡组）';
+                deckLabel.textContent = translateText('卡组模式（双方使用相同卡组）');
                 deckLabel.style.cssText = 'margin:10px 0 6px;';
                 panel.appendChild(deckLabel);
                 const deckRow = document.createElement('div');
@@ -160,11 +225,11 @@
                 let chosenDeckMode = 'full';
                 let chosenPresetIdx = 0;
                 const fullBtn = document.createElement('button');
-                fullBtn.type = 'button'; fullBtn.textContent = '📦 全卡池';
+                fullBtn.type = 'button'; fullBtn.textContent = translateText('📦 全卡池');
                 fullBtn.className = 'mode-btn';
                 fullBtn.style.cssText = 'cursor:pointer;padding:8px 18px;';
                 const presetBtn = document.createElement('button');
-                presetBtn.type = 'button'; presetBtn.textContent = '📋 预设卡组';
+                presetBtn.type = 'button'; presetBtn.textContent = translateText('📋 预设卡组');
                 presetBtn.className = 'mode-btn';
                 presetBtn.style.cssText = 'cursor:pointer;padding:8px 18px;';
                 function updateDeckBtns() {
@@ -182,7 +247,7 @@
                 PRESET_DECKS.forEach((preset, idx) => {
                     const item = document.createElement('div');
                     item.style.cssText = 'background:#3a2a1f;border-radius:10px;padding:7px 12px;margin:4px 0;cursor:pointer;text-align:left;border-left:3px solid transparent;font-size:13px;';
-                    item.innerHTML = `<b style="color:#ffaa44">${preset.name}</b><br><span style="font-size:11px;color:#ddcc99">${preset.desc || ''}</span>`;
+                    item.innerHTML = translateText(`<b style="color:#ffaa44">${preset.name}</b><br><span style="font-size:11px;color:#ddcc99">${preset.desc || ''}</span>`);
                     item.onclick = () => { chosenPresetIdx = idx; presetSelect.querySelectorAll('div').forEach(d => d.style.borderLeftColor = 'transparent'); item.style.borderLeftColor = '#ffaa44'; };
                     if (idx === 0) item.style.borderLeftColor = '#ffaa44';
                     presetSelect.appendChild(item);
@@ -192,17 +257,17 @@
                 updatePresetVis();
                 // 阵营（先后手）
                 const sideLabel = document.createElement('p');
-                sideLabel.textContent = '选择你的阵营（决定先后手）';
+                sideLabel.textContent = translateText('选择你的阵营（决定先后手）');
                 sideLabel.style.cssText = 'margin:12px 0 6px;';
                 panel.appendChild(sideLabel);
                 const sideRow = document.createElement('div');
                 sideRow.style.cssText = 'display:flex;gap:10px;justify-content:center;margin:6px 0;flex-wrap:wrap;';
                 let chosenSide = 0;
                 const blueBtn = document.createElement('button');
-                blueBtn.type = 'button'; blueBtn.textContent = '🔵 蓝方（先手）';
+                blueBtn.type = 'button'; blueBtn.textContent = translateText('🔵 蓝方（先手）');
                 blueBtn.className = 'mode-btn'; blueBtn.style.cssText = 'cursor:pointer;padding:8px 18px;';
                 const redBtn = document.createElement('button');
-                redBtn.type = 'button'; redBtn.textContent = '🔴 红方（后手）';
+                redBtn.type = 'button'; redBtn.textContent = translateText('🔴 红方（后手）');
                 redBtn.className = 'mode-btn'; redBtn.style.cssText = 'cursor:pointer;padding:8px 18px;';
                 function updateSideBtns() {
                     blueBtn.style.background = chosenSide === 0 ? 'linear-gradient(135deg,#3a7dad,#2a5d8a)' : '#3a2a1f';
@@ -218,14 +283,14 @@
                 const confirmBtn = document.createElement('button');
                 confirmBtn.type = 'button';
                 confirmBtn.className = 'mode-btn full';
-                confirmBtn.textContent = '🏠 创建房间';
+                confirmBtn.textContent = translateText('🏠 创建房间');
                 confirmBtn.style.cssText = 'cursor:pointer;margin-top:12px;';
                 confirmBtn.onclick = () => { overlay.remove(); resolve({ deckMode: chosenDeckMode, presetIdx: chosenPresetIdx, hostSide: chosenSide }); };
                 panel.appendChild(confirmBtn);
                 const cancelBtn = document.createElement('button');
                 cancelBtn.type = 'button';
                 cancelBtn.className = 'cancel-btn';
-                cancelBtn.textContent = '取消';
+                cancelBtn.textContent = translateText('取消');
                 cancelBtn.style.cssText = 'cursor:pointer;margin-top:8px;';
                 cancelBtn.onclick = () => { overlay.remove(); resolve(null); };
                 panel.appendChild(cancelBtn);
@@ -240,17 +305,17 @@
             waitOverlay.className = 'mode-select-overlay';
             const waitPanel = document.createElement('div');
             waitPanel.className = 'mode-select-panel';
-            waitPanel.innerHTML = `<h2>🏠 房间已创建</h2>
+            waitPanel.innerHTML = translateText(`<h2>🏠 房间已创建</h2>
 <p>房间码：<b id="onlineRoomCode" style="color:#ffd98a;font-size:22px;letter-spacing:4px;">${roomId}</b></p>
 <p>请把房间码告诉朋友，等待对方加入...</p>
-<p style="font-size:12px;color:#c8b48a;">提示：对方需要选择「🌐 远程联机 → 🔑 加入房间」并输入此房间码。加入成功后将自动开始游戏。</p>`;
+<p style="font-size:12px;color:#c8b48a;">提示：对方需要选择「🌐 远程联机 → 🔑 加入房间」并输入此房间码。加入成功后将自动开始游戏。</p>`);
             const copyBtn = document.createElement('button');
             copyBtn.type = 'button';
             copyBtn.className = 'mode-btn online';
-            copyBtn.textContent = '📋 复制房间码';
+            copyBtn.textContent = translateText('📋 复制房间码');
             copyBtn.style.cssText = 'cursor:pointer;margin-top:8px;padding:8px 16px;';
             copyBtn.onclick = () => {
-                const done = (ok) => { showToast(ok ? '📋 房间码已复制，发给朋友吧' : '📋 复制失败，请手动记录房间码'); };
+                const done = (ok) => { showToast(trText(ok ? '📋 房间码已复制，发给朋友吧' : '📋 复制失败，请手动记录房间码', ok ? '📋 Room code copied, send it to your friend' : '📋 Copy failed, note the room code manually')); };
                 try {
                     if (navigator.clipboard && navigator.clipboard.writeText) {
                         navigator.clipboard.writeText(roomId).then(() => done(true)).catch(() => done(fallbackCopy(roomId)));
@@ -263,7 +328,7 @@
             const cancelBtn = document.createElement('button');
             cancelBtn.type = 'button';
             cancelBtn.className = 'cancel-btn';
-            cancelBtn.textContent = '取消等待';
+            cancelBtn.textContent = translateText('取消等待');
             cancelBtn.style.cssText = 'cursor:pointer;margin-top:8px;';
             cancelBtn.onclick = () => { waitOverlay.remove(); networkCancelHostRoom(); };
             waitPanel.appendChild(cancelBtn);
@@ -275,7 +340,7 @@
                 return { role: 'host', roomId, deckMode: hostConfig.deckMode, presetIdx: hostConfig.presetIdx, hostSide: hostConfig.hostSide };
             } catch (e) {
                 waitOverlay.remove();
-                showToast(`🌐 ${e.message || '创建房间失败'}`);
+                showToast(trText(`🌐 ${e.message || '创建房间失败'}`, `🌐 ${e.message || '创建房间失败'}`));
                 return null;
             }
         } else {
@@ -284,7 +349,7 @@
                 overlay.className = 'mode-select-overlay';
                 const panel = document.createElement('div');
                 panel.className = 'mode-select-panel';
-                panel.innerHTML = `<h2>🔑 加入房间</h2><p>输入房主提供的 6 位房间码：</p>`;
+                panel.innerHTML = translateText(`<h2>🔑 加入房间</h2><p>输入房主提供的 6 位房间码：</p>`);
                 const input = document.createElement('input');
                 input.type = 'text';
                 input.maxLength = 6;
@@ -294,11 +359,11 @@
                 const btn = document.createElement('button');
                 btn.type = 'button';
                 btn.className = 'mode-btn online';
-                btn.textContent = '连接';
+                btn.textContent = translateText('连接');
                 btn.style.cssText = 'cursor:pointer;margin-top:10px;';
                 btn.onclick = () => {
                     const v = (input.value || '').trim().toUpperCase();
-                    if (v.length !== 6) { showToast('请输入 6 位房间码'); return; }
+                    if (v.length !== 6) { showToast(trText('请输入 6 位房间码', "Enter the 6-digit room code")); return; }
                     overlay.remove();
                     resolve(v);
                 };
@@ -306,7 +371,7 @@
                 const cancelBtn = document.createElement('button');
                 cancelBtn.type = 'button';
                 cancelBtn.className = 'cancel-btn';
-                cancelBtn.textContent = '取消';
+                cancelBtn.textContent = translateText('取消');
                 cancelBtn.style.cssText = 'cursor:pointer;margin-top:8px;';
                 cancelBtn.onclick = () => { overlay.remove(); resolve(null); };
                 panel.appendChild(cancelBtn);
@@ -319,7 +384,7 @@
             waitOverlay.className = 'mode-select-overlay';
             const waitPanel = document.createElement('div');
             waitPanel.className = 'mode-select-panel';
-            waitPanel.innerHTML = `<h2>🔑 正在连接房间 ${roomId}...</h2><p>请稍候，正在与房主建立连接并同步开局...</p>`;
+            waitPanel.innerHTML = translateText(`<h2>🔑 正在连接房间 ${roomId}...</h2><p>请稍候，正在与房主建立连接并同步开局...</p>`);
             waitOverlay.appendChild(waitPanel);
             document.body.appendChild(waitOverlay);
             try {
@@ -328,7 +393,7 @@
                 return { role: 'guest', roomId };
             } catch (e) {
                 waitOverlay.remove();
-                showToast(`🌐 ${e.message || '连接失败'}`);
+                showToast(trText(`🌐 ${e.message || '连接失败'}`, `🌐 ${e.message || '连接失败'}`));
                 return null;
             }
         }
@@ -355,12 +420,12 @@
             overlay.className = 'mode-select-overlay';
             const panel = document.createElement('div');
             panel.className = 'mode-select-panel';
-            panel.innerHTML = `<h2>🤖 人机对战设置</h2>`;
+            panel.innerHTML = '<h2 data-i18n="ai.title">' + t('ai.title') + '</h2>';
             overlay.appendChild(panel);
 
             // 阵营选择
             const sideLabel = document.createElement('p');
-            sideLabel.textContent = '选择你的阵营';
+            sideLabel.textContent = t('ai.side'); sideLabel.setAttribute('data-i18n', 'ai.side');
             sideLabel.style.marginTop = '12px';
             panel.appendChild(sideLabel);
 
@@ -377,8 +442,8 @@
                 sideRow.appendChild(btn);
                 return btn;
             }
-            const blueBtn = mkSideBtn('🔵 蓝方（先手）', 0);
-            const redBtn = mkSideBtn('🔴 红方（后手）', 1);
+            const blueBtn = mkSideBtn(t('ai.blueSide'), 0); blueBtn.setAttribute('data-i18n', 'ai.blueSide');
+            const redBtn = mkSideBtn(t('ai.redSide'), 1); redBtn.setAttribute('data-i18n', 'ai.redSide');
             function updateSideBtns() {
                 blueBtn.style.background = chosenSide === 0 ? 'linear-gradient(135deg,#3a7dad,#2a5d8a)' : '#3a2a1f';
                 blueBtn.style.color = '#f9eec1';
@@ -390,7 +455,7 @@
 
             // 难度选择
             const diffLabel = document.createElement('p');
-            diffLabel.textContent = '选择 AI 难度';
+            diffLabel.textContent = t('ai.difficulty'); diffLabel.setAttribute('data-i18n', 'ai.difficulty');
             diffLabel.style.marginTop = '12px';
             panel.appendChild(diffLabel);
 
@@ -407,10 +472,10 @@
                 diffRow.appendChild(btn);
                 return btn;
             }
-            const easyBtn = mkDiffBtn('😊 简单', 'easy');
-            const normalBtn = mkDiffBtn('😎 普通', 'normal');
-            const hardBtn = mkDiffBtn('😤 困难', 'hard');
-            const masterBtn = mkDiffBtn('👑 大师', 'master');
+            const easyBtn = mkDiffBtn(t('ai.diff.easy'), 'easy'); easyBtn.setAttribute('data-i18n', 'ai.diff.easy');
+            const normalBtn = mkDiffBtn(t('ai.diff.normal'), 'normal'); normalBtn.setAttribute('data-i18n', 'ai.diff.normal');
+            const hardBtn = mkDiffBtn(t('ai.diff.hard'), 'hard'); hardBtn.setAttribute('data-i18n', 'ai.diff.hard');
+            const masterBtn = mkDiffBtn(t('ai.diff.master'), 'master'); masterBtn.setAttribute('data-i18n', 'ai.diff.master');
             function updateDiffBtns() {
                 easyBtn.style.background = chosenDiff === 'easy' ? 'linear-gradient(135deg,#3a7d3a,#2c6e2c)' : '#3a2a1f';
                 easyBtn.style.color = '#f9eec1';
@@ -426,7 +491,7 @@
 
             // 卡组选择
             const deckLabel = document.createElement('p');
-            deckLabel.textContent = '卡组设置';
+            deckLabel.textContent = t('ai.deck'); deckLabel.setAttribute('data-i18n', 'ai.deck');
             deckLabel.style.marginTop = '12px';
             panel.appendChild(deckLabel);
 
@@ -443,8 +508,8 @@
                 deckRow.appendChild(btn);
                 return btn;
             }
-            const fullBtn = mkDeckBtn('📦 全卡池', 'full');
-            const presetBtn = mkDeckBtn('📋 预设卡组', 'preset');
+            const fullBtn = mkDeckBtn(t('ai.deck.full'), 'full'); fullBtn.setAttribute('data-i18n', 'ai.deck.full');
+            const presetBtn = mkDeckBtn(t('ai.deck.preset'), 'preset'); presetBtn.setAttribute('data-i18n', 'ai.deck.preset');
             function updateDeckBtns() {
                 fullBtn.style.background = chosenDeckMode === 'full' ? 'linear-gradient(135deg,#8a6c3a,#6a4c2a)' : '#3a2a1f';
                 fullBtn.style.color = '#f9eec1';
@@ -478,7 +543,7 @@
             // 开始按钮
             const startBtn = document.createElement('button');
             startBtn.type = 'button';
-            startBtn.textContent = '⚔️ 开始对战';
+            startBtn.textContent = t('ai.start'); startBtn.setAttribute('data-i18n', 'ai.start');
             startBtn.className = 'mode-btn';
             startBtn.style.cssText = 'cursor:pointer;position:relative;z-index:2;background:linear-gradient(135deg,#3a7d3a,#2c6e2c);color:#f9eec1;text-shadow:0 1px 2px rgba(0,0,0,0.3);margin-top:16px;padding:12px 32px;font-size:16px';
             startBtn.onclick = (e) => {
@@ -490,7 +555,7 @@
 
             const backBtn = document.createElement('button');
             backBtn.type = 'button';
-            backBtn.textContent = '↩️ 返回';
+            backBtn.textContent = t('common.back'); backBtn.setAttribute('data-i18n', 'common.back');
             backBtn.className = 'cancel-btn';
             backBtn.style.cssText = 'margin-top:8px;cursor:pointer;position:relative;z-index:2';
             backBtn.onclick = (e) => { e.preventDefault(); e.stopPropagation(); if (overlay.parentNode) overlay.remove(); resolve(null); };
@@ -531,7 +596,7 @@
                     </div>`;
                 });
                 ph += `<div style="text-align:center;margin-top:10px"><button class="cancel-btn" id="presetCancel">关闭</button></div></div>`;
-                pov.innerHTML = ph;
+                pov.innerHTML = translateText(ph);
                 document.body.appendChild(pov);
 
                 pov.querySelector('#presetCancel').onclick = () => pov.remove();
@@ -583,7 +648,7 @@
 
             function showDeckExportOverlay() {
                 const allDone = Object.values(selected).every((s, g) => s.size === limits[g + 1]);
-                if (!allDone) { showToast('请先选满卡组再导出'); return; }
+                if (!allDone) { showToast(trText('请先选满卡组再导出', "Fill the deck first before exporting")); return; }
                 const pov = document.createElement('div'); pov.className = 'preset-select-overlay';
                 let html = `<div class="preset-select-panel deck-io-panel">
                     <h2>📤 导出卡组</h2>
@@ -601,7 +666,7 @@
                     </div>
                     <div style="text-align:center;margin-top:10px"><button class="cancel-btn" id="exportClose">关闭</button></div>
                 </div>`;
-                pov.innerHTML = html;
+                pov.innerHTML = translateText(html);
                 document.body.appendChild(pov);
 
                 const nameInput = pov.querySelector('#deckExportName');
@@ -618,13 +683,13 @@
                 function refreshSavedList() {
                     const decks = getSavedDecks();
                     if (decks.length === 0) {
-                        savedList.innerHTML = '<div class="saved-deck-empty">暂无保存的卡组</div>';
+                        savedList.innerHTML = translateText('<div class="saved-deck-empty">暂无保存的卡组</div>');
                         return;
                     }
                     savedList.innerHTML = decks.map((d, i) => `
                         <div class="saved-deck-item">
                             <span class="saved-deck-name">${d.name}</span>
-                            <button class="saved-deck-del" data-idx="${i}" title="删除">✕</button>
+                            <button class="saved-deck-del" data-idx="${i}" title="${trText('删除', 'Delete')}">✕</button>
                         </div>`).join('');
                     savedList.querySelectorAll('.saved-deck-del').forEach(btn => {
                         btn.onclick = (e) => {
@@ -634,7 +699,7 @@
                             decks.splice(idx, 1);
                             saveSavedDecks(decks);
                             refreshSavedList();
-                            showToast('已删除');
+                            showToast(trText('已删除', "Deleted"));
                         };
                     });
                 }
@@ -645,14 +710,14 @@
                     try {
                         if (navigator.clipboard && navigator.clipboard.writeText) {
                             navigator.clipboard.writeText(codeArea.value)
-                                .then(() => showToast('✅ 分享码已复制'))
-                                .catch(() => { if (document.execCommand('copy')) showToast('✅ 分享码已复制'); else showToast('请手动选择文本复制'); });
+                                .then(() => showToast(trText('✅ 分享码已复制', "✅ Share code copied")))
+                                .catch(() => { if (document.execCommand('copy')) showToast(trText('✅ 分享码已复制', "✅ Share code copied")); else showToast(trText('请手动选择文本复制', "Please copy the text manually")); });
                         } else {
-                            if (document.execCommand('copy')) showToast('✅ 分享码已复制');
-                            else showToast('请手动选择文本复制');
+                            if (document.execCommand('copy')) showToast(trText('✅ 分享码已复制', "✅ Share code copied"));
+                            else showToast(trText('请手动选择文本复制', "Please copy the text manually"));
                         }
                     } catch (e) {
-                        showToast('请手动选择文本复制');
+                        showToast(trText('请手动选择文本复制', "Please copy the text manually"));
                     }
                 };
 
@@ -662,7 +727,7 @@
                     decks.push({ name: name, g1: [...selected[1]], g2: [...selected[2]], g3: [...selected[3]] });
                     saveSavedDecks(decks);
                     refreshSavedList();
-                    showToast(`✅ 已保存「${name}」`);
+                    showToast(trText(`✅ 已保存「${name}」`, `✅ save " ${name} "`));
                 };
 
                 pov.querySelector('#exportClose').onclick = () => pov.remove();
@@ -683,7 +748,7 @@
                     </div>
                     <div style="text-align:center;margin-top:10px"><button class="cancel-btn" id="importClose">关闭</button></div>
                 </div>`;
-                pov.innerHTML = html;
+                pov.innerHTML = translateText(html);
                 document.body.appendChild(pov);
 
                 const codeArea = pov.querySelector('#deckImportCode');
@@ -705,27 +770,27 @@
                     }
                     pov.remove();
                     render();
-                    showToast(`✅ 已导入「${data.name || '卡组'}」`);
+                    showToast(trText(`✅ 已导入「${data.name || '卡组'}」`, `✅ import " ${data.name || '卡组'} "`));
                 }
 
                 pov.querySelector('#btnLoadCode').onclick = () => {
                     const code = codeArea.value.trim();
-                    if (!code) { showToast('请粘贴分享码'); return; }
+                    if (!code) { showToast(trText('请粘贴分享码', "Paste the share code")); return; }
                     const data = decodeDeck(code);
-                    if (!data) { showToast('❌ 分享码格式错误'); return; }
+                    if (!data) { showToast(trText('❌ 分享码格式错误', "❌ Invalid share code format")); return; }
                     applyDeck(data);
                 };
 
                 function refreshImportList() {
                     const decks = getSavedDecks();
                     if (decks.length === 0) {
-                        importList.innerHTML = '<div class="saved-deck-empty">暂无保存的卡组</div>';
+                        importList.innerHTML = translateText('<div class="saved-deck-empty">暂无保存的卡组</div>');
                         return;
                     }
                     importList.innerHTML = decks.map((d, i) => `
                         <div class="saved-deck-item clickable" data-idx="${i}">
                             <span class="saved-deck-name">${d.name}</span>
-                            <button class="saved-deck-del" data-idx="${i}" title="删除">✕</button>
+                            <button class="saved-deck-del" data-idx="${i}" title="${trText('删除', 'Delete')}">✕</button>
                         </div>`).join('');
                     importList.querySelectorAll('.saved-deck-item.clickable').forEach(item => {
                         item.onclick = (e) => {
@@ -743,7 +808,7 @@
                             decks.splice(idx, 1);
                             saveSavedDecks(decks);
                             refreshImportList();
-                            showToast('已删除');
+                            showToast(trText('已删除', "Deleted"));
                         };
                     });
                 }
@@ -753,9 +818,9 @@
             }
 
             function render() {
-                let html = `<h2>${playerLabel} — 自定义卡组</h2>
+                let html = translateText(`<h2>${playerLabel} — 自定义卡组</h2>
                 <p class="subtitle">1级选${limits[1]}张 (各1张拷贝) | 2级选${limits[2]}张 (各2张拷贝) | 3级选${limits[3]}张 (各3张拷贝) — 共100张</p>
-                <div class="deck-top-bar"><button class="deck-preset-btn" id="btnPreset">📋 预设</button><button class="deck-io-btn" id="btnImport">📥 导入</button><button class="deck-io-btn" id="btnExport">📤 导出</button><button class="cancel-btn deck-back-btn" id="btnBack">↩️ 返回</button></div>`;
+                <div class="deck-top-bar"><button class="deck-preset-btn" id="btnPreset">📋 预设</button><button class="deck-io-btn" id="btnImport">📥 导入</button><button class="deck-io-btn" id="btnExport">📤 导出</button><button class="cancel-btn deck-back-btn" id="btnBack">↩️ 返回</button></div>`);
                 for (let g of [1,2,3]) {
                     const selCount = selected[g].size;
                     const target = limits[g];
@@ -765,10 +830,10 @@
                         <div class="deck-card-grid">`;
                     for (let card of grouped[g]) {
                         const isSel = selected[g].has(card.name);
-                        html += `<div class="deck-card-chip${isSel ? ' selected' : ''}" data-card="${card.name}" data-grade="${g}">
+                        html += translateText(`<div class="deck-card-chip${isSel ? ' selected' : ''}" data-card="${card.name}" data-grade="${g}">
                             <div class="chip-name">${card.name}</div>
                             <div class="chip-info">💰${card.cost} ❤️${card.life} ${card.dmgType}${card.dmgValue} 📏${card.range} 🏃${card.speed}${card.extraAttacks ? ' ⚔️×' + (1 + card.extraAttacks) : ''}</div>
-                        </div>`;
+                        </div>`);
                     }
                     html += `</div><span class="deck-counter${done ? ' done' : ''}">${selCount}/${target}${done ? ' ✓' : ''}</span></div>`;
                 }
@@ -784,7 +849,7 @@
                             selected[grade].delete(name);
                         } else {
                             if (selected[grade].size >= limits[grade]) {
-                                showToast(`${grade}级已达上限${limits[grade]}张！`);
+                                showToast(trText(`${grade}级已达上限${limits[grade]}张！`, `${grade} -level reaches cap ${limits[grade]} !`));
                                 return;
                             }
                             selected[grade].add(name);
@@ -831,7 +896,7 @@
     async function resetGame(p0Cards = null, p1Cards = null, p0Equipments = null, p1Equipments = null) {
         // 新手教程进行中：拦截重新开局（教程初始化自身的 resetGame 调用时 tutorialState 尚未激活，不受影响）
         if (tutorialState && tutorialState.active) {
-            showToast('🎓 教程进行中，请先完成或退出教程');
+            showToast(trText('🎓 教程进行中，请先完成或退出教程', "🎓 Tutorial in progress, finish or exit it first"));
             return;
         }
         const p0 = initPlayerDeck(p0Cards);
@@ -905,7 +970,7 @@
         lastDamageDealer = null;
         infiniteManaEnabled = false;
         aiGameId++; aiActing = false; // 重置 AI 执行状态，防止旧回合继续
-        addLog("=== 游戏开始！双方初始各3费，费用上限15 ===");
+        addLog(trText("=== 游戏开始！双方初始各3费，费用上限15 ===", '=== Game Start! Both sides start with 3 mana, cap 15 ==='));
         await startTurn(0);
         renderUI();
     }

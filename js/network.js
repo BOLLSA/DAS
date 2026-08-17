@@ -190,7 +190,7 @@
                 }
                 case 'skill': { const u = gameState.units.find(x => x.id === a.id); if (u) useSelectedUnitSkill(u, a.skillName || null); break; }
                 case 'endTurn': {
-                    if (a.confirmed !== undefined || a.prepick !== undefined || a.discardIdx !== undefined) endTurn({ confirmed: a.confirmed, prepick: a.prepick, discardIdx: a.discardIdx });
+                    if (a.confirmed !== undefined || a.prepick !== undefined || a.discardIdx !== undefined || a.prepick2 !== undefined || a.discardIdx2 !== undefined) endTurn({ confirmed: a.confirmed, prepick: a.prepick, discardIdx: a.discardIdx, prepick2: a.prepick2, discardIdx2: a.discardIdx2 });
                     else endTurn();
                     break;
                 }
@@ -202,7 +202,7 @@
                 case 'riluoReturn': { const u = gameState.units.find(x => x.id === a.id); if (u) performRiluoReturn(u); break; }
                 case 'mirrorAttack': {
                     const u = gameState.units.find(x => x.id === a.id);
-                    if (u && u.cardName === "镜中人") { gameState.awaitingMirrorAttack = true; gameState.mirrorAttackUnitId = u.id; addLog(`请选择要攻击的格子（自身格或相邻格）`); renderUI(); }
+                    if (u && u.cardName === "镜中人") { gameState.awaitingMirrorAttack = true; gameState.mirrorAttackUnitId = u.id; addLog(trText(trText(`请选择要攻击的格子（自身格或相邻格）`, `please choose to attack of tile (itself tile or adjacent tile)`), `please choose to attack of tile (itself tile or adjacent tile)`)); renderUI(); }
                     break;
                 }
                 case 'mirrorSwap': { const u = gameState.units.find(x => x.id === a.id); if (u) performMirrorSwap(u); break; }
@@ -211,10 +211,10 @@
                 case 'cancelSkill': {
                     const caster = gameState.units.find(u => u.id === gameState.skillCasterId);
                     if (caster) caster.skillUsedThisTurn = false;
-                    clearSkillTarget(); renderUI(); addLog("已取消技能释放。");
+                    clearSkillTarget(); renderUI(); addLog(trText("已取消技能释放。", 'Skill release cancelled.'));
                     break;
                 }
-                case 'skipGlide': { gameState.awaitingGlide = false; gameState.glideUnitId = null; addLog("跳过滑步。"); renderUI(); break; }
+                case 'skipGlide': { gameState.awaitingGlide = false; gameState.glideUnitId = null; addLog(trText("跳过滑步。", 'Glide skipped.')); renderUI(); break; }
                 case 'cancelMirrorAttack': { gameState.awaitingMirrorAttack = false; gameState.mirrorAttackUnitId = null; renderUI(); break; }
             }
         } catch (e) { console.error('networkHandleAction error:', e); }
@@ -300,7 +300,7 @@
             };
             networkHostCancelFn = cancelFn;
             peer.on('open', () => {
-                addLog(`🌐 房间已创建，房间码：${roomId}（等待对方加入...）`);
+                addLog(trText(`🌐 房间已创建，房间码：${roomId}（等待对方加入...）`, `🌐 Room Created, Room Code: ${roomId} (waiting for the other player to join...)`));
             });
             peer.on('connection', (conn) => {
                 clearTimeout(timeout);
@@ -335,7 +335,7 @@
             peer.on('open', () => {
                 const conn = peer.connect(NETWORK_PREFIX + roomId, { reliable: true });
                 state.conn = conn;
-                conn.on('open', () => { addLog(`🌐 已连接房间 ${roomId}，等待开局同步...`); });
+                conn.on('open', () => { addLog(trText(trText(`🌐 已连接房间 ${roomId}，等待开局同步...`, `🌐 connect room ${roomId} , waiting game-start sync...`), `🌐 connect room ${roomId} , waiting game-start sync...`)); });
                 conn.on('data', (data) => networkOnData(state, data));
                 conn.on('close', () => networkDisconnect('对方已断开连接'));
             });

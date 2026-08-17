@@ -10,8 +10,8 @@
         const rewardSide = 1 - unit.side;
         const p = gameState.players[rewardSide];
         p.mana = Math.min(p.manaMax, p.mana + level);
-        addLog(`💰 悬赏兑现！${unit.cardName}（${level}级悬赏）被移除，${rewardSide === 0 ? "蓝方" : "红方"}获得 ${level} 费赏金！`);
-        showToast(`💰 悬赏 +${level}费`);
+        addLog(trText(`💰 悬赏兑现！${unit.cardName}（${level}级悬赏）被移除，${rewardSide === 0 ? "蓝方" : "红方"}获得 ${level} 费赏金！`, `💰 bounty collected! ${unit.cardName} ( ${level} -level bounty) was removed, ${rewardSide === 0 ? "蓝方" : "红方"} gains ${level} cost bounty!`));
+        showToast(trText(`💰 悬赏 +${level}费`, `💰 bounty + ${level} cost`));
     }
 
     // ── 击杀奖励统一结算（伤害路径与秒杀路径共用）──
@@ -20,25 +20,31 @@
         // 镜中人击杀刷新镜像持续时间
         if (source && source.cardName === "镜中人" && !source.isMirror) {
             const refreshMirror = getMirrorOf(source);
-            if (refreshMirror) { refreshMirror.mirrorTurnsLeft = 3; addLog(`🪞 击杀刷新镜像持续时间`); }
+            if (refreshMirror) { refreshMirror.mirrorTurnsLeft = 3; addLog(trText(`🪞 击杀刷新镜像持续时间`, `🪞 kill refresh mirror duration`)); }
         }
         // 暴食者被动：击杀后回满血+永久物伤+1（禁疗则不回血，但仍增伤）
         if (source && source.cardName === "暴食者") {
             if (!source.noHeal) {
                 source.life = source.maxLife || 4; // 回满（考虑甘泉/霜痕提升的生命上限）
-                addLog(`🍗 暴食者击杀敌方，生命回满，物伤永久+1（当前${source.dmgValue}）`);
+                addLog(trText(`🍗 暴食者击杀敌方，生命回满，物伤永久+1（当前${source.dmgValue}）`, `🍗 Glutton kill enemy, HP fully restores, physical damage permanently +1 (current ${source.dmgValue} )`));
             } else {
-                addLog(`🍗 暴食者击杀敌方，但处于禁疗状态，无法回血（物伤永久+1）`);
+                addLog(trText(trText(`🍗 暴食者击杀敌方，但处于禁疗状态，无法回血（物伤永久+1）`, `🍗 Glutton kill enemy, but is in heal block state, cannot heal (physical damage permanently +1)`), `🍗 Glutton kill enemy, but is in heal block state, cannot heal (physical damage permanently +1)`));
             }
             source.dmgValue += 1;
-            showToast(`🍗 暴食者饱餐！物伤+1`);
+            showToast(trText(`🍗 暴食者饱餐！物伤+1`, `🍗 Glutton feast! physical damage +1`));
         }
         // 血舞被动：击杀后攻速+1
         if (source && source.cardName === "血舞") {
             source.extraAttacks = (source.extraAttacks || 0) + 1;
             source.attacksLeftThisTurn = (source.attacksLeftThisTurn || 0) + 1;
-            addLog(`💃 血舞击杀敌方，攻速+1（当前额外攻速${source.extraAttacks}）`);
-            showToast(`💃 血舞攻速+1`);
+            addLog(trText(`💃 血舞击杀敌方，攻速+1（当前额外攻速${source.extraAttacks}）`, `💃 Blood Dance kill enemy, Attack Count +1 (current extra Attack Count ${source.extraAttacks} )`));
+            showToast(trText(`💃 血舞攻速+1`, `💃 Blood Dance Attack Count +1`));
+        }
+        // 剑客被动：击杀后攻击范围+1
+        if (source && source.cardName === "剑客") {
+            source.range += 1;
+            addLog(trText(`🗡️ 剑客击杀敌方，攻击范围+1（当前范围${source.range}）`, `🗡️ Swordsman kill enemy, Attack Range +1 (current range ${source.range} )`));
+            showToast(trText(`🗡️ 剑客范围+1（范围${source.range}）`, `🗡️ Swordsman range +1 (range ${source.range} )`));
         }
         // 连杀系统（秒杀/斩杀路径同样计入连杀与悬赏）
         if (source && source.id !== undefined && source.life > 0) {
@@ -54,8 +60,8 @@
             const bountyForStreak = ks.count >= 9 ? 4 : ks.count >= 7 ? 3 : ks.count >= 5 ? 2 : ks.count >= 3 ? 1 : 0;
             if (bountyForStreak > (source.bountyLevel || 0)) {
                 source.bountyLevel = bountyForStreak;
-                addLog(`💰 悬赏！${source.cardName} 达成 ${ks.count} 连杀，进入 ${bountyForStreak} 级悬赏状态！`);
-                showToast(`💰 悬赏 ${bountyForStreak} 级`);
+                addLog(trText(`💰 悬赏！${source.cardName} 达成 ${ks.count} 连杀，进入 ${bountyForStreak} 级悬赏状态！`, `💰 bounty! ${source.cardName} achieved ${ks.count} kill streak, enters ${bountyForStreak} -level bounty state!`));
+                showToast(trText(`💰 悬赏 ${bountyForStreak} 级`, `💰 bounty ${bountyForStreak} -level`));
                 renderUI();
             }
         }
@@ -72,8 +78,8 @@
             unit.pendingRevive = true;
             unit.life = 0;
             lastDamageDealer = null;  // 复活甲拦截死亡，未发生真实击杀，清除击杀归属
-            addLog(`💀 ${unit.cardName} 的复活甲触发，将在下一个我方回合开始时复活！`);
-            showToast(`💀 ${unit.cardName} 复活甲触发！`);
+            addLog(trText(`💀 ${unit.cardName} 的复活甲触发，将在下一个我方回合开始时复活！`, `💀 ${unit.cardName} of Revive Armor triggers, at next your turn start when revive!`));
+            showToast(trText(`💀 ${unit.cardName} 复活甲触发！`, `💀 ${unit.cardName} Revive Armor triggers!`));
             return null;
         }
         // 镜中人死亡：移除其镜像
@@ -81,7 +87,7 @@
         if (dyingMirror) {
             const mIdx = gameState.units.findIndex(u => u.id === dyingMirror.id);
             if (mIdx !== -1) gameState.units.splice(mIdx, 1);
-            addLog(`🪞 ${unit.cardName} 死亡，镜像消失`);
+            addLog(trText(`🪞 ${unit.cardName} 死亡，镜像消失`, `🪞 ${unit.cardName} died, mirror vanished`));
         }
         delete gameState.killStreakMap[unitId];
         // ── 悬赏机制：悬赏单位被移除（死亡/自爆/同化/无敌结束死亡等），另一方获得赏金 ──
@@ -97,6 +103,22 @@
             if (gameState.assimilatorHp[unit.side] <= 0) { killAllAssimilators(unit.side); }
             else { syncAssimilators(unit.side); }
         }
+        // ── 卡牌闭环：死亡单位回卡池（排除复活甲/猫复活/城池复活/同化者/镜像/测试卡） ──
+        if (!unit.pendingRevive && !unit.reviveTimesLeft && !unit.isAssimilator && !unit.isMirror && !unit._fromTestPanel) {
+            const cardDef = CARD_LIBRARY.find(c => c.name === unit.cardName);
+            // 排除：城池复活被动（onDeathPassive === "revive"）—单位会在城池复活，回池会导致卡牌复制
+            if (cardDef && cardDef.onDeathPassive !== "revive") {
+                const cardCopy = { ...cardDef };
+                cardCopy.disabled = false;
+                cardCopy.disabledBy = null;
+                cardCopy.disabledTurns = 0;
+                gameState.players[unit.side].deck.push(cardCopy);
+                if (typeof shuffleDeck === 'function') shuffleDeck(unit.side);
+                addLog(trText(`🔄 ${unit.cardName} 死亡，回到卡池`, `🔄 ${unit.cardName} died, returned to pool`));
+            }
+        } else if (unit._fromTestPanel) {
+            addLog(trText(trText(`🧪 测试卡 ${unit.cardName} 已销毁（不进入卡池）`, `🧪 Test card ${unit.cardName} destroyed (no enters Card Pool)`), `🧪 Test card ${unit.cardName} destroyed (no enters Card Pool)`));
+        }
         // 击杀归属追踪
         let killerInfo = '';
         if (lastDamageDealer) {
@@ -109,11 +131,11 @@
             killerInfo = `（被${lastDamageDealer.side === 0 ? "蓝方" : "红方"} ${lastDamageDealer.name} 击杀）`;
             lastDamageDealer = null;  // 重置，防止误归因后续非战斗死亡
         }
-        addLog(`${unit.cardName}（${unit.side === 0 ? "蓝方" : "红方"}）被消灭！${killerInfo}`);
+        addLog(trText(`${unit.cardName}（${unit.side === 0 ? "蓝方" : "红方"}）被消灭！${killerInfo}`, `${unit.cardName} ( ${unit.side === 0 ? "蓝方" : "红方"} ) was eliminated! ${killerInfo}`));
         // 装备系统：单位死亡时清理装备
         if (unit.equipmentId) {
             const eqDef = getEquipmentDef(unit.equipmentId);
-            if (eqDef) addLog(`⚒️ ${unit.cardName} 的 ${eqDef.name} 随之消失`);
+            if (eqDef) addLog(trText(trText(`⚒️ ${unit.cardName} 的 ${eqDef.name} 随之消失`, `⚒️ ${unit.cardName} of ${eqDef.name} along with it vanished`), `⚒️ ${unit.cardName} of ${eqDef.name} along with it vanished`));
             if (eqDef && eqDef.onRemove) eqDef.onRemove(unit);
             unit.equipmentId = null;
         }
@@ -126,25 +148,25 @@
             if (u.isCharging && u.chargeTargetId === unitId) {
                 u.isCharging = false;
                 u.chargeTargetId = null;
-                addLog(`${u.cardName} 蓄力目标消失，蓄力失败。`);
+                addLog(trText(`${u.cardName} 蓄力目标消失，蓄力失败。`, `${u.cardName} charge target vanished, charge Defeat.`));
             }
             if (u.superCharging && u.superChargeTargetId === unitId) {
                 u.superChargeTargetId = null;
-                addLog(`${u.cardName} 超级蓄力目标消失，蓄力失败。`);
+                addLog(trText(`${u.cardName} 超级蓄力目标消失，蓄力失败。`, `${u.cardName} super charge target vanished, charge Defeat.`));
                 u.superCharging = false;
                 u.superChargeTurnsLeft = 0;
                 u.silenced = 0;
             }
         }
         for (let u of gameState.units) {
-            if (u.stunnedBy === unitId) { u.stun = 0; u.stunnedBy = null; addLog(`${u.cardName} 的眩晕施法者已死亡，眩晕解除。`); }
+            if (u.stunnedBy === unitId) { u.stun = 0; u.stunnedBy = null; addLog(trText(trText(`${u.cardName} 的眩晕施法者已死亡，眩晕解除。`, `${u.cardName} of stun caster is dead, stun lifted.`), `${u.cardName} of stun caster is dead, stun lifted.`)); }
         }
         // 爱神共生死：若死亡单位有绑定且对方仍存活，对方也死（带递归深度保护，最多3层）
         if (unit.cupidPair && !unit._cupidChainDepth) {
             const partner = gameState.units.find(u => u.id === unit.cupidPair.partnerId);
             if (partner && partner.life > 0) {
-                addLog(`💘 ${partner.cardName} 因共生死跟随 ${unit.cardName} 一同死亡！`);
-                showToast(`💘 共生死！`);
+                addLog(trText(`💘 ${partner.cardName} 因共生死跟随 ${unit.cardName} 一同死亡！`, `💘 ${partner.cardName} due to linked fate follows ${unit.cardName} together died!`));
+                showToast(trText(`💘 共生死！`, `💘 linked fate!`));
                 partner.life = 0;
                 partner.dyingFromAifei = true;
                 partner._cupidChainDepth = (unit._cupidChainDepth || 0) + 1;
@@ -152,7 +174,7 @@
                 if (partner._cupidChainDepth <= 3 && !processingDeathIds.has(partner.id)) {
                     removeUnit(partner.id, partner.row, partner.col, partner.side);
                 } else if (partner._cupidChainDepth > 3) {
-                    addLog(`💘 共生死链过长，阻止递归（安全保护）`);
+                    addLog(trText(`💘 共生死链过长，阻止递归（安全保护）`, `💘 linked fate chain too long, recursion prevented (safety guard)`));
                 }
             }
             // 清除所有绑定到这个 unit 的 cupidPair（双向清理），不论 partner 死活
@@ -164,7 +186,7 @@
         }
         for (let p of gameState.players) {
             for (let c of p.hand) {
-                if (c.disabledBy === unitId) { c.disabled = false; c.disabledBy = null; c.disabledTurns = 0; addLog(`手牌 ${c.name} 的禁用施法者已死亡，禁用解除。`); }
+                if (c.disabledBy === unitId) { c.disabled = false; c.disabledBy = null; c.disabledTurns = 0; addLog(trText(trText(`手牌 ${c.name} 的禁用施法者已死亡，禁用解除。`, `hand ${c.name} of disabled caster is dead, disabled lifted.`), `hand ${c.name} of disabled caster is dead, disabled lifted.`)); }
             }
         }
         // 横扫蓄力者死亡，清除其延迟攻击
@@ -175,6 +197,25 @@
         // 斩月标记清理
         const zIdx = gameState.zhanYueMarkedEnemyIds.indexOf(unitId);
         if (zIdx >= 0) gameState.zhanYueMarkedEnemyIds.splice(zIdx, 1);
+        // 魔矢标记清理：死亡单位是被标记方 → 清除所有标记方加成
+        for (const marker of gameState.units) {
+            if (marker.magicArrowTargetId === unitId) {
+                marker.dmgValue -= (marker.magicArrowBuff || 0);
+                marker.magicArrowBuff = 0;
+                marker.magicArrowTargetId = null;
+                addLog(trText(`🎯 ${marker.cardName} 的魔矢标记目标死亡，法伤加成消失`, `🎯 ${marker.cardName} of magic arrow mark target died, magic damage bonus vanished`));
+            }
+        }
+        // 魔矢标记清理：死亡单位是标记方 → 清除被标记方减益
+        if (unit.magicArrowTargetId != null) {
+            const target = gameState.units.find(u => u.id === unit.magicArrowTargetId);
+            if (target && target.magicArrowMarkerId === unit.id) {
+                target.dmgValue += (target.magicArrowDebuff || 0);
+                target.magicArrowDebuff = 0;
+                target.magicArrowMarkerId = null;
+                addLog(trText(`🎯 ${unit.cardName} 死亡，${target.cardName} 的魔矢减益消失`, `🎯 ${unit.cardName} died, ${target.cardName} of magic arrow debuff vanished`));
+            }
+        }
         // 武器商死亡后重新检查同格友方的攻速buff
         recheckAllWeaponSmithBuffs();
         return unit;
@@ -190,22 +231,22 @@
             u.life > 0
         );
         if (spreadTargets.length === 0) {
-            addLog(`☣️ ${unit.cardName} 的鼠疫没有扩散目标`);
+            addLog(trText(`☣️ ${unit.cardName} 的鼠疫没有扩散目标`, `☣️ ${unit.cardName} of Plague no spreads target`));
             return;
         }
-        addLog(`☣️ ${unit.cardName} 死亡，鼠疫向所在格及上下左右四格扩散！`);
+        addLog(trText(`☣️ ${unit.cardName} 死亡，鼠疫向所在格及上下左右四格扩散！`, `☣️ ${unit.cardName} died, Plague toward its tile and on below around four tile spreads!`));
         for (let target of [...spreadTargets]) {
             if (!gameState.units.some(u => u.id === target.id)) continue;
             if (target.absoluteImmunityTurns > 0) {
-                addLog(`  ${target.cardName} 处于绝对免疫，免疫鼠疫伤害与感染`);
+                addLog(trText(`  ${target.cardName} 处于绝对免疫，免疫鼠疫伤害与感染`, `${target.cardName} is in absolute immunity, immune Plague damage with infect`));
                 continue;
             }
             if (!target.plagueInfected) {
                 target.plagueInfected = true;
                 target.plagueOwnerSide = ownerSide;
-                addLog(`  ${target.cardName} 感染鼠疫`);
+                addLog(trText(`  ${target.cardName} 感染鼠疫`, `${target.cardName} infect Plague`));
             } else {
-                addLog(`  ${target.cardName} 已感染鼠疫，不重复感染`);
+                addLog(trText(`  ${target.cardName} 已感染鼠疫，不重复感染`, `${target.cardName} infect Plague, no duplicate infect`));
             }
             // 无敌：受到伤害但不会死亡（不消耗护盾）
             if (target.invincibleTurns > 0) {
@@ -213,9 +254,9 @@
                 if (target.life <= 0) {
                     target.life = 1;
                     target.pendingDeath = true;
-                    addLog(`  ${target.cardName} 处于无敌状态，受到致命鼠疫伤害但暂不死亡`);
+                    addLog(trText(`  ${target.cardName} 处于无敌状态，受到致命鼠疫伤害但暂不死亡`, `${target.cardName} is in invincible state, takes lethal Plague damage but temporarily not died`));
                 } else {
-                    addLog(`  ${target.cardName} 处于无敌状态，受到1点鼠疫伤害（剩余❤️${target.life}）`);
+                    addLog(trText(`  ${target.cardName} 处于无敌状态，受到1点鼠疫伤害（剩余❤️${target.life}）`, `${target.cardName} is in invincible state, takes 1 Plague damage (left ❤️ ${target.life} )`));
                 }
                 continue;
             }
@@ -223,17 +264,17 @@
             if ((target.braceShield || 0) > 0) {
                 target.braceShield -= 1;
                 target.counterBonus = (target.counterBonus || 0) + 1;
-                addLog(`🛡️ ${target.cardName} 的蓄势护盾吸收1点鼠疫伤害`);
+                addLog(trText(`🛡️ ${target.cardName} 的蓄势护盾吸收1点鼠疫伤害`, `🛡️ ${target.cardName} of Brace Shield absorbs 1 Plague damage`));
                 continue;
             }
             // 护盾吸收（优先消耗外来护盾，再消耗自带护盾）
             if ((target.shieldValue || 0) > 0) {
                 const absorb = absorbUnitShield(target, 1);
-                addLog(`${target.cardName} 的护盾吸收1点鼠疫伤害（剩余护盾${target.shieldValue}）`);
+                addLog(trText(`${target.cardName} 的护盾吸收1点鼠疫伤害（剩余护盾${target.shieldValue}）`, `${target.cardName} of shield absorbs 1 Plague damage (left shield ${target.shieldValue} )`));
                 if (absorb.nativeBroken && target.cardName === "枷锁猎手") {
                     triggerChainedHunterImmunity(target);
-                    addLog(`${target.cardName} 自带护盾破碎！触发绝对免疫，移速+1，攻速+1！`);
-                    showToast(`🔓 ${target.cardName} 护盾破碎，绝对免疫！`);
+                    addLog(trText(`${target.cardName} 自带护盾破碎！触发绝对免疫，移速+1，攻速+1！`, `${target.cardName} innate shield breaks! triggers absolute immunity, Speed +1, Attack Count +1!`));
+                    showToast(trText(`🔓 ${target.cardName} 护盾破碎，绝对免疫！`, `🔓 ${target.cardName} shield breaks, absolute immunity!`));
                 }
                 continue;
             }
@@ -242,8 +283,8 @@
                 target.amuletUsed = true;
                 const currentTurn = gameState.turn;
                 target.absoluteImmunityTurns = (currentTurn === target.side) ? 3 : 2;
-                addLog(`🔮 ${target.cardName} 的护身符触发，免疫致命鼠疫伤害并进入绝对免疫状态！`);
-                showToast(`🔮 ${target.cardName} 护身符激活！`);
+                addLog(trText(`🔮 ${target.cardName} 的护身符触发，免疫致命鼠疫伤害并进入绝对免疫状态！`, `🔮 ${target.cardName} of Amulet triggers, immune lethal Plague damage and enters absolute immunity state!`));
+                showToast(trText(`🔮 ${target.cardName} 护身符激活！`, `🔮 ${target.cardName} Amulet activated!`));
                 continue;
             }
             // 绫罗护体：致命伤免疫并自动回绫罗
@@ -255,15 +296,15 @@
                     target.riluoRow = -1;
                     target.riluoCol = -1;
                     applyShaLinCellBinding(target);
-                    addLog(`🧵 ${target.cardName} 受致命鼠疫，绫罗护体，自动回到绫罗处`);
-                    showToast(`🧵 绫罗护体！`);
+                    addLog(trText(trText(`🧵 ${target.cardName} 受致命鼠疫，绫罗护体，自动回到绫罗处`, `🧵 ${target.cardName} takes lethal Plague, Ling Luo protection, automatically back to Ling Luo`), `🧵 ${target.cardName} takes lethal Plague, Ling Luo protection, automatically back to Ling Luo`));
+                    showToast(trText(`🧵 绫罗护体！`, `🧵 Ling Luo protection!`));
                     continue;
                 } else {
-                    addLog(`🧵 ${target.cardName} 无法回绫罗，绫罗护体失效`);
+                    addLog(trText(trText(`🧵 ${target.cardName} 无法回绫罗，绫罗护体失效`, `🧵 ${target.cardName} cannot recall Ling Luo, Ling Luo protection fails`), `🧵 ${target.cardName} cannot recall Ling Luo, Ling Luo protection fails`));
                 }
             }
             target.life = Math.max(0, target.life - 1);
-            addLog(`  ${target.cardName} 受到1点鼠疫伤害（剩余❤️${target.life}）`);
+            addLog(trText(`  ${target.cardName} 受到1点鼠疫伤害（剩余❤️${target.life}）`, `${target.cardName} takes 1 Plague damage (left ❤️ ${target.life} )`));
             if (target.life <= 0) removeUnit(target.id, target.row, target.col, target.side);
         }
     }
@@ -271,7 +312,7 @@
         const enemySide = unit.side === SIDE_PLAYER0 ? SIDE_PLAYER1 : SIDE_PLAYER0;
         // 只过滤存活真实单位（排除镜像幽灵与复活甲待复活尸体）
         let enemies = gameState.units.filter(u => u.col === col && u.side === enemySide && u.life > 0 && !u.isMirror);
-        if (enemies.length === 0) { addLog(`${unit.cardName} 死亡时本路无敌人，秒杀无效。`); return; }
+        if (enemies.length === 0) { addLog(trText(`${unit.cardName} 死亡时本路无敌人，秒杀无效。`, `${unit.cardName} on death its lane no enemies, execute invalid.`)); return; }
         enemies.sort((a,b) => a.row - b.row);
         const options = enemies.map((e, idx) => `${idx+1}. ${e.cardName} (❤️${e.life}) 位于 ${ROW_NAMES[e.row]} ${COLS[e.col]}`);
         options.push("❌ 不杀");
@@ -291,21 +332,21 @@
             return bestIdx;
         } });
         if (selectedIdx === -1 || selectedIdx === options.length-1) {
-            addLog(`放弃选择，未进行秒杀。`);
-            showToast(`🕊️ 放弃秒杀`);
+            addLog(trText(`放弃选择，未进行秒杀。`, `gave up the choice, did not proceed execute.`));
+            showToast(trText(`🕊️ 放弃秒杀`, `🕊️ gave up the execution`));
             return;
         }
         const target = enemies[selectedIdx];
-        addLog(`${unit.cardName} 的亡语：选择了 ${target.cardName} 作为秒杀目标。`);
+        addLog(trText(trText(`${unit.cardName} 的亡语：选择了 ${target.cardName} 作为秒杀目标。`, `${unit.cardName} of deathrattle: select ${target.cardName} as execute target.`), `${unit.cardName} of deathrattle: select ${target.cardName} as execute target.`));
         if (target.absoluteImmunityTurns > 0) {
-            addLog(`${target.cardName} 处于绝对免疫，免疫秒杀！`);
-            showToast(`🔒 绝对免疫，秒杀无效`);
+            addLog(trText(`${target.cardName} 处于绝对免疫，免疫秒杀！`, `${target.cardName} is in absolute immunity, immune to execution!`));
+            showToast(trText(`🔒 绝对免疫，秒杀无效`, `🔒 absolute immunity, execute invalid`));
             return;
         }
         // 无敌：免疫死亡，无敌结束后因秒杀死亡
         if (target.invincibleTurns > 0) {
-            addLog(`${target.cardName} 处于无敌状态，免疫秒杀！无敌结束后将死亡。`);
-            showToast(`🍺 ${target.cardName} 无敌免疫秒杀`);
+            addLog(trText(`${target.cardName} 处于无敌状态，免疫秒杀！无敌结束后将死亡。`, `${target.cardName} is in invincible state, immune to execution! invincible will died.`));
+            showToast(trText(`🍺 ${target.cardName} 无敌免疫秒杀`, `🍺 ${target.cardName} invincible immune to execution`));
             target.life = 1;
             target.pendingDeath = true;
             renderUI();
@@ -313,19 +354,19 @@
         }
         // 枷锁猎手：自带护盾未被击破时受到秒杀，先破盾触发绝对免疫
         if (target.cardName === "枷锁猎手" && (target.nativeShieldValue || 0) > 0) {
-            addLog(`${target.cardName} 自带护盾被秒杀击碎！触发绝对免疫！`);
+            addLog(trText(`${target.cardName} 自带护盾被秒杀击碎！触发绝对免疫！`, `${target.cardName} innate shield shattered by execution! triggers absolute immunity!`));
             target.nativeShieldValue = 0;
             recalcShieldValue(target);
             triggerChainedHunterImmunity(target);
-            showToast(`🔓 ${target.cardName} 护盾破碎，绝对免疫！`);
+            showToast(trText(`🔓 ${target.cardName} 护盾破碎，绝对免疫！`, `🔓 ${target.cardName} shield breaks, absolute immunity!`));
             renderUI();
             return;
         }
         // 麻木者被动：秒杀只掉1血
         if (target.cardName === "麻木者") {
             target.life = Math.max(0, target.life - 1);
-            addLog(`${target.cardName} 被秒杀，但被动使其只减少1点生命！`);
-            showToast(`💤 ${target.cardName} 只掉1血`);
+            addLog(trText(trText(`${target.cardName} 被秒杀，但被动使其只减少1点生命！`, `${target.cardName} was executed, but its passive reduces the loss to only 1 HP!`), `${target.cardName} was executed, but its passive reduces the loss to only 1 HP!`));
+            showToast(trText(`💤 ${target.cardName} 只掉1血`, `💤 ${target.cardName} only loses 1 HP`));
             if (target.life <= 0) { lastDamageDealer = { name: unit.cardName, side: unit.side }; removeUnit(target.id, target.row, target.col, target.side); }
         } else {
             if (tryRiluoLethalEscape(target)) return;
@@ -341,10 +382,10 @@
         if (!card || !card.onDeathPassive) return;
         if (card.onDeathPassive === "revive") {
             const isCastle = (deathSide === SIDE_PLAYER0 && deathRow === 4) || (deathSide === SIDE_PLAYER1 && deathRow === 0);
-            if (isCastle) { addLog(`${unit.cardName} 死于城池，无法复活。`); showToast(`🏰 ${unit.cardName} 无法复活`); return; }
+            if (isCastle) { addLog(trText(trText(`${unit.cardName} 死于城池，无法复活。`, `${unit.cardName} died at the castle, cannot revive.`), `${unit.cardName} died at the castle, cannot revive.`)); showToast(trText(`🏰 ${unit.cardName} 无法复活`, `🏰 ${unit.cardName} cannot revive`)); return; }
             const reviveRow = getOwnCastleRow(unit.side);
             const reviveCol = deathCol;
-            if (!canAddUnit(reviveRow, reviveCol, unit.side)) { addLog(`${unit.cardName} 复活失败：目标格子已有两个单位。`); return; }
+            if (!canAddUnit(reviveRow, reviveCol, unit.side)) { addLog(trText(`${unit.cardName} 复活失败：目标格子已有两个单位。`, `${unit.cardName} revive Defeat: target tile has two unit.`)); return; }
             const newUnit = {
                 id: Date.now() + Math.random(),
                 cardName: unit.cardName, side: unit.side, row: reviveRow, col: reviveCol, life: card.life, maxLife: card.life,
@@ -359,8 +400,8 @@
                 bartenderUseCount: 0, drunkardInvincibleUsed: false, bountyLevel: 0
             };
             addUnit(newUnit);
-            addLog(`${unit.cardName} 在己方城池复活！`);
-            showToast(`🔄 ${unit.cardName} 复活`);
+            addLog(trText(`${unit.cardName} 在己方城池复活！`, `${unit.cardName} at your castle revive!`));
+            showToast(trText(`🔄 ${unit.cardName} 复活`, `🔄 ${unit.cardName} revive`));
             // 复活时清除爱神绑定（如果 unit 之前被绑定）
             for (let u of gameState.units) {
                 if (u.cupidPair && u.cupidPair.partnerId === unit.id) {
@@ -371,8 +412,8 @@
             (async () => { try { await hunterExecute(unit, deathCol); } catch(e) { console.error('hunterExecute error:', e); } })();
         } else if (card.onDeathPassive === "reviveCat") {
             // 检查是否因爱神技能而死
-            if (unit.dyingFromAifei) { addLog(`${unit.cardName} 因爱神技能死亡，无法复活。`); return; }
-            if (unit.reviveTimesLeft <= 0) { addLog(`${unit.cardName} 复活次数已用完。`); return; }
+            if (unit.dyingFromAifei) { addLog(trText(`${unit.cardName} 因爱神技能死亡，无法复活。`, `${unit.cardName} due to Cupid skill died, cannot revive.`)); return; }
+            if (unit.reviveTimesLeft <= 0) { addLog(trText(`${unit.cardName} 复活次数已用完。`, `${unit.cardName} revive uses are exhausted.`)); return; }
             // 原地复活
             const newUnit = {
                 id: Date.now() + Math.random(),
@@ -389,9 +430,10 @@
                 scapegoatUsed: false, scapegoatProtectorId: null, feijiBonusGiven: 0, feizheBonusGiven: 0, flagBearerProtectTurn: 0, witchProtectReduce: 0, witchProtectorId: null,
                 bartenderUseCount: 0, drunkardInvincibleUsed: false, bountyLevel: 0
             };
+            if (unit._fromTestPanel) newUnit._fromTestPanel = true;
             gameState.units.push(newUnit);
-            addLog(`${unit.cardName} 原地复活！剩余复活次数 ${newUnit.reviveTimesLeft}`);
-            showToast(`🐱 ${unit.cardName} 复活（剩余${newUnit.reviveTimesLeft}次）`);
+            addLog(trText(`${unit.cardName} 原地复活！剩余复活次数 ${newUnit.reviveTimesLeft}`, `${unit.cardName} revives in place! left revive times ${newUnit.reviveTimesLeft}`));
+            showToast(trText(`🐱 ${unit.cardName} 复活（剩余${newUnit.reviveTimesLeft}次）`, `🐱 ${unit.cardName} revive (left ${newUnit.reviveTimesLeft} time)`));
             // 猫复活时清除爱神绑定
             for (let u of gameState.units) {
                 if (u.cupidPair && u.cupidPair.partnerId === unit.id) {
@@ -433,7 +475,7 @@
                 player.hand.splice(shieldIdx, 1);
                 if (gameState.selectedCardIdx === shieldIdx) gameState.selectedCardIdx = -1;
                 else if (gameState.selectedCardIdx > shieldIdx) gameState.selectedCardIdx--;
-                addLog(`🤖 AI 使用护盾抵挡对 ${targetUnit.cardName} 的 ${damageAmount} 点伤害`);
+                addLog(trText(trText(`🤖 AI 使用护盾抵挡对 ${targetUnit.cardName} 的 ${damageAmount} 点伤害`, `🤖 AI use shield blocks to ${targetUnit.cardName} of ${damageAmount} damage`), `🤖 AI use shield blocks to ${targetUnit.cardName} of ${damageAmount} damage`));
                 return true;
             }
             return false;
@@ -445,8 +487,8 @@
         if (useShield) {
             if (!infiniteManaEnabled) player.mana -= shield.cost;
             player.hand.splice(shieldIdx, 1);
-            addLog(`护盾从手牌中消耗（消耗 ${shield.cost} 费），抵挡了 ${damageAmount} 点伤害。`);
-            showToast(`🛡️ 护盾抵挡伤害（-${shield.cost}费）`);
+            addLog(trText(trText(`护盾从手牌中消耗（消耗 ${shield.cost} 费），抵挡了 ${damageAmount} 点伤害。`, `shield from hand costs (costs ${shield.cost} cost), blocks ${damageAmount} damage.`), `shield from hand costs (costs ${shield.cost} cost), blocks ${damageAmount} damage.`));
+            showToast(trText(`🛡️ 护盾抵挡伤害（-${shield.cost}费）`, `🛡️ shield block damage (- ${shield.cost} cost)`));
             if (gameState.selectedCardIdx === shieldIdx) gameState.selectedCardIdx = -1;
             else if (gameState.selectedCardIdx > shieldIdx) gameState.selectedCardIdx--;
             return true;
@@ -467,23 +509,23 @@
                 dmg -= reduced;
                 target.extraAttacks--;
                 target.attacksLeftThisTurn = Math.max(0, (target.attacksLeftThisTurn || 0) - 1);
-                addLog(`🤖 AI 血舞消耗1次额外攻速抵消 ${reduced} 点伤害`);
+                addLog(trText(trText(`🤖 AI 血舞消耗1次额外攻速抵消 ${reduced} 点伤害`, `🤖 AI Blood Dance costs 1 times extra Attack Count negates ${reduced} damage`), `🤖 AI Blood Dance costs 1 times extra Attack Count negates ${reduced} damage`));
             }
             target._yangDefendChecked = false;
             return dmg;
         }
         // 远程联机：防御决策方是被攻击方
         if (networkActive()) networkPromptSide = target.side;
-        const wantDefend = await showConfirm(`💃 血舞是否消耗1次额外攻速抵消最多2点伤害？（当前额外攻速${target.extraAttacks}）`, true); // forceShow: 防御提示必须向人类展示
+        const wantDefend = await showConfirm(trText(`💃 血舞是否消耗1次额外攻速抵消最多2点伤害？（当前额外攻速${target.extraAttacks}）`, `💃 Blood Dance Do you want to costs 1 times extra Attack Count negates up to 2 damage? (current extra Attack Count ${target.extraAttacks} )`), true); // forceShow: 防御提示必须向人类展示
         if (wantDefend) {
             const reduced = Math.min(dmg, 2);
             dmg -= reduced;
             target.extraAttacks--;
             target.attacksLeftThisTurn = Math.max(0, (target.attacksLeftThisTurn || 0) - 1);
-            addLog(`💃 血舞消耗1次额外攻速，抵消 ${reduced} 点伤害！剩余额外攻速 ${target.extraAttacks}`);
-            showToast(`💃 血舞抵消 ${reduced} 伤害`);
+            addLog(trText(trText(`💃 血舞消耗1次额外攻速，抵消 ${reduced} 点伤害！剩余额外攻速 ${target.extraAttacks}`, `💃 Blood Dance costs 1 times extra Attack Count, negates ${reduced} damage! left extra Attack Count ${target.extraAttacks}`), `💃 Blood Dance costs 1 times extra Attack Count, negates ${reduced} damage! left extra Attack Count ${target.extraAttacks}`));
+            showToast(trText(`💃 血舞抵消 ${reduced} 伤害`, `💃 Blood Dance negates ${reduced} damage`));
         } else {
-            addLog(`💃 血舞放弃使用防御`);
+            addLog(trText(`💃 血舞放弃使用防御`, `💃 Blood Dance chose not to use defense`));
         }
         // 重置标记，允许同一回合后续伤害再次触发询问
         target._yangDefendChecked = false;
@@ -557,19 +599,19 @@
         // 碎镜减伤
         if (actualTarget.pureSkyDamageReduction && !isUnblockable) {
             amount = Math.floor(amount * 0.7);
-            addLog(`🌌 ${actualTarget.cardName} 碎镜减伤，替伤伤害降至${amount}`);
+            addLog(trText(`🌌 ${actualTarget.cardName} 碎镜减伤，替伤伤害降至${amount}`, `🌌 ${actualTarget.cardName} Shattered Mirror damage reduction, redirected damage drops to ${amount}`));
             if (amount === 0) return { remaining: 0, blocked: true };
         }
         // 虚无之衣：生命上限>4时受伤-1
         if (actualTarget.equipmentId === 'voidCloak' && (actualTarget.maxLife || 0) > 4 && !isUnblockable) {
             amount = Math.max(0, amount - 1);
-            addLog(`🫥 ${actualTarget.cardName} 虚无之衣减伤1点（当前伤害${amount}）`);
+            addLog(trText(`🫥 ${actualTarget.cardName} 虚无之衣减伤1点（当前伤害${amount}）`, `🫥 ${actualTarget.cardName} Cloak of Void damage reduction 1 (current damage ${amount} )`));
             if (amount === 0) return { remaining: 0, blocked: true };
         }
         // 绝对免疫：替伤伤害也免疫
         if (actualTarget.absoluteImmunityTurns > 0) {
-            addLog(`${actualTarget.cardName} 处于绝对免疫状态，免疫替伤伤害！`);
-            showToast(`🔒 ${actualTarget.cardName} 绝对免疫`);
+            addLog(trText(`${actualTarget.cardName} 处于绝对免疫状态，免疫替伤伤害！`, `${actualTarget.cardName} is in absolute immunity state, immune redirected damage!`));
+            showToast(trText(`🔒 ${actualTarget.cardName} 绝对免疫`, `🔒 ${actualTarget.cardName} absolute immunity`));
             return { remaining: 0, blocked: true };
         }
         // 无敌：替伤伤害扣血但不会死亡
@@ -586,9 +628,9 @@
             if (actualTarget.life <= 0) {
                 actualTarget.life = 1;
                 actualTarget.pendingDeath = true;
-                addLog(`${actualTarget.cardName} 处于无敌状态，替伤伤害致命但暂不死亡，无敌结束后将死亡！`);
+                addLog(trText(`${actualTarget.cardName} 处于无敌状态，替伤伤害致命但暂不死亡，无敌结束后将死亡！`, `${actualTarget.cardName} is in invincible state, redirected damage lethal but temporarily not died, invincible will died!`));
             } else {
-                addLog(`${actualTarget.cardName} 处于无敌状态，替伤 ${amount} 伤害但不会死亡，当前生命 ${actualTarget.life}`);
+                addLog(trText(`${actualTarget.cardName} 处于无敌状态，替伤 ${amount} 伤害但不会死亡，当前生命 ${actualTarget.life}`, `${actualTarget.cardName} is in invincible state, redirected ${amount} damage but no will died, current HP ${actualTarget.life}`));
             }
             return { remaining: 0, blocked: true };
         }
@@ -598,7 +640,7 @@
             actualTarget.braceShield -= absorbed;
             amount -= absorbed;
             actualTarget.counterBonus = (actualTarget.counterBonus || 0) + absorbed;
-            addLog(`🛡️ ${actualTarget.cardName} 的蓄势护盾吸收 ${absorbed} 点替伤伤害，反击增伤 +${absorbed}（当前${actualTarget.counterBonus}）`);
+            addLog(trText(`🛡️ ${actualTarget.cardName} 的蓄势护盾吸收 ${absorbed} 点替伤伤害，反击增伤 +${absorbed}（当前${actualTarget.counterBonus}）`, `🛡️ ${actualTarget.cardName} of Brace Shield absorbs ${absorbed} point redirected damage, counter bonus damage + ${absorbed} (current ${actualTarget.counterBonus} )`));
             if (amount <= 0) {
                 showFloatText(actualTarget.row, actualTarget.col, '蓄势护盾', 'shield');
                 return { remaining: 0, blocked: true };
@@ -608,16 +650,16 @@
         if ((actualTarget.shieldValue || 0) > 0 && !isUnblockable) {
             const absorb = absorbUnitShield(actualTarget, amount);
             amount = absorb.remaining;
-            if (absorb.absorbedExternal > 0) addLog(`${actualTarget.cardName} 的外来护盾抵消了 ${absorb.absorbedExternal} 点替伤伤害`);
-            if (absorb.absorbedNative > 0) addLog(`${actualTarget.cardName} 的自带护盾抵消了 ${absorb.absorbedNative} 点替伤伤害`);
+            if (absorb.absorbedExternal > 0) addLog(trText(`${actualTarget.cardName} 的外来护盾抵消了 ${absorb.absorbedExternal} 点替伤伤害`, `${actualTarget.cardName} of external shield negates ${absorb.absorbedExternal} point redirected damage`));
+            if (absorb.absorbedNative > 0) addLog(trText(`${actualTarget.cardName} 的自带护盾抵消了 ${absorb.absorbedNative} 点替伤伤害`, `${actualTarget.cardName} of innate shield negates ${absorb.absorbedNative} point redirected damage`));
             if (absorb.absorbedExternal + absorb.absorbedNative > 0) {
-                addLog(`${actualTarget.cardName} 的护盾共抵消了 ${absorb.absorbedExternal + absorb.absorbedNative} 点替伤伤害（剩余护盾 ${actualTarget.shieldValue}）`);
+                addLog(trText(trText(`${actualTarget.cardName} 的护盾共抵消了 ${absorb.absorbedExternal + absorb.absorbedNative} 点替伤伤害（剩余护盾 ${actualTarget.shieldValue}）`, `${actualTarget.cardName}'s shields negated ${absorb.absorbedExternal + absorb.absorbedNative} redirected damage in total (shields left: ${actualTarget.shieldValue})`), `${actualTarget.cardName}'s shields negated ${absorb.absorbedExternal + absorb.absorbedNative} redirected damage in total (shields left: ${actualTarget.shieldValue})`));
             }
             // 枷锁猎手自带护盾破碎时，触发绝对免疫，忽略多余伤害
             if (absorb.nativeBroken && actualTarget.cardName === "枷锁猎手") {
                 triggerChainedHunterImmunity(actualTarget);
-                addLog(`${actualTarget.cardName} 自带护盾破碎！触发绝对免疫，移速+1，攻速+1！多余伤害忽略！`);
-                showToast(`🔓 ${actualTarget.cardName} 护盾破碎，绝对免疫！`);
+                addLog(trText(trText(`${actualTarget.cardName} 自带护盾破碎！触发绝对免疫，移速+1，攻速+1！多余伤害忽略！`, `${actualTarget.cardName}'s innate shield shattered! Absolute immunity triggered, Speed +1, Attack Count +1! Excess damage ignored!`), `${actualTarget.cardName}'s innate shield shattered! Absolute immunity triggered, Speed +1, Attack Count +1! Excess damage ignored!`));
+                showToast(trText(`🔓 ${actualTarget.cardName} 护盾破碎，绝对免疫！`, `🔓 ${actualTarget.cardName} shield breaks, absolute immunity!`));
                 return { remaining: 0, blocked: true };
             }
             if (amount <= 0) return { remaining: 0, blocked: true };
@@ -626,12 +668,12 @@
         if (effectiveDmgType === '🔮' && (actualTarget.magicShieldValue || 0) > 0 && !isUnblockable) {
             if (actualTarget.magicShieldValue >= amount) {
                 actualTarget.magicShieldValue -= amount;
-                addLog(`🧥 ${actualTarget.cardName} 的暗影纱抵消了 ${amount} 点替伤法术伤害`);
+                addLog(trText(`🧥 ${actualTarget.cardName} 的暗影纱抵消了 ${amount} 点替伤法术伤害`, `🧥 ${actualTarget.cardName} of Shadow Veil negates ${amount} point redirected magic damage`));
                 showFloatText(actualTarget.row, actualTarget.col, '法术护盾', 'shield');
                 return { remaining: 0, blocked: true };
             } else {
                 amount -= actualTarget.magicShieldValue;
-                addLog(`🧥 ${actualTarget.cardName} 的暗影纱抵消了 ${actualTarget.magicShieldValue} 点替伤法术伤害`);
+                addLog(trText(`🧥 ${actualTarget.cardName} 的暗影纱抵消了 ${actualTarget.magicShieldValue} 点替伤法术伤害`, `🧥 ${actualTarget.cardName} of Shadow Veil negates ${actualTarget.magicShieldValue} point redirected magic damage`));
                 actualTarget.magicShieldValue = 0;
             }
         }
@@ -655,14 +697,14 @@
         // 星痕之杖：法术伤害×1.5
         if (sourceEqId === 'starWand' && effectiveDmgType === '🔮') {
             amount = Math.ceil(amount * 1.5);
-            addLog(`✨ 星痕之杖：法术伤害提升至${amount}`);
+            addLog(trText(trText(`✨ 星痕之杖：法术伤害提升至${amount}`, `✨ Star-Trail Staff: magic damage boosted to ${amount}`), `✨ Star-Trail Staff: magic damage boosted to ${amount}`));
         }
         // 妖刀：对生命<=50%的敌方物伤×2
         if (sourceEqId === 'demonBlade' && effectiveDmgType === '⚔️') {
             const targetMaxLife = target.maxLife || (CARD_LIBRARY.find(c => c.name === target.cardName)?.life || target.life);
             if (target.life <= targetMaxLife * 0.5) {
                 amount *= 2;
-                addLog(`🗡️ 妖刀：目标生命≤50%，物理伤害翻倍至${amount}`);
+                addLog(trText(trText(`🗡️ 妖刀：目标生命≤50%，物理伤害翻倍至${amount}`, `🗡️ Demon Blade: target HP ≤50%, physical damage doubled to ${amount}`), `🗡️ Demon Blade: target HP ≤50%, physical damage doubled to ${amount}`));
             }
         }
         // 雷刃：每攻击2次触发
@@ -678,7 +720,7 @@
                         const rand = neighbors[Math.floor(Math.random() * neighbors.length)];
                         await applyDamageWithSource(rand, 1, sourceUnit, false, "🔮");
                     }
-                    addLog(`⚡ 雷刃触发`);
+                    addLog(trText(`⚡ 雷刃触发`, `⚡ Thunder Blade triggers`));
                 } finally {
                     sourceUnit._lightningTriggering = false;
                 }
@@ -687,19 +729,19 @@
         // 碎镜：受伤减少30%（真伤无视减伤）
         if (target.pureSkyDamageReduction && !isUnblockable) {
             amount = Math.floor(amount * 0.7);
-            if (amount === 0) { addLog(`🌌 ${target.cardName} 碎镜减伤，伤害降至0`); return; }
+            if (amount === 0) { addLog(trText(`🌌 ${target.cardName} 碎镜减伤，伤害降至0`, `🌌 ${target.cardName} Shattered Mirror damage reduction, damage drops to 0`)); return; }
         }
         // 虚无之衣：生命上限>4时，受到的物伤与法伤-1（真伤无视减伤）
         if (target.equipmentId === 'voidCloak' && (target.maxLife || 0) > 4 && !isUnblockable) {
             amount = Math.max(0, amount - 1);
-            addLog(`🫥 ${target.cardName} 虚无之衣减伤1点（当前伤害${amount}）`);
+            addLog(trText(`🫥 ${target.cardName} 虚无之衣减伤1点（当前伤害${amount}）`, `🫥 ${target.cardName} Cloak of Void damage reduction 1 (current damage ${amount} )`));
             if (amount === 0) return;
         }
 
         // 绝对免疫：免疫所有伤害和秒杀
         if (target.absoluteImmunityTurns > 0) {
-            addLog(`${target.cardName} 处于绝对免疫状态，完全免疫此次伤害！`);
-            showToast(`🔒 ${target.cardName} 绝对免疫`);
+            addLog(trText(`${target.cardName} 处于绝对免疫状态，完全免疫此次伤害！`, `${target.cardName} is in absolute immunity state, completely immune this time damage!`));
+            showToast(trText(`🔒 ${target.cardName} 绝对免疫`, `🔒 ${target.cardName} absolute immunity`));
             return;
         }
         if (target.invincibleTurns > 0) {
@@ -715,9 +757,9 @@
             if (target.life <= 0) {
                 target.life = 1;
                 target.pendingDeath = true;
-                addLog(`${target.cardName} 处于无敌状态，受到致命伤害但暂不死亡，无敌结束后将死亡！`);
+                addLog(trText(`${target.cardName} 处于无敌状态，受到致命伤害但暂不死亡，无敌结束后将死亡！`, `${target.cardName} is in invincible state, takes lethal damage but temporarily not died, invincible will died!`));
             } else {
-                addLog(`${target.cardName} 处于无敌状态，受到 ${amount} 伤害但不会死亡，当前生命 ${target.life}`);
+                addLog(trText(`${target.cardName} 处于无敌状态，受到 ${amount} 伤害但不会死亡，当前生命 ${target.life}`, `${target.cardName} is in invincible state, takes ${amount} damage but no will died, current HP ${target.life}`));
             }
             return;
         }
@@ -725,7 +767,7 @@
         // 注意：此处替伤尚未发生，目标就是 target（actualTarget 在第 773 行才声明，不可提前引用）
         if (target.shaLinBindTurn > 0) {
             amount += 1;
-            addLog(`🪞 ${target.cardName} 被纱琳定身，受到的伤害+1`);
+            addLog(trText(`🪞 ${target.cardName} 被纱琳定身，受到的伤害+1`, `🪞 ${target.cardName} rooted by Shalin, takes of damage +1`));
         }
         // ── 反击兵蓄势护盾：优先吸收，每吸收1点 → counterBonus+1 ──
         if ((target.braceShield || 0) > 0 && !isUnblockable) {
@@ -733,7 +775,7 @@
             target.braceShield -= absorbed;
             amount -= absorbed;
             target.counterBonus = (target.counterBonus || 0) + absorbed;
-            addLog(`🛡️ ${target.cardName} 的蓄势护盾吸收 ${absorbed} 点伤害，反击增伤 +${absorbed}（当前${target.counterBonus}）`);
+            addLog(trText(trText(`🛡️ ${target.cardName} 的蓄势护盾吸收 ${absorbed} 点伤害，反击增伤 +${absorbed}（当前${target.counterBonus}）`, `🛡️ ${target.cardName} of Brace Shield absorbs ${absorbed} damage, counter bonus damage + ${absorbed} (current ${target.counterBonus} )`), `🛡️ ${target.cardName} of Brace Shield absorbs ${absorbed} damage, counter bonus damage + ${absorbed} (current ${target.counterBonus} )`));
             if (amount <= 0) {
                 showFloatText(target.row, target.col, '蓄势护盾', 'shield');
                 return;
@@ -743,16 +785,16 @@
         if ((target.shieldValue || 0) > 0 && !isUnblockable) {
             const absorb = absorbUnitShield(target, amount);
             amount = absorb.remaining;
-            if (absorb.absorbedExternal > 0) addLog(`${target.cardName} 的外来护盾抵消了 ${absorb.absorbedExternal} 点伤害`);
-            if (absorb.absorbedNative > 0) addLog(`${target.cardName} 的自带护盾抵消了 ${absorb.absorbedNative} 点伤害`);
+            if (absorb.absorbedExternal > 0) addLog(trText(trText(`${target.cardName} 的外来护盾抵消了 ${absorb.absorbedExternal} 点伤害`, `${target.cardName} of external shield negates ${absorb.absorbedExternal} damage`), `${target.cardName} of external shield negates ${absorb.absorbedExternal} damage`));
+            if (absorb.absorbedNative > 0) addLog(trText(trText(`${target.cardName} 的自带护盾抵消了 ${absorb.absorbedNative} 点伤害`, `${target.cardName} of innate shield negates ${absorb.absorbedNative} damage`), `${target.cardName} of innate shield negates ${absorb.absorbedNative} damage`));
             if (absorb.absorbedExternal + absorb.absorbedNative > 0) {
-                addLog(`${target.cardName} 的护盾共抵消了 ${absorb.absorbedExternal + absorb.absorbedNative} 点伤害（剩余护盾 ${target.shieldValue}）`);
+                addLog(trText(trText(`${target.cardName} 的护盾共抵消了 ${absorb.absorbedExternal + absorb.absorbedNative} 点伤害（剩余护盾 ${target.shieldValue}）`, `${target.cardName}'s shields negated ${absorb.absorbedExternal + absorb.absorbedNative} damage in total (shields left: ${target.shieldValue})`), `${target.cardName}'s shields negated ${absorb.absorbedExternal + absorb.absorbedNative} damage in total (shields left: ${target.shieldValue})`));
             }
             // 枷锁猎手自带护盾破碎时，触发绝对免疫，忽略多余伤害
             if (absorb.nativeBroken && target.cardName === "枷锁猎手") {
                 triggerChainedHunterImmunity(target);
-                addLog(`${target.cardName} 自带护盾破碎！触发绝对免疫，移速+1，攻速+1！多余伤害忽略！`);
-                showToast(`🔓 ${target.cardName} 护盾破碎，绝对免疫！`);
+                addLog(trText(trText(`${target.cardName} 自带护盾破碎！触发绝对免疫，移速+1，攻速+1！多余伤害忽略！`, `${target.cardName}'s innate shield shattered! Absolute immunity triggered, Speed +1, Attack Count +1! Excess damage ignored!`), `${target.cardName}'s innate shield shattered! Absolute immunity triggered, Speed +1, Attack Count +1! Excess damage ignored!`));
+                showToast(trText(`🔓 ${target.cardName} 护盾破碎，绝对免疫！`, `🔓 ${target.cardName} shield breaks, absolute immunity!`));
                 return;
             }
             if (amount <= 0) return;
@@ -761,12 +803,12 @@
         if (effectiveDmgType === '🔮' && (target.magicShieldValue || 0) > 0 && !isUnblockable) {
             if (target.magicShieldValue >= amount) {
                 target.magicShieldValue -= amount;
-                addLog(`🧥 ${target.cardName} 的暗影纱抵消了 ${amount} 点法术伤害`);
+                addLog(trText(`🧥 ${target.cardName} 的暗影纱抵消了 ${amount} 点法术伤害`, `🧥 ${target.cardName} of Shadow Veil negates ${amount} point magic damage`));
                 showFloatText(target.row, target.col, '法术护盾', 'shield');
                 return;
             } else {
                 amount -= target.magicShieldValue;
-                addLog(`🧥 ${target.cardName} 的暗影纱抵消了 ${target.magicShieldValue} 点法术伤害`);
+                addLog(trText(`🧥 ${target.cardName} 的暗影纱抵消了 ${target.magicShieldValue} 点法术伤害`, `🧥 ${target.cardName} of Shadow Veil negates ${target.magicShieldValue} point magic damage`));
                 target.magicShieldValue = 0;
             }
         }
@@ -783,20 +825,20 @@
             target._yangDefendChecked = false;
             // 旗手庇护：在守卫替伤之前检查原目标，免疫则不需要守卫替伤
             if (target.flagBearerProtectTurn > 0 && effectiveDmgType === "⚔️") {
-                addLog(`🚩 旗手庇护：${target.cardName} 免疫物伤！`);
+                addLog(trText(`🚩 旗手庇护：${target.cardName} 免疫物伤！`, `🚩 Banner Bearer shelter: ${target.cardName} immune physical damage!`));
                 return;
             }
             let guard = findGuardToAbsorb(target, amount);
             if (guard) {
                 actualTarget = guard;
-                addLog(`${target.cardName} 受到伤害，由同行的守卫 ${guard.cardName} 代为承受！`);
-                showToast(`🛡️ 守卫替伤`);
+                addLog(trText(trText(`${target.cardName} 受到伤害，由同行的守卫 ${guard.cardName} 代为承受！`, `${target.cardName} takes damage, by the Guard in the same row Guard ${guard.cardName} suffers instead!`), `${target.cardName} takes damage, by the Guard in the same row Guard ${guard.cardName} suffers instead!`));
+                showToast(trText(`🛡️ 守卫替伤`, `🛡️ Guard redirected`));
             } else {
                 let shieldGuard = findShieldGuardToAbsorb(target, amount);
                 if (shieldGuard) {
                     actualTarget = shieldGuard;
-                    addLog(`${target.cardName} 受到伤害，由同列的盾兵 ${shieldGuard.cardName} 代为承受！`);
-                    showToast(`🛡️ 盾兵替伤`);
+                    addLog(trText(trText(`${target.cardName} 受到伤害，由同列的盾兵 ${shieldGuard.cardName} 代为承受！`, `${target.cardName} takes damage, by the Shieldman in the same column Shieldman ${shieldGuard.cardName} suffers instead!`), `${target.cardName} takes damage, by the Shieldman in the same column Shieldman ${shieldGuard.cardName} suffers instead!`));
+                    showToast(trText(`🛡️ 盾兵替伤`, `🛡️ Shieldman redirected`));
                 }
             }
             // ── 替伤者自身防御结算：其护盾/减伤/免疫/无敌正常生效（不再直接扣生命） ──
@@ -812,30 +854,30 @@
             if (reduce > 0) {
                 amount -= reduce;
                 if (amount <= 0) {
-                    addLog(`${actualTarget.cardName} 受到爱妃庇护，法术伤害被完全减免！`);
-                    showToast(`💜 爱妃庇护 · 伤害全免`);
+                    addLog(trText(`${actualTarget.cardName} 受到爱妃庇护，法术伤害被完全减免！`, `${actualTarget.cardName} takes Consort shelter, magic damage completely negated!`));
+                    showToast(trText(`💜 爱妃庇护 · 伤害全免`, `💜 Consort shelter · damage full immunity`));
                     return;
                 }
-                addLog(`${actualTarget.cardName} 受到爱妃庇护，法术伤害减免 ${reduce} 点`);
+                addLog(trText(`${actualTarget.cardName} 受到爱妃庇护，法术伤害减免 ${reduce} 点`, `${actualTarget.cardName} takes Consort shelter, magic damage reduction ${reduce} point`));
             }
             // 魔女自身法伤-3
-            if (actualTarget.cardName === "魔女") { amount = Math.max(0, amount - 3); addLog(`🔮 魔女自身法伤-3`); }
+            if (actualTarget.cardName === "魔女") { amount = Math.max(0, amount - 3); addLog(trText(`🔮 魔女自身法伤-3`, `🔮 Witch itself magic damage -3`)); }
             // 魔女庇护：周围友方本回合受法伤-witchProtectReduce
-            if (actualTarget.witchProtectReduce > 0) { amount = Math.max(0, amount - actualTarget.witchProtectReduce); addLog(`🔮 魔女庇护：${actualTarget.cardName} 受法伤-${actualTarget.witchProtectReduce}`); }
+            if (actualTarget.witchProtectReduce > 0) { amount = Math.max(0, amount - actualTarget.witchProtectReduce); addLog(trText(`🔮 魔女庇护：${actualTarget.cardName} 受法伤-${actualTarget.witchProtectReduce}`, `🔮 Witch shelter: ${actualTarget.cardName} takes magic damage - ${actualTarget.witchProtectReduce}`)); }
             // 法伤减免后伤害为0则提前返回
             if (amount <= 0) {
-                addLog(`${actualTarget.cardName} 的法术减伤使伤害完全抵消！`);
+                addLog(trText(`${actualTarget.cardName} 的法术减伤使伤害完全抵消！`, `${actualTarget.cardName} of magic damage reduction fully negates the damage!`));
                 return;
             }
         }
         // 旗手庇护：免疫物伤
         if (actualTarget.flagBearerProtectTurn > 0 && effectiveDmgType === "⚔️") {
-            addLog(`🚩 旗手庇护：${actualTarget.cardName} 免疫物伤！`);
+            addLog(trText(`🚩 旗手庇护：${actualTarget.cardName} 免疫物伤！`, `🚩 Banner Bearer shelter: ${actualTarget.cardName} immune physical damage!`));
             return;
         }
         // 麻木者被动：每次受伤只减1点生命（必须在替罪羊检查之前，否则减伤后不致命但替罪羊错误替死）
         if (actualTarget.cardName === "麻木者" && amount > 1) {
-            addLog(`${actualTarget.cardName} 承受伤害，但被动使其只减少1点生命`);
+            addLog(trText(trText(`${actualTarget.cardName} 承受伤害，但被动使其只减少1点生命`, `${actualTarget.cardName} takes damage, but its passive reduces the loss to only 1 HP`), `${actualTarget.cardName} takes damage, but its passive reduces the loss to only 1 HP`));
             amount = 1;
         }
         // 替罪羊替死：检查场上是否有 scapegoat 绑定了 actualTarget（使用最终伤害判断是否致命）
@@ -843,8 +885,8 @@
         if (!effectiveUnblockable && actualTarget.life - amount <= 0) {
             const scapeGoat = actualTarget.scapegoatProtectorId ? gameState.units.find(u => u.id === actualTarget.scapegoatProtectorId && u.cardName === "替罪羊" && u.life > 0) : null;
             if (scapeGoat) {
-                addLog(`🐑 替罪羊代替 ${actualTarget.cardName} 承受了致死伤害！`);
-                showToast(`🐑 替死！`);
+                addLog(trText(`🐑 替罪羊代替 ${actualTarget.cardName} 承受了致死伤害！`, `🐑 Scapegoat instead of ${actualTarget.cardName} took lethal damage!`));
+                showToast(trText(`🐑 替死！`, `🐑 take the fall!`));
                 scapeGoat.life = 0;
                 actualTarget.scapegoatProtectorId = null;
                 removeUnit(scapeGoat.id, scapeGoat.row, scapeGoat.col, scapeGoat.side);
@@ -856,8 +898,8 @@
             actualTarget.amuletUsed = true;
             const currentTurn = gameState.turn;
             actualTarget.absoluteImmunityTurns = (currentTurn === actualTarget.side) ? 3 : 2;
-            addLog(`🔮 ${actualTarget.cardName} 的护身符触发，免疫致命伤害并进入绝对免疫状态！`);
-            showToast(`🔮 ${actualTarget.cardName} 护身符激活！`);
+            addLog(trText(`🔮 ${actualTarget.cardName} 的护身符触发，免疫致命伤害并进入绝对免疫状态！`, `🔮 ${actualTarget.cardName} of Amulet triggers, immune lethal damage and enters absolute immunity state!`));
+            showToast(trText(`🔮 ${actualTarget.cardName} 护身符激活！`, `🔮 ${actualTarget.cardName} Amulet activated!`));
             showFloatText(actualTarget.row, actualTarget.col, '护身符', 'shield');
             flashCellHit(actualTarget.row, actualTarget.col);
             if (source) {
@@ -871,7 +913,7 @@
         // 绫罗：敌方回合受致命伤时免疫并自动回绫罗（真伤/必中等不可阻挡伤害不触发）
         if (actualTarget.cardName === "绫罗" && actualTarget.riluoPlaced && !effectiveUnblockable && actualTarget.life - amount <= 0 && gameState.turn !== actualTarget.side) {
             if (!canRiluoReturn(actualTarget)) {
-                addLog(`🧵 ${actualTarget.cardName} 无法回绫罗，绫罗护体失效`);
+                addLog(trText(trText(`🧵 ${actualTarget.cardName} 无法回绫罗，绫罗护体失效`, `🧵 ${actualTarget.cardName} cannot recall Ling Luo, Ling Luo protection fails`), `🧵 ${actualTarget.cardName} cannot recall Ling Luo, Ling Luo protection fails`));
             } else {
                 actualTarget.row = actualTarget.riluoRow;
                 actualTarget.col = actualTarget.riluoCol;
@@ -879,8 +921,8 @@
                 actualTarget.riluoRow = -1;
                 actualTarget.riluoCol = -1;
                 applyShaLinCellBinding(actualTarget);
-                addLog(`🧵 ${actualTarget.cardName} 受致命伤，绫罗护体，自动回到绫罗处`);
-                showToast(`🧵 绫罗护体！`);
+                addLog(trText(trText(`🧵 ${actualTarget.cardName} 受致命伤，绫罗护体，自动回到绫罗处`, `🧵 ${actualTarget.cardName} takes lethal damage, Ling Luo protection, automatically back to Ling Luo`), `🧵 ${actualTarget.cardName} takes lethal damage, Ling Luo protection, automatically back to Ling Luo`));
+                showToast(trText(`🧵 绫罗护体！`, `🧵 Ling Luo protection!`));
                 showFloatText(actualTarget.row, actualTarget.col, '绫罗护体', 'shield');
                 flashCellHit(actualTarget.row, actualTarget.col);
                 if (source) {
@@ -895,12 +937,12 @@
         // 号角恢复记录（使用最终伤害金额，护身符/绫罗已免伤的不再记录）
         if (actualTarget.hornRecoveryTurns > 0) {
             actualTarget.hornPendingHeal = (actualTarget.hornPendingHeal || 0) + amount;
-            addLog(`${actualTarget.cardName} 号角庇护记录 ${amount} 点伤害，下个友方回合将恢复一半`);
+            addLog(trText(trText(`${actualTarget.cardName} 号角庇护记录 ${amount} 点伤害，下个友方回合将恢复一半`, `${actualTarget.cardName} Horn's shelter records ${amount} damage, will recover next ally turn half`), `${actualTarget.cardName} Horn's shelter records ${amount} damage, will recover next ally turn half`));
         }
         // 凝血之刃：攻击后目标永久禁疗
         if (sourceEqId === 'coagulationBlade' && !(source && source.fromSkill) && amount > 0) {
             actualTarget.noHeal = true;
-            addLog(`🩸 ${actualTarget.cardName} 被凝血之刃命中，永久无法回血`);
+            addLog(trText(`🩸 ${actualTarget.cardName} 被凝血之刃命中，永久无法回血`, `🩸 ${actualTarget.cardName} hit by Bloodclot Blade hits, permanently cannot heal`));
         }
         // 甘泉：敌方回合受伤标记（用于下个我方回合判断是否回血）
         if (actualTarget.equipmentId === 'sweetSpring' && gameState.turn !== actualTarget.side && amount > 0) {
@@ -910,10 +952,10 @@
         if (actualTarget.isAssimilator) {
             gameState.assimilatorHp[actualTarget.side] = Math.max(0, gameState.assimilatorHp[actualTarget.side] - amount);
             syncAssimilators(actualTarget.side);
-            addLog(`🧬 同化者 ${actualTarget.cardName} 受到 ${amount} 伤害，共享生命 ${gameState.assimilatorHp[actualTarget.side]}`);
+            addLog(trText(`🧬 同化者 ${actualTarget.cardName} 受到 ${amount} 伤害，共享生命 ${gameState.assimilatorHp[actualTarget.side]}`, `🧬 Assimilator ${actualTarget.cardName} takes ${amount} damage, shared HP ${gameState.assimilatorHp[actualTarget.side]}`));
         } else {
             actualTarget.life -= amount;
-            addLog(`${actualTarget.cardName} 受到 ${amount} 伤害，剩余生命 ${actualTarget.life}`);
+            addLog(trText(`${actualTarget.cardName} 受到 ${amount} 伤害，剩余生命 ${actualTarget.life}`, `${actualTarget.cardName} takes ${amount} damage, left HP ${actualTarget.life}`));
         }
         // 战斗反馈：浮动伤害数字 + 受击闪白 + 攻击路径
         if (amount > 0) {
@@ -959,11 +1001,11 @@
                     // 同化者：吸血回复加到共享生命池
                     gameState.assimilatorHp[sourceUnit.side] = Math.min(gameState.assimilatorHp[sourceUnit.side] + heal, gameState.assimilatorMaxHp[sourceUnit.side]);
                     syncAssimilators(sourceUnit.side);
-                    addLog(`💍 血魔指环：同化者共享生命回复 ${heal} 点`);
+                    addLog(trText(`💍 血魔指环：同化者共享生命回复 ${heal} 点`, `💍 Blood Demon Ring: Assimilator shared HP recovers ${heal} point`));
                 } else {
                     const sourceMaxLife = sourceUnit.maxLife || (CARD_LIBRARY.find(c => c.name === sourceUnit.cardName)?.life || sourceUnit.life);
                     sourceUnit.life = Math.min(sourceUnit.life + heal, sourceMaxLife);
-                    addLog(`💍 血魔指环：${sourceUnit.cardName} 回复 ${heal} 点生命`);
+                    addLog(trText(trText(`💍 血魔指环：${sourceUnit.cardName} 回复 ${heal} 点生命`, `💍 Blood Demon Ring: ${sourceUnit.cardName} recovers ${heal} HP`), `💍 Blood Demon Ring: ${sourceUnit.cardName} recovers ${heal} HP`));
                 }
                 showFloatText(sourceUnit.row, sourceUnit.col, '+' + heal, 'heal');
             }
@@ -993,15 +1035,15 @@
         if (sourceEqId === 'iceGrip' && sourceUnit && !sourceUnit.iceGripUsed && actualTarget.life > 0 && amount > 0 && !source.fromSkill) {
             actualTarget.stun = 2;
             sourceUnit._iceGripPendingConsume = true;
-            addLog(`❄️ ${actualTarget.cardName} 被霜痕冰冻！`);
-            showToast(`❄️ 冰冻 ${actualTarget.cardName}`);
+            addLog(trText(`❄️ ${actualTarget.cardName} 被霜痕冰冻！`, `❄️ ${actualTarget.cardName} frozen by Frost Mark freeze!`));
+            showToast(trText(`❄️ 冰冻 ${actualTarget.cardName}`, `❄️ freeze ${actualTarget.cardName}`));
         }
         // 费者被动：攻击一次加1费
         if (source && source.cardName === "费者" && source.attacksLeftThisTurn !== undefined && !infiniteManaEnabled) {
             const newMana = Math.min(gameState.players[source.side].manaMax, gameState.players[source.side].mana + 1);
             if (newMana !== gameState.players[source.side].mana) {
                 gameState.players[source.side].mana = newMana;
-                addLog(`💰 费者攻击加费 +1`);
+                addLog(trText(`💰 费者攻击加费 +1`, `💰 Mana Spender attack mana gain +1`));
             }
         }
     }
@@ -1011,8 +1053,8 @@
 
     // 镜中人普通攻击：自身格+上下左右4格AOE（可空放），镜像对称再打一次
     async function performMirrorPersonAttack(unit, targetRow, targetCol) {
-        if (unit.stun > 0) { showToast(`${unit.cardName} 眩晕无法攻击`); return false; }
-        if (unit.attacksLeftThisTurn <= 0) { showToast(`${unit.cardName} 已经攻击过`); return false; }
+        if (unit.stun > 0) { showToast(trText(`${unit.cardName} 眩晕无法攻击`, `${unit.cardName} stun cannot attack`)); return false; }
+        if (unit.attacksLeftThisTurn <= 0) { showToast(trText(trText(`${unit.cardName} 已经攻击过`, `${unit.cardName} has already attacked`), `${unit.cardName} has already attacked`)); return false; }
         // 苍鹰之羽：每回合第一次普通攻击必中
         unit._guaranteedAttack = false;
         if (unit.equipmentId === 'eagleFeather' && !unit.eagleFeatherFirstAttackUsed) {
@@ -1041,9 +1083,9 @@
                 await applyDamageWithSource(t, dmg, unit);
                 if (!gameState.attackedEnemyIds.includes(t.id)) gameState.attackedEnemyIds.push(t.id);
             }
-            addLog(`${unit.cardName} 本体命中${targets.length}人，镜像命中${mTargets.length}人`);
+            addLog(trText(`${unit.cardName} 本体命中${targets.length}人，镜像命中${mTargets.length}人`, `${unit.cardName} base hits ${targets.length} , mirror hits ${mTargets.length}`));
         } else {
-            addLog(`${unit.cardName} 攻击命中${targets.length}个敌人`);
+            addLog(trText(`${unit.cardName} 攻击命中${targets.length}个敌人`, `${unit.cardName} attack hits ${targets.length} enemy`));
         }
         unit.attacksLeftThisTurn--;
         renderUI();
@@ -1053,8 +1095,8 @@
     // 镜中人换位：与镜像互换，路径敌人受1物伤，本体+1血
     async function performMirrorSwap(unit) {
         const mirror = getMirrorOf(unit);
-        if (!mirror) { showToast(`没有镜像`); return false; }
-        if (unit.mirrorSwappedThisTurn) { showToast(`本回合已换位`); return false; }
+        if (!mirror) { showToast(trText(`没有镜像`, `no mirror`)); return false; }
+        if (unit.mirrorSwappedThisTurn) { showToast(trText(`本回合已换位`, `this turn swap positions`)); return false; }
         const oldSelfRow = unit.row, oldSelfCol = unit.col;
         const oldMirrorRow = mirror.row, oldMirrorCol = mirror.col;
         const minRow = Math.min(oldSelfRow, oldMirrorRow);
@@ -1076,14 +1118,14 @@
         const maxLife = unit.maxLife || (CARD_LIBRARY.find(c => c.name === unit.cardName)?.life || unit.life);
         if (unit.life < maxLife && !unit.noHeal) {
             unit.life = Math.min(unit.life + 1, maxLife);
-            addLog(`❤️ ${unit.cardName} 换位回复1点生命（当前${unit.life}）`);
+            addLog(trText(`❤️ ${unit.cardName} 换位回复1点生命（当前${unit.life}）`, `❤️ ${unit.cardName} swap positions recovers 1 HP (current ${unit.life} )`));
         } else if (unit.life < maxLife && unit.noHeal) {
-            addLog(`🩸 ${unit.cardName} 处于禁疗状态，换位无法回血`);
+            addLog(trText(trText(`🩸 ${unit.cardName} 处于禁疗状态，换位无法回血`, `🩸 ${unit.cardName} is in heal block state, swap positions cannot heal`), `🩸 ${unit.cardName} is in heal block state, swap positions cannot heal`));
         }
         unit.mirrorSwappedThisTurn = true;
         applyShaLinCellBinding(unit);
-        addLog(`🪞 ${unit.cardName} 与镜像互换位置`);
-        showToast(`🪞 换位！`);
+        addLog(trText(`🪞 ${unit.cardName} 与镜像互换位置`, `🪞 ${unit.cardName} with mirror swap position`));
+        showToast(trText(`🪞 换位！`, `🪞 swap positions!`));
         recheckAllWeaponSmithBuffs();
         renderUI();
         return true;
@@ -1131,8 +1173,8 @@
             if (targetUnit && validTaunters.some(t => t.id === targetUnit.id)) return targetUnit;
             else {
                 const forcedTarget = validTaunters[0];
-                addLog(`显眼包 ${forcedTarget.cardName} 强制成为攻击目标！`);
-                showToast(`🎭 嘲讽!`);
+                addLog(trText(trText(`显眼包 ${forcedTarget.cardName} 强制成为攻击目标！`, `Showboat ${forcedTarget.cardName} forced to become attack target!`), `Showboat ${forcedTarget.cardName} forced to become attack target!`));
+                showToast(trText(`🎭 嘲讽!`, `🎭 taunt!`));
                 return forcedTarget;
             }
         }
@@ -1148,8 +1190,8 @@
                 const validTaunters = taunters.filter(t => validTargets.some(v => v.id === t.id));
                 if (validTaunters.length > 0) {
                     const forcedTarget = validTaunters[0];
-                    addLog(`显眼包 ${forcedTarget.cardName} 强制成为技能目标！`);
-                    showToast(`🎭 嘲讽!`);
+                    addLog(trText(trText(`显眼包 ${forcedTarget.cardName} 强制成为技能目标！`, `Showboat ${forcedTarget.cardName} forced to become skill target!`), `Showboat ${forcedTarget.cardName} forced to become skill target!`));
+                    showToast(trText(`🎭 嘲讽!`, `🎭 taunt!`));
                     return forcedTarget;
                 }
             }
@@ -1177,7 +1219,12 @@
             attacker._iceGripPendingConsume = false;
         }
         // 机车党：蓄力中无法攻击
-        if (attacker.motCharging) { showToast(`🏍️ ${attacker.cardName} 蓄力中无法攻击`); return false; }
+        if (attacker.motCharging) { showToast(trText(`🏍️ ${attacker.cardName} 蓄力中无法攻击`, `🏍️ ${attacker.cardName} while charging cannot attack`)); return false; }
+        // 炽炎射手：蓄力中无法攻击
+        if (attacker.blazeCharging) { showToast(trText(`🔥 ${attacker.cardName} 蓄力中无法攻击`, `🔥 ${attacker.cardName} while charging cannot attack`)); return false; }
+        // 琴魔：蓄力中或蓄力完成回合无法攻击
+        if (attacker.qinmoCharging) { showToast(trText(`🎵 ${attacker.cardName} 蓄力中无法攻击`, `🎵 ${attacker.cardName} while charging cannot attack`)); return false; }
+        if (attacker.qinmoReleaseTurn) { showToast(trText(`🎵 ${attacker.cardName} 蓄力完成回合无法攻击`, `🎵 ${attacker.cardName} charge complete turn cannot attack`)); return false; }
         // 重置雷刃本回合（本次攻击）触发标记
         attacker._lightningTriggered = false;
         // 苍鹰之羽：每回合第一次普通攻击必中
@@ -1187,49 +1234,51 @@
             attacker.eagleFeatherFirstAttackUsed = true;
         }
         // 检查弱化效果：造成的伤害无效（整个回合内所有攻击都无效，回合结束时才清除）
-        if (attacker.weakenedTurns > 0) {
-            addLog(`${attacker.cardName} 被弱化，本回合造成的伤害无效！`);
-            showToast(`📉 ${attacker.cardName} 伤害无效`);
+        // 注意：被弱化不代表不能进行蓄力（斧兵/弩手/重斧兵/双剑仍可触发蓄力）
+        const isChargeTriggerUnit = ["斧兵", "弩手", "重斧兵", "双剑"].includes(attacker.cardName);
+        if (attacker.weakenedTurns > 0 && !isChargeTriggerUnit) {
+            addLog(trText(`${attacker.cardName} 被弱化，本回合造成的伤害无效！`, `${attacker.cardName} was weakened, this turn deals of damage is negated!`));
+            showToast(trText(`📉 ${attacker.cardName} 伤害无效`, `📉 ${attacker.cardName} damage is negated`));
             attacker.attacksLeftThisTurn--;
             renderUI();
             return false;
         }
         // 标枪手：有强化普攻时不能普通攻击，必须使用突刺
         if (attacker.cardName === "标枪手" && (attacker.spearmanCharges || 0) > 0) {
-            showToast(`🔱 ${attacker.cardName} 有强化普攻，请使用突刺`);
+            showToast(trText(trText(`🔱 ${attacker.cardName} 有强化普攻，请使用突刺`, `🔱 ${attacker.cardName} has empower basic attack, please use thrust`), `🔱 ${attacker.cardName} has empower basic attack, please use thrust`));
             return false;
         }
         if (attacker.cardName === "大力士") {
             return performHerculesAttack(attacker, targetUnit);
         }
         if (attacker.cardName === "掠影") {
-            if (attacker.stun > 0) { showToast(`${attacker.cardName} 眩晕无法攻击`); return false; }
-            if (attacker.attacksLeftThisTurn <= 0) { showToast(`${attacker.cardName} 已经攻击过`); return false; }
+            if (attacker.stun > 0) { showToast(trText(`${attacker.cardName} 眩晕无法攻击`, `${attacker.cardName} stun cannot attack`)); return false; }
+            if (attacker.attacksLeftThisTurn <= 0) { showToast(trText(trText(`${attacker.cardName} 已经攻击过`, `${attacker.cardName} has already attacked`), `${attacker.cardName} has already attacked`)); return false; }
             let actualTarget = enforceAttackTarget(attacker, targetUnit);
-            if (actualTarget.side === attacker.side) { showToast(`只能攻击敌方单位`); return false; }
+            if (actualTarget.side === attacker.side) { showToast(trText(`只能攻击敌方单位`, `can only attack enemy unit`)); return false; }
             const forward = getForwardDelta(attacker.side);
             let distance = (actualTarget.row - attacker.row) * forward;
-            if (distance < 0 || distance > attacker.range) { showToast(`攻击距离不够 (范围${attacker.range})`); return false; }
-            if (actualTarget.col !== attacker.col) { showToast(`只能攻击本列敌人`); return false; }
+            if (distance < 0 || distance > attacker.range) { showToast(trText(`攻击距离不够 (范围${attacker.range})`, `attack out of range (range ${attacker.range} )`)); return false; }
+            if (actualTarget.col !== attacker.col) { showToast(trText(`只能攻击本列敌人`, `can only attack this column enemy`)); return false; }
             // 不可攻击敌方城池及其内的敌方
             const enemyBaseRow = attacker.side === SIDE_PLAYER0 ? 0 : 4;
-            if (actualTarget.row === enemyBaseRow) { showToast(`掠影不可攻击敌方城池及其内的敌方`); return false; }
+            if (actualTarget.row === enemyBaseRow) { showToast(trText(`掠影不可攻击敌方城池及其内的敌方`, `Passing Shadow cannot attack enemy castle and its within of enemy`)); return false; }
             // 先确认目标格有敌人（位移前检查原目标格或同格）
             const targetRow = actualTarget.row, targetCol = actualTarget.col;
             const isSameCell = attacker.row === targetRow && attacker.col === targetCol;
             const enemiesAtTarget = getUnitsAt(targetRow, targetCol).filter(u => u.side !== attacker.side);
-            if (enemiesAtTarget.length === 0) { showToast(`目标位置没有敌方单位`); return false; }
+            if (enemiesAtTarget.length === 0) { showToast(trText(`目标位置没有敌方单位`, `target position no enemy unit`)); return false; }
             // 位移到目标格（已在同格则不动），需检查目标格友方上限
             if (!isSameCell) {
                 if (attacker.shaLinBindTurn > 0) {
-                    addLog(`🪞 ${attacker.cardName} 被定身，无法位移至目标格，但仍可攻击`);
+                    addLog(trText(trText(`🪞 ${attacker.cardName} 被定身，无法位移至目标格，但仍可攻击`, `🪞 ${attacker.cardName} was rooted, cannot displace to target tile, but can still attack`), `🪞 ${attacker.cardName} was rooted, cannot displace to target tile, but can still attack`));
                 } else {
                     if (!canAddUnit(targetRow, targetCol, attacker.side)) {
-                        showToast(`目标格已有2个我方单位，无法位移`); return false;
+                        showToast(trText(`目标格已有2个我方单位，无法位移`, `target tile has 2 your side unit, cannot displace`)); return false;
                     }
                     attacker.row = targetRow;
                     attacker.col = targetCol;
-                    addLog(`🗡️ ${attacker.cardName} 位移至 ${ROW_NAMES[targetRow]}${COLS[targetCol]}`);
+                    addLog(trText(`🗡️ ${attacker.cardName} 位移至 ${ROW_NAMES[targetRow]}${COLS[targetCol]}`, `🗡️ ${attacker.cardName} displace to ${ROW_NAMES[targetRow]} ${COLS[targetCol]}`));
                     applyShaLinCellBinding(attacker);
                 }
             }
@@ -1237,7 +1286,7 @@
             const aoeRow = isSameCell || attacker.shaLinBindTurn <= 0 ? attacker.row : targetRow;
             const aoeCol = isSameCell || attacker.shaLinBindTurn <= 0 ? attacker.col : targetCol;
             const allTargets = getUnitsAt(aoeRow, aoeCol).filter(u => u.side !== attacker.side);
-            if (allTargets.length === 0) { showToast(`目标格没有敌方单位`); return false; }
+            if (allTargets.length === 0) { showToast(trText(`目标格没有敌方单位`, `target tile no enemy unit`)); return false; }
             // 循环外计算一次性加成（掠影自身伤害计算后叠加）
             let baseBonus = 0;
             if (attacker.tempAttackBonus > 0 && canApplyBonus(attacker, 'physical')) baseBonus += attacker.tempAttackBonus;
@@ -1259,31 +1308,31 @@
                 dmg += baseBonus;
                 // nextAttackDouble：翻倍最终总伤害
                 if (shouldDouble) dmg *= 2;
-                addLog(`🗡️ ${attacker.cardName} 对 ${t.cardName} 造成 ${dmg} 物伤（基础1 + 已损${lostLife}×50% = ${Math.round(lostLife * 0.5)} + 增伤${baseBonus}${shouldDouble ? ' ×2' : ''}）`);
+                addLog(trText(trText(`🗡️ ${attacker.cardName} 对 ${t.cardName} 造成 ${dmg} 物伤（基础1 + 已损${lostLife}×50% = ${Math.round(lostLife * 0.5)} + 增伤${baseBonus}${shouldDouble ? ' ×2' : ''}）`, `🗡️ ${attacker.cardName} to ${t.cardName} deals ${dmg} physical damage (base 1 + lost ${lostLife} ×50% = ${Math.round(lostLife * 0.5)} + bonus damage ${baseBonus} ${shouldDouble ? ' ×2' : ''} )`), `🗡️ ${attacker.cardName} to ${t.cardName} deals ${dmg} physical damage (base 1 + lost ${lostLife} ×50% = ${Math.round(lostLife * 0.5)} + bonus damage ${baseBonus} ${shouldDouble ? ' ×2' : ''} )`));
                 await applyDamageWithSource(t, dmg, attacker);
                 totalDmg += dmg;
                 if (!gameState.attackedEnemyIds.includes(t.id)) gameState.attackedEnemyIds.push(t.id);
             }
-            addLog(`🗡️ ${attacker.cardName} AOE攻击 ${allTargets.length} 个敌人，总伤害 ${totalDmg}`);
+            addLog(trText(`🗡️ ${attacker.cardName} AOE攻击 ${allTargets.length} 个敌人，总伤害 ${totalDmg}`, `🗡️ ${attacker.cardName} AOE attack ${allTargets.length} enemy, total damage ${totalDmg}`));
             attacker.attacksLeftThisTurn--;
             renderUI();
             return true;
         }
         if (attacker.cardName === "银运") {
-            if (attacker.stun > 0) { showToast(`${attacker.cardName} 眩晕无法攻击`); return false; }
-            if (attacker.attacksLeftThisTurn <= 0) { showToast(`${attacker.cardName} 已经攻击过`); return false; }
+            if (attacker.stun > 0) { showToast(trText(`${attacker.cardName} 眩晕无法攻击`, `${attacker.cardName} stun cannot attack`)); return false; }
+            if (attacker.attacksLeftThisTurn <= 0) { showToast(trText(trText(`${attacker.cardName} 已经攻击过`, `${attacker.cardName} has already attacked`), `${attacker.cardName} has already attacked`)); return false; }
             let actualTarget = enforceAttackTarget(attacker, targetUnit);
-            if (actualTarget.side === attacker.side) { showToast(`只能攻击敌方单位`); return false; }
+            if (actualTarget.side === attacker.side) { showToast(trText(`只能攻击敌方单位`, `can only attack enemy unit`)); return false; }
             const forward = getForwardDelta(attacker.side);
             let distance = (actualTarget.row - attacker.row) * forward;
-            if (distance <= 0 || distance > attacker.range) { showToast(`攻击距离不够 (范围${attacker.range})`); return false; }
-            if (actualTarget.col !== attacker.col) { showToast(`只能攻击正前方同列敌人`); return false; }
+            if (distance <= 0 || distance > attacker.range) { showToast(trText(`攻击距离不够 (范围${attacker.range})`, `attack out of range (range ${attacker.range} )`)); return false; }
+            if (actualTarget.col !== attacker.col) { showToast(trText(`只能攻击正前方同列敌人`, `can only attack directly in front same column enemy`)); return false; }
             // AOE：命中目标格所有敌人
             const allTargets = getUnitsAt(actualTarget.row, actualTarget.col).filter(u => u.side !== attacker.side);
-            if (allTargets.length === 0) { showToast(`目标格没有敌方单位`); return false; }
+            if (allTargets.length === 0) { showToast(trText(`目标格没有敌方单位`, `target tile no enemy unit`)); return false; }
             // 先计算这回合是否暴击，统一对所有目标生效
             const isCrit = Math.random() < 0.5;
-            if (isCrit) addLog(`${attacker.cardName} 触发暴击，伤害翻倍！`);
+            if (isCrit) addLog(trText(`${attacker.cardName} 触发暴击，伤害翻倍！`, `${attacker.cardName} triggers critical, damage doubles!`));
             let totalDmg = 0;
             // 一次性加成在循环外计算一次，对所有目标生效（与旋斧人/火神/掠影一致）
             let baseBonus = 0;
@@ -1302,20 +1351,20 @@
                 totalDmg += dmg;
                 if (!gameState.attackedEnemyIds.includes(t.id)) gameState.attackedEnemyIds.push(t.id);
             }
-            addLog(`${attacker.cardName} AOE攻击 ${allTargets.length} 个敌人，总伤害 ${totalDmg}`);
+            addLog(trText(`${attacker.cardName} AOE攻击 ${allTargets.length} 个敌人，总伤害 ${totalDmg}`, `${attacker.cardName} AOE attack ${allTargets.length} enemy, total damage ${totalDmg}`));
             attacker.attacksLeftThisTurn--;
             renderUI();
             return true;
         }
         if (attacker.cardName === "骑士") {
-            if (attacker.stun > 0) { showToast(`${attacker.cardName} 眩晕无法攻击`); return false; }
-            if (attacker.attacksLeftThisTurn <= 0) { showToast(`${attacker.cardName} 已经攻击过`); return false; }
+            if (attacker.stun > 0) { showToast(trText(`${attacker.cardName} 眩晕无法攻击`, `${attacker.cardName} stun cannot attack`)); return false; }
+            if (attacker.attacksLeftThisTurn <= 0) { showToast(trText(trText(`${attacker.cardName} 已经攻击过`, `${attacker.cardName} has already attacked`), `${attacker.cardName} has already attacked`)); return false; }
             let actualTarget = enforceAttackTarget(attacker, targetUnit);
-            if (actualTarget.side === attacker.side) { showToast(`只能攻击敌方单位`); return false; }
+            if (actualTarget.side === attacker.side) { showToast(trText(`只能攻击敌方单位`, `can only attack enemy unit`)); return false; }
             const forward = getForwardDelta(attacker.side);
             let distance = (actualTarget.row - attacker.row) * forward;
-            if (distance <= 0 || distance > attacker.range) { showToast(`攻击距离不够 (范围${attacker.range})`); return false; }
-            if (actualTarget.col !== attacker.col) { showToast(`只能攻击正前方同列敌人`); return false; }
+            if (distance <= 0 || distance > attacker.range) { showToast(trText(`攻击距离不够 (范围${attacker.range})`, `attack out of range (range ${attacker.range} )`)); return false; }
+            if (actualTarget.col !== attacker.col) { showToast(trText(`只能攻击正前方同列敌人`, `can only attack directly in front same column enemy`)); return false; }
             let dmg = attacker.dmgValue;
             if (attacker.tempAttackBonus > 0 && canApplyBonus(attacker, 'physical')) dmg += attacker.tempAttackBonus;
             if (attacker.nextAttackBonus > 0 && canApplyBonus(attacker, 'physical')) { dmg += attacker.nextAttackBonus; attacker.nextAttackBonus = 0; }
@@ -1326,41 +1375,41 @@
             attacker.attacksLeftThisTurn--;
             // 追刃：记录被攻击的敌方单位
             if (!gameState.attackedEnemyIds.includes(actualTarget.id)) gameState.attackedEnemyIds.push(actualTarget.id);
-            showToast(`⚔️ ${attacker.cardName} 攻击造成 ${dmg} 伤害`);
+            showToast(trText(`⚔️ ${attacker.cardName} 攻击造成 ${dmg} 伤害`, `⚔️ ${attacker.cardName} attack deals ${dmg} damage`));
             renderUI();
             return true;
         }
         // 双刀/三刀：每回合多次攻击，可攻击前方横行3格内任意敌方
         if (attacker.cardName === "双刀" || attacker.cardName === "三刀") {
-            if (attacker.stun > 0) { showToast(`${attacker.cardName} 眩晕无法攻击`); return false; }
-            if (attacker.attacksLeftThisTurn <= 0) { showToast(`${attacker.cardName} 本回合攻击次数已用完`); return false; }
+            if (attacker.stun > 0) { showToast(trText(`${attacker.cardName} 眩晕无法攻击`, `${attacker.cardName} stun cannot attack`)); return false; }
+            if (attacker.attacksLeftThisTurn <= 0) { showToast(trText(`${attacker.cardName} 本回合攻击次数已用完`, `${attacker.cardName} this turn attack count exhausted`)); return false; }
             let actualTarget = enforceAttackTarget(attacker, targetUnit);
-            if (actualTarget.side === attacker.side) { showToast(`只能攻击敌方单位`); return false; }
+            if (actualTarget.side === attacker.side) { showToast(trText(`只能攻击敌方单位`, `can only attack enemy unit`)); return false; }
             const forward = getForwardDelta(attacker.side);
             const frontRow = attacker.row + forward;
-            if (actualTarget.row !== frontRow) { showToast(`只能攻击前方横行的敌人`); return false; }
+            if (actualTarget.row !== frontRow) { showToast(trText(`只能攻击前方横行的敌人`, `can only attack front row of enemy`)); return false; }
             let dmg = attacker.dmgValue;
-            if (attacker.tempAttackBonus > 0 && canApplyBonus(attacker, 'physical')) { dmg += attacker.tempAttackBonus; addLog(`${attacker.cardName} 受到鼓手鼓舞，伤害+${attacker.tempAttackBonus}！`); }
-            if (attacker.nextAttackBonus > 0 && canApplyBonus(attacker, 'physical')) { dmg += attacker.nextAttackBonus; addLog(`${attacker.cardName} 受到祭献加成，伤害+${attacker.nextAttackBonus}！`); attacker.nextAttackBonus = 0; }
-            if (attacker.nextAttackDouble && canApplyBonus(attacker, 'physical')) { dmg = dmg * 2; attacker.nextAttackDouble = false; addLog(`${attacker.cardName} 触发酒类强化，伤害翻倍至 ${dmg}！`); }
+            if (attacker.tempAttackBonus > 0 && canApplyBonus(attacker, 'physical')) { dmg += attacker.tempAttackBonus; addLog(trText(`${attacker.cardName} 受到鼓手鼓舞，伤害+${attacker.tempAttackBonus}！`, `${attacker.cardName} takes Drummer inspire, damage + ${attacker.tempAttackBonus} !`)); }
+            if (attacker.nextAttackBonus > 0 && canApplyBonus(attacker, 'physical')) { dmg += attacker.nextAttackBonus; addLog(trText(`${attacker.cardName} 受到祭献加成，伤害+${attacker.nextAttackBonus}！`, `${attacker.cardName} takes sacrifice bonus, damage + ${attacker.nextAttackBonus} !`)); attacker.nextAttackBonus = 0; }
+            if (attacker.nextAttackDouble && canApplyBonus(attacker, 'physical')) { dmg = dmg * 2; attacker.nextAttackDouble = false; addLog(trText(trText(`${attacker.cardName} 触发酒类强化，伤害翻倍至 ${dmg}！`, `${attacker.cardName} triggers wine empower, damage doubled to ${dmg} !`), `${attacker.cardName} triggers wine empower, damage doubled to ${dmg} !`)); }
             const { bonus } = applyAifeiAura(attacker, true, "⚔️");
             if (bonus > 0 && canApplyBonus(attacker, 'physical')) dmg += bonus;
             await applyDamageWithSource(actualTarget, dmg, attacker);
             attacker.attacksLeftThisTurn--;
             if (!gameState.attackedEnemyIds.includes(actualTarget.id)) gameState.attackedEnemyIds.push(actualTarget.id);
-            showToast(`⚔️ ${attacker.cardName} 攻击 ${actualTarget.cardName} 造成 ${dmg} 伤害（剩余${attacker.attacksLeftThisTurn}次）`);
+            showToast(trText(`⚔️ ${attacker.cardName} 攻击 ${actualTarget.cardName} 造成 ${dmg} 伤害（剩余${attacker.attacksLeftThisTurn}次）`, `⚔️ ${attacker.cardName} attack ${actualTarget.cardName} deals ${dmg} damage (left ${attacker.attacksLeftThisTurn} time)`));
             renderUI();
             return true;
         }
         // 旋斧人：自身九宫格AOE（正常攻击流程，点九宫格内任意敌人触发）
         if (attacker.cardName === "旋斧人") {
-            if (attacker.stun > 0) { showToast(`${attacker.cardName} 眩晕无法攻击`); return false; }
-            if (attacker.attacksLeftThisTurn <= 0) { showToast(`${attacker.cardName} 已经攻击过`); return false; }
+            if (attacker.stun > 0) { showToast(trText(`${attacker.cardName} 眩晕无法攻击`, `${attacker.cardName} stun cannot attack`)); return false; }
+            if (attacker.attacksLeftThisTurn <= 0) { showToast(trText(trText(`${attacker.cardName} 已经攻击过`, `${attacker.cardName} has already attacked`), `${attacker.cardName} has already attacked`)); return false; }
             let actualTarget = enforceAttackTarget(attacker, targetUnit);
-            if (actualTarget.side === attacker.side) { showToast(`只能攻击敌方单位`); return false; }
+            if (actualTarget.side === attacker.side) { showToast(trText(`只能攻击敌方单位`, `can only attack enemy unit`)); return false; }
             const dr0 = Math.abs(actualTarget.row - attacker.row);
             const dc0 = Math.abs(actualTarget.col - attacker.col);
-            if (dr0 > 1 || dc0 > 1) { showToast(`旋斧人只能攻击自身九宫格内的敌人`); return false; }
+            if (dr0 > 1 || dc0 > 1) { showToast(trText(`旋斧人只能攻击自身九宫格内的敌人`, `Axe Spinner can only attack itself within a 3x3 area of enemy`)); return false; }
             let dmg = attacker.dmgValue;
             const bonusType = attacker.dmgType === "⚔️" ? 'physical' : 'magic';
             if (attacker.tempAttackBonus > 0 && canApplyBonus(attacker, bonusType)) dmg += attacker.tempAttackBonus;
@@ -1375,17 +1424,17 @@
                 totalDmg += dmg;
                 if (!gameState.attackedEnemyIds.includes(t.id)) gameState.attackedEnemyIds.push(t.id);
             }
-            addLog(`${attacker.cardName} 九宫格AOE攻击 ${allTargets.length} 个敌人，总伤害 ${totalDmg}`);
+            addLog(trText(`${attacker.cardName} 九宫格AOE攻击 ${allTargets.length} 个敌人，总伤害 ${totalDmg}`, `${attacker.cardName} 3x3 area AOE attack ${allTargets.length} enemy, total damage ${totalDmg}`));
             attacker.attacksLeftThisTurn--;
             renderUI();
             return true;
         }
         if (attacker.superCharging) {
-            showToast(`${attacker.cardName} 处于超级蓄力中，无法普通攻击`);
+            showToast(trText(`${attacker.cardName} 处于超级蓄力中，无法普通攻击`, `${attacker.cardName} is in super while charging, cannot basic attack`));
             return false;
         }
-        if (attacker.stun > 0) { showToast(`${attacker.cardName} 眩晕无法攻击`); return false; }
-        if (attacker.attacksLeftThisTurn <= 0) { showToast(`${attacker.cardName} 已经攻击过`); return false; }
+        if (attacker.stun > 0) { showToast(trText(`${attacker.cardName} 眩晕无法攻击`, `${attacker.cardName} stun cannot attack`)); return false; }
+        if (attacker.attacksLeftThisTurn <= 0) { showToast(trText(trText(`${attacker.cardName} 已经攻击过`, `${attacker.cardName} has already attacked`), `${attacker.cardName} has already attacked`)); return false; }
         // 斧兵/弩手：点击攻击时自动蓄力（蓄力1回合，下回合自动攻击）
         // _skipAutoCharge 标志用于蓄力释放时跳过自动蓄力，避免重复蓄力无法造成伤害
         if (!attacker._skipAutoCharge && (attacker.cardName === "斧兵" || attacker.cardName === "弩手")) {
@@ -1400,26 +1449,26 @@
             return await autoDualswordCharge(attacker, targetUnit);
         }
         if (attacker.cardName === "大力士") {
-            showToast(`${attacker.cardName} 无法普通攻击，请使用技能蓄力`);
+            showToast(trText(trText(`${attacker.cardName} 无法普通攻击，请使用技能蓄力`, `${attacker.cardName} cannot basic attack, please use skill charge`), `${attacker.cardName} cannot basic attack, please use skill charge`));
             return false;
         }
         // 火神强化后：普通攻击变为AOE，命中目标格所有敌人
         if (attacker.cardName === "火神" && (attacker.fireGodBuffTurns || 0) > 0) {
-            if (attacker.stun > 0) { showToast(`${attacker.cardName} 眩晕无法攻击`); return false; }
-            if (attacker.attacksLeftThisTurn <= 0) { showToast(`${attacker.cardName} 已经攻击过`); return false; }
+            if (attacker.stun > 0) { showToast(trText(`${attacker.cardName} 眩晕无法攻击`, `${attacker.cardName} stun cannot attack`)); return false; }
+            if (attacker.attacksLeftThisTurn <= 0) { showToast(trText(trText(`${attacker.cardName} 已经攻击过`, `${attacker.cardName} has already attacked`), `${attacker.cardName} has already attacked`)); return false; }
             let actualTarget = enforceAttackTarget(attacker, targetUnit);
-            if (actualTarget.side === attacker.side) { showToast(`只能攻击敌方单位`); return false; }
+            if (actualTarget.side === attacker.side) { showToast(trText(`只能攻击敌方单位`, `can only attack enemy unit`)); return false; }
             const forward = getForwardDelta(attacker.side);
             let distance = (actualTarget.row - attacker.row) * forward;
-            if (distance < 0 || distance > attacker.range) { showToast(`攻击距离不够 (范围${attacker.range})`); return false; }
-            if (actualTarget.col !== attacker.col) { showToast(`只能攻击正前方同列敌人`); return false; }
+            if (distance < 0 || distance > attacker.range) { showToast(trText(`攻击距离不够 (范围${attacker.range})`, `attack out of range (range ${attacker.range} )`)); return false; }
+            if (actualTarget.col !== attacker.col) { showToast(trText(`只能攻击正前方同列敌人`, `can only attack directly in front same column enemy`)); return false; }
             const isSameCell = actualTarget.row === attacker.row && actualTarget.col === attacker.col;
             if (!isSameCell) {
                 let blocked = false;
                 for (let r = attacker.row + forward; r !== actualTarget.row; r += forward) {
                     if (gameState.units.some(u => u.col === attacker.col && u.row === r && u.side !== attacker.side)) { blocked = true; break; }
                 }
-                if (blocked) { showToast(`有更近的敌人挡在前面，无法攻击${actualTarget.cardName}`); return false; }
+                if (blocked) { showToast(trText(trText(`有更近的敌人挡在前面，无法攻击${actualTarget.cardName}`, `a closer enemy blocks the way, cannot attack ${actualTarget.cardName}`), `a closer enemy blocks the way, cannot attack ${actualTarget.cardName}`)); return false; }
             }
             // 三格AOE：命中目标格及其前方2格（共3格，沿攻击方向）的敌人
             const allTargets = gameState.units.filter(u => {
@@ -1427,7 +1476,7 @@
                 const rel = (u.row - actualTarget.row) * forward;
                 return rel >= 0 && rel <= 2;
             });
-            if (allTargets.length === 0) { showToast(`目标列没有敌方单位`); return false; }
+            if (allTargets.length === 0) { showToast(trText(trText(`目标列没有敌方单位`, `target column no enemy unit`), `target column no enemy unit`)); return false; }
             let dmg = attacker.dmgValue;
             const bonusType = attacker.dmgType === "⚔️" ? 'physical' : 'magic';
             if (attacker.tempAttackBonus > 0 && canApplyBonus(attacker, bonusType)) dmg += attacker.tempAttackBonus;
@@ -1441,16 +1490,52 @@
                 totalDmg += dmg;
                 if (!gameState.attackedEnemyIds.includes(t.id)) gameState.attackedEnemyIds.push(t.id);
             }
-            addLog(`🔥 ${attacker.cardName} 竖排AOE攻击 ${allTargets.length} 个敌人，总伤害 ${totalDmg}`);
+            addLog(trText(`🔥 ${attacker.cardName} 竖排AOE攻击 ${allTargets.length} 个敌人，总伤害 ${totalDmg}`, `🔥 ${attacker.cardName} column AOE attack ${allTargets.length} enemy, total damage ${totalDmg}`));
             attacker.attacksLeftThisTurn--;
+            renderUI();
+            return true;
+        }
+        // 剑客：AOE攻击，对正前方同列range格内所有敌人造成伤害（无遮挡限制）
+        if (attacker.cardName === "剑客") {
+            if (attacker.stun > 0) { showToast(trText(`${attacker.cardName} 眩晕无法攻击`, `${attacker.cardName} stun cannot attack`)); return false; }
+            if (attacker.attacksLeftThisTurn <= 0) { showToast(trText(trText(`${attacker.cardName} 已经攻击过`, `${attacker.cardName} has already attacked`), `${attacker.cardName} has already attacked`)); return false; }
+            let actualTarget = enforceAttackTarget(attacker, targetUnit);
+            if (actualTarget.side === attacker.side) { showToast(trText(`只能攻击敌方单位`, `can only attack enemy unit`)); return false; }
+            const forward = getForwardDelta(attacker.side);
+            let distance = (actualTarget.row - attacker.row) * forward;
+            if (distance < 0 || distance > attacker.range) { showToast(trText(`攻击距离不够 (范围${attacker.range})`, `attack out of range (range ${attacker.range} )`)); return false; }
+            if (actualTarget.col !== attacker.col) { showToast(trText(`只能攻击正前方同列敌人`, `can only attack directly in front same column enemy`)); return false; }
+            // AOE：命中正前方同列1~range格内所有敌人
+            const allTargets = gameState.units.filter(u => {
+                if (u.side === attacker.side || u.life <= 0 || u.col !== attacker.col) return false;
+                const rel = (u.row - attacker.row) * forward;
+                return rel >= 1 && rel <= attacker.range;
+            });
+            if (allTargets.length === 0) { showToast(trText(`攻击范围内没有敌方单位`, `Attack Range within no enemy unit`)); return false; }
+            let dmg = attacker.dmgValue;
+            const bonusType = attacker.dmgType === "⚔️" ? 'physical' : 'magic';
+            if (attacker.tempAttackBonus > 0 && canApplyBonus(attacker, bonusType)) dmg += attacker.tempAttackBonus;
+            if (attacker.nextAttackBonus > 0 && canApplyBonus(attacker, bonusType)) { dmg += attacker.nextAttackBonus; attacker.nextAttackBonus = 0; }
+            if (attacker.nextAttackDouble && canApplyBonus(attacker, bonusType)) { dmg = dmg * 2; attacker.nextAttackDouble = false; }
+            const { bonus } = applyAifeiAura(attacker, true, attacker.dmgType);
+            if (bonus > 0 && canApplyBonus(attacker, bonusType)) dmg += bonus;
+            let totalDmg = 0;
+            for (let t of allTargets) {
+                await applyDamageWithSource(t, dmg, attacker);
+                totalDmg += dmg;
+                if (!gameState.attackedEnemyIds.includes(t.id)) gameState.attackedEnemyIds.push(t.id);
+            }
+            addLog(trText(`🗡️ ${attacker.cardName} AOE攻击 ${allTargets.length} 个敌人，总伤害 ${totalDmg}（范围${attacker.range}）`, `🗡️ ${attacker.cardName} AOE attack ${allTargets.length} enemy, total damage ${totalDmg} (range ${attacker.range} )`));
+            attacker.attacksLeftThisTurn--;
+            showToast(trText(`🗡️ ${attacker.cardName} AOE造成 ${totalDmg} 伤害`, `🗡️ ${attacker.cardName} AOE deals ${totalDmg} damage`));
             renderUI();
             return true;
         }
         let actualTarget = enforceAttackTarget(attacker, targetUnit);
         const forward = getForwardDelta(attacker.side);
         let distance = (actualTarget.row - attacker.row) * forward;
-        if (distance < 0 || distance > attacker.range) { showToast(`攻击距离不够 (范围${attacker.range})`); return false; }
-        if (actualTarget.col !== attacker.col) { showToast(`只能攻击正前方同列敌人`); return false; }
+        if (distance < 0 || distance > attacker.range) { showToast(trText(`攻击距离不够 (范围${attacker.range})`, `attack out of range (range ${attacker.range} )`)); return false; }
+        if (actualTarget.col !== attacker.col) { showToast(trText(`只能攻击正前方同列敌人`, `can only attack directly in front same column enemy`)); return false; }
         // 修复：一般情况下只能攻击距离最近的单位（中间有更近的敌方单位时不可跳过），掠影无视就近原则
         if (attacker.cardName !== "掠影") {
             const isSameCell = actualTarget.row === attacker.row && actualTarget.col === attacker.col;
@@ -1462,13 +1547,13 @@
                     for (let r = nearestRow; r !== actualTarget.row; r += forward) {
                         if (gameState.units.some(u => u.col === attacker.col && u.row === r && u.side !== attacker.side)) { blocked = true; break; }
                     }
-                    if (blocked) { showToast(`有更近的敌人挡在前面，无法攻击${actualTarget.cardName}`); return false; }
+                    if (blocked) { showToast(trText(trText(`有更近的敌人挡在前面，无法攻击${actualTarget.cardName}`, `a closer enemy blocks the way, cannot attack ${actualTarget.cardName}`), `a closer enemy blocks the way, cannot attack ${actualTarget.cardName}`)); return false; }
                 }
             }
         }
         
         if (attacker.cardName === "巫师") {
-            const wantTransfer = await showConfirm("是否将本次伤害转移到敌方场上任意单位？（不可抵挡）");
+            const wantTransfer = await showConfirm(trText("是否将本次伤害转移到敌方场上任意单位？（不可抵挡）", 'Transfer this damage to any enemy unit on the board? (Unblockable)'));
             if (wantTransfer) {
                 let targets = [];
                 // 只选存活真实单位（排除镜像幽灵与复活甲待复活尸体——镜像转移伤害为0）
@@ -1503,20 +1588,32 @@
         }
         let dmg = attacker.dmgValue;
         const bonusType = attacker.dmgType === "⚔️" ? 'physical' : 'magic';
-        if (attacker.tempAttackBonus > 0 && canApplyBonus(attacker, bonusType)) { dmg += attacker.tempAttackBonus; addLog(`${attacker.cardName} 受到鼓手鼓舞，伤害+${attacker.tempAttackBonus}！`); }
-        if (attacker.nextAttackBonus > 0 && canApplyBonus(attacker, bonusType)) { dmg += attacker.nextAttackBonus; addLog(`${attacker.cardName} 受到祭献加成，伤害+${attacker.nextAttackBonus}！`); attacker.nextAttackBonus = 0; }
-        if (attacker.cardName === "士兵" && attacker.firstAttackBonus && !attacker.bonusUsed && canApplyBonus(attacker, bonusType)) { dmg = dmg * 2; attacker.bonusUsed = true; addLog(`${attacker.cardName} 发动首次攻击强化，伤害提升至 ${dmg}！`); }
-        if (attacker.nextAttackDouble && canApplyBonus(attacker, bonusType)) { dmg = dmg * 2; attacker.nextAttackDouble = false; addLog(`${attacker.cardName} 触发酒类强化，伤害翻倍至 ${dmg}！`); }
+        if (attacker.tempAttackBonus > 0 && canApplyBonus(attacker, bonusType)) { dmg += attacker.tempAttackBonus; addLog(trText(`${attacker.cardName} 受到鼓手鼓舞，伤害+${attacker.tempAttackBonus}！`, `${attacker.cardName} takes Drummer inspire, damage + ${attacker.tempAttackBonus} !`)); }
+        if (attacker.nextAttackBonus > 0 && canApplyBonus(attacker, bonusType)) { dmg += attacker.nextAttackBonus; addLog(trText(`${attacker.cardName} 受到祭献加成，伤害+${attacker.nextAttackBonus}！`, `${attacker.cardName} takes sacrifice bonus, damage + ${attacker.nextAttackBonus} !`)); attacker.nextAttackBonus = 0; }
+        if (attacker.cardName === "士兵" && attacker.firstAttackBonus && !attacker.bonusUsed && canApplyBonus(attacker, bonusType)) { dmg = dmg * 2; attacker.bonusUsed = true; addLog(trText(trText(`${attacker.cardName} 发动首次攻击强化，伤害提升至 ${dmg}！`, `${attacker.cardName} triggers first time attack empower, damage boosted to ${dmg} !`), `${attacker.cardName} triggers first time attack empower, damage boosted to ${dmg} !`)); }
+        if (attacker.nextAttackDouble && canApplyBonus(attacker, bonusType)) { dmg = dmg * 2; attacker.nextAttackDouble = false; addLog(trText(trText(`${attacker.cardName} 触发酒类强化，伤害翻倍至 ${dmg}！`, `${attacker.cardName} triggers wine empower, damage doubled to ${dmg} !`), `${attacker.cardName} triggers wine empower, damage doubled to ${dmg} !`)); }
         const { bonus } = applyAifeiAura(attacker, true, attacker.dmgType);
         if (bonus > 0 && canApplyBonus(attacker, bonusType)) dmg += bonus;
         if ((attacker.counterBonus || 0) > 0) {
             dmg += attacker.counterBonus;
-            addLog(`🔺 ${attacker.cardName} 触发反击增伤 +${attacker.counterBonus}！`);
+            addLog(trText(`🔺 ${attacker.cardName} 触发反击增伤 +${attacker.counterBonus}！`, `🔺 ${attacker.cardName} triggers counter bonus damage + ${attacker.counterBonus} !`));
             attacker.counterBonus = 0;
         }
+        if ((attacker.blazeBonusDmg || 0) > 0 && canApplyBonus(attacker, bonusType)) { dmg += attacker.blazeBonusDmg; }
         await applyDamageWithSource(actualTarget, dmg, attacker, attacker.cardName === "戟兵");
+        // 法师：攻击命中后施加弱化效果（持续2小回合，霸体免疫）
+        if (attacker.cardName === "法师" && actualTarget.life > 0 && actualTarget.absoluteImmunityTurns <= 0 && !actualTarget.superCharging) {
+            actualTarget.weakenedTurns = 2;
+            addLog(trText(trText(`📉 ${actualTarget.cardName} 被法师攻击，受到弱化效果（2小回合）！`, `📉 ${actualTarget.cardName} attacked by the Mage, weakened for 2 mini-turns!`), `📉 ${actualTarget.cardName} attacked by the Mage, weakened for 2 mini-turns!`));
+            showToast(trText(`📉 ${actualTarget.cardName} 被弱化`, `📉 ${actualTarget.cardName} was weakened`));
+        }
         attacker.attacksLeftThisTurn--;
-        showToast(`⚔️ ${attacker.cardName} 攻击造成 ${dmg} 伤害`);
+        // 风女被动：普通攻击后可自由移动一格（每回合1次）
+        if (attacker.cardName === "风女" && !attacker.windGirlFreeMoveUsed) {
+            attacker.windGirlFreeMoveAvailable = true;
+            addLog(trText(trText(`💨 ${attacker.cardName} 攻击后可自由移动一格（风之步）`, `💨 ${attacker.cardName} attack after can freely move one tile (Wind Step)`), `💨 ${attacker.cardName} attack after can freely move one tile (Wind Step)`));
+        }
+        showToast(trText(`⚔️ ${attacker.cardName} 攻击造成 ${dmg} 伤害`, `⚔️ ${attacker.cardName} attack deals ${dmg} damage`));
         renderUI();
         return true;
     }
@@ -1571,15 +1668,15 @@
     async function attackBase(attacker) {
         // 新手教程：不教学攻击基地，拦截
         if (typeof tutorialAllowAction === 'function' && !tutorialAllowAction('attack')) { tutorialBlock('攻击基地'); return false; }
-        if (attacker.stun > 0) { showToast(`${attacker.cardName} 眩晕无法攻击本体`); return false; }
-        if (attacker.attacksLeftThisTurn <= 0) { showToast(`已经攻击过`); return false; }
+        if (attacker.stun > 0) { showToast(trText(`${attacker.cardName} 眩晕无法攻击本体`, `${attacker.cardName} stun cannot attack base`)); return false; }
+        if (attacker.attacksLeftThisTurn <= 0) { showToast(trText(trText(`已经攻击过`, `has already attacked`), `has already attacked`)); return false; }
         // 标枪手有强化普攻时不能普通攻击本体
-        if (attacker.cardName === "标枪手" && (attacker.spearmanCharges || 0) > 0) { showToast(`🔱 ${attacker.cardName} 有强化普攻，请使用突刺`); return false; }
+        if (attacker.cardName === "标枪手" && (attacker.spearmanCharges || 0) > 0) { showToast(trText(trText(`🔱 ${attacker.cardName} 有强化普攻，请使用突刺`, `🔱 ${attacker.cardName} has empower basic attack, please use thrust`), `🔱 ${attacker.cardName} has empower basic attack, please use thrust`)); return false; }
         // 四眼仔行动干扰：消耗本方第一次控制单位的攻击
         if (gameState.nerdJamPending[attacker.side]) {
             gameState.nerdJamPending[attacker.side] = false;
-            addLog(`👓 行动干扰生效！${attacker.cardName} 的攻击被无效化！`);
-            showToast(`👓 行动干扰！${attacker.cardName} 的攻击被无效化`);
+            addLog(trText(`👓 行动干扰生效！${attacker.cardName} 的攻击被无效化！`, `👓 Action Jam takes effect! ${attacker.cardName} 's attack was negated!`));
+            showToast(trText(`👓 行动干扰！${attacker.cardName} 的攻击被无效化`, `👓 Action Jam! ${attacker.cardName} 's attack was negated`));
             gameState.selectedUnitId = null;
             renderUI();
             return false;
@@ -1595,7 +1692,7 @@
             const targetInfo = { type: 'base', row: enemyBaseRow, col: attacker.col, side: attacker.side === 0 ? 1 : 0 };
             return await autoSuperChargeAttack(attacker, targetInfo);
         }
-        if (!canAttackBase(attacker)) { showToast(`当前位置无法攻击敌方基地`); return false; }
+        if (!canAttackBase(attacker)) { showToast(trText(trText(`当前位置无法攻击敌方基地`, `current position cannot attack enemy base`), `current position cannot attack enemy base`)); return false; }
         let dmg = attacker.dmgValue;
         const bonusType = attacker.dmgType === "⚔️" ? 'physical' : 'magic';
         if (attacker.tempAttackBonus > 0 && canApplyBonus(attacker, bonusType)) dmg += attacker.tempAttackBonus;
@@ -1606,7 +1703,7 @@
         if (bonus > 0 && canApplyBonus(attacker, bonusType)) dmg += bonus;
         if ((attacker.counterBonus || 0) > 0) {
             dmg += attacker.counterBonus;
-            addLog(`🔺 ${attacker.cardName} 触发反击增伤 +${attacker.counterBonus}！`);
+            addLog(trText(`🔺 ${attacker.cardName} 触发反击增伤 +${attacker.counterBonus}！`, `🔺 ${attacker.cardName} triggers counter bonus damage + ${attacker.counterBonus} !`));
             attacker.counterBonus = 0;
         }
         const enemySide = attacker.side === SIDE_PLAYER0 ? SIDE_PLAYER1 : SIDE_PLAYER0;
@@ -1623,19 +1720,24 @@
             if (!gameState.matchStats.unitDamage[key]) gameState.matchStats.unitDamage[key] = { damage: 0, side: attacker.side };
             gameState.matchStats.unitDamage[key].damage += dmg;
         }
-        addLog(`${attacker.side === 0 ? "蓝方" : "红方"} ${attacker.cardName} 攻击对方本体造成 ${dmg} 伤害！剩余❤️ ${gameState.players[enemySide].hp}`);
-        showToast(`🏹 攻击本体! 造成${dmg}伤害`);
+        addLog(trText(`${attacker.side === 0 ? "蓝方" : "红方"} ${attacker.cardName} 攻击对方本体造成 ${dmg} 伤害！剩余❤️ ${gameState.players[enemySide].hp}`, `${attacker.side === 0 ? "蓝方" : "红方"} ${attacker.cardName} attack the opponent base deals ${dmg} damage! left ❤️ ${gameState.players[enemySide].hp}`));
+        showToast(trText(`🏹 攻击本体! 造成${dmg}伤害`, `🏹 Attack Base! deals ${dmg} damage`));
         attacker.attacksLeftThisTurn--;
+        // 风女被动：普攻后可自由移动一格（每回合1次）
+        if (attacker.cardName === "风女" && !attacker.windGirlFreeMoveUsed) {
+            attacker.windGirlFreeMoveAvailable = true;
+            addLog(trText(trText(`💨 ${attacker.cardName} 攻击后可自由移动一格（风之步）`, `💨 ${attacker.cardName} attack after can freely move one tile (Wind Step)`), `💨 ${attacker.cardName} attack after can freely move one tile (Wind Step)`));
+        }
         // 费者被动：攻击本体也加1费
         if (attacker.cardName === "费者" && !infiniteManaEnabled) {
             const newMana = Math.min(gameState.players[attacker.side].manaMax, gameState.players[attacker.side].mana + 1);
             if (newMana !== gameState.players[attacker.side].mana) {
                 gameState.players[attacker.side].mana = newMana;
-                addLog(`💰 费者攻击加费 +1`);
+                addLog(trText(`💰 费者攻击加费 +1`, `💰 Mana Spender attack mana gain +1`));
             }
         }
         if (gameState.players[enemySide].hp <= 0) {
-            addLog(`🎉 游戏结束！ ${attacker.side === 0 ? "蓝方" : "红方"} 胜利！`);
+            addLog(trText(`🎉 游戏结束！ ${attacker.side === 0 ? "蓝方" : "红方"} 胜利！`, `🎉 Game Over! ${attacker.side === 0 ? "蓝方" : "红方"} Victory!`));
             // 远程联机：通知对方并断开，双方回到模式选择
             if (networkActive()) {
                 renderUI();

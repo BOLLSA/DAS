@@ -30,7 +30,7 @@
             desc: "单位在每回合开始时获得一点只能抵挡法伤的护盾",
             onTurnStart: (unit) => {
                 unit.magicShieldValue = (unit.magicShieldValue || 0) + 1;
-                addLog(`🧥 ${unit.cardName} 的暗影纱获得1点法术护盾`);
+                addLog(trText(`🧥 ${unit.cardName} 的暗影纱获得1点法术护盾`, `🧥 ${unit.cardName} of Shadow Veil gains 1 Magic Shield`));
             },
         },
         // ── 护身符 ──
@@ -101,9 +101,9 @@
                 if (!unit.noHeal && unit.cardName !== "麻木者" && !unit.gqDamaged) {
                     const heal = Math.ceil(unit.maxLife * 0.15);
                     unit.life = Math.min(unit.life + heal, unit.maxLife);
-                    addLog(`💧 ${unit.cardName} 的甘泉恢复 ${heal} 点生命`);
+                    addLog(trText(trText(`💧 ${unit.cardName} 的甘泉恢复 ${heal} 点生命`, `💧 ${unit.cardName} 's Spring recovers ${heal} HP`), `💧 ${unit.cardName} 's Spring recovers ${heal} HP`));
                 } else if (unit.noHeal || unit.cardName === "麻木者") {
-                    addLog(`🩸 ${unit.cardName} 无法回血${unit.cardName === "麻木者" ? "（麻木者被动）" : "（禁疗状态）"}，甘泉无效`);
+                    addLog(trText(`🩸 ${unit.cardName} 无法回血${unit.cardName === "麻木者" ? "（麻木者被动）" : "（禁疗状态）"}，甘泉无效`, `🩸 ${unit.cardName} cannot heal ${unit.cardName === "麻木者" ? "（麻木者被动）" : "（禁疗状态）"} , Spring invalid`));
                 }
                 unit.gqDamaged = false;
             },
@@ -151,18 +151,18 @@
     // 选中一件装备，进入"选择穿戴单位"状态
     function buyEquipment(side, eqId) {
         const eqDef = getEquipmentDef(eqId);
-        if (!eqDef) { showToast(`装备不存在`); return false; }
+        if (!eqDef) { showToast(trText(`装备不存在`, `equipment not found`)); return false; }
 
         const player = gameState.players[side];
         if (player.mana < eqDef.cost) {
-            showToast(`费用不足（需要${eqDef.cost}，当前${player.mana}）`);
+            showToast(trText(`费用不足（需要${eqDef.cost}，当前${player.mana}）`, `not enough mana (needs ${eqDef.cost} , current ${player.mana} )`));
             return false;
         }
 
         // 检查是否有可穿戴的己方单位（同化者不能装配增益生命的装备）
         const available = gameState.units.filter(u => u.side === side && u.life > 0 && !hasEquipment(u) && !(u.isAssimilator && eqDef.buffsMaxLife));
         if (available.length === 0) {
-            showToast(`没有可穿戴装备的己方单位`);
+            showToast(trText(`没有可穿戴装备的己方单位`, `no can equip equipment of your unit`));
             return false;
         }
 
@@ -170,7 +170,7 @@
         gameState.awaitingEquipmentTarget = true;
         gameState.equipmentBuyerSide = side;
         gameState.equipmentPendingId = eqId;
-        addLog(`🛒 ${side === 0 ? '蓝方' : '红方'} 选择了装备 ${eqDef.name}，请点击要穿戴的己方单位`);
+        addLog(trText(`🛒 ${side === 0 ? '蓝方' : '红方'} 选择了装备 ${eqDef.name}，请点击要穿戴的己方单位`, `🛒 ${side === 0 ? '蓝方' : '红方'} select equipment ${eqDef.name} , please click to equip of your unit`));
         renderUI();
         return true;
     }
@@ -183,9 +183,9 @@
         const eqDef = getEquipmentDef(eqId);
 
         if (!eqDef) { clearEquipmentTarget(); return false; }
-        if (unit.side !== side) { showToast(`只能选择己方单位`); return false; }
-        if (hasEquipment(unit)) { showToast(`该单位已穿戴装备`); return false; }
-        if (unit.isAssimilator && eqDef.buffsMaxLife) { showToast(`同化者不能装配影响生命的装备`); return false; }
+        if (unit.side !== side) { showToast(trText(`只能选择己方单位`, `can only select your unit`)); return false; }
+        if (hasEquipment(unit)) { showToast(trText(`该单位已穿戴装备`, `the unit equipped equipment`)); return false; }
+        if (unit.isAssimilator && eqDef.buffsMaxLife) { showToast(trText(trText(`同化者不能装配影响生命的装备`, `Assimilator cannot equip HP-affecting HP of equipment`), `Assimilator cannot equip HP-affecting HP of equipment`)); return false; }
 
         // 扣费
         gameState.players[side].mana -= eqDef.cost;
@@ -198,8 +198,8 @@
             eqDef.apply(unit);
         }
 
-        addLog(`⚒️ ${unit.cardName} 穿戴了 ${eqDef.name}`);
-        showToast(`⚒️ ${unit.cardName} 装备 ${eqDef.name}`);
+        addLog(trText(`⚒️ ${unit.cardName} 穿戴了 ${eqDef.name}`, `⚒️ ${unit.cardName} equipped ${eqDef.name}`));
+        showToast(trText(`⚒️ ${unit.cardName} 装备 ${eqDef.name}`, `⚒️ ${unit.cardName} equipment ${eqDef.name}`));
 
         clearEquipmentTarget();
         renderUI();
@@ -224,7 +224,7 @@
     async function showEquipmentShop(side) {
         const available = gameState.equipmentShop[side] || [];
         if (available.length === 0) {
-            showToast(`本局没有装备可用`);
+            showToast(trText(trText(`本局没有装备可用`, `this match no equipment available`), `this match no equipment available`));
             return;
         }
 
@@ -232,7 +232,7 @@
         if (networkActive() && side === networkGuestSide()) {
             const eqOptions = available.map(eqId => {
                 const eqDef = getEquipmentDef(eqId);
-                return `${eqDef.icon} ${eqDef.name}（${eqDef.cost}费）：${eqDef.short || ''}`;
+                return `${eqDef.icon} ${eqDef.name}（${eqDef.cost}费）：${equipShortDisplay(eqDef)}`;
             });
             eqOptions.push('❌ 取消购买');
             const eqChoice = await networkRequestPrompt({ kind: 'select', options: eqOptions, title: `⚒️ 装备商店（当前${gameState.players[side].mana}费）：选择要购买的装备` });
@@ -240,9 +240,9 @@
             const eqId = available[eqChoice];
             const eqDef = getEquipmentDef(eqId);
             if (!eqDef) return null;
-            if (gameState.players[side].mana < eqDef.cost) { showToast(`费用不足（需要${eqDef.cost}）`); return null; }
+            if (gameState.players[side].mana < eqDef.cost) { showToast(trText(`费用不足（需要${eqDef.cost}）`, `not enough mana (needs ${eqDef.cost} )`)); return null; }
             const candidates = gameState.units.filter(u => u.side === side && u.life > 0 && !hasEquipment(u) && !(u.isAssimilator && eqDef.buffsMaxLife));
-            if (candidates.length === 0) { showToast(`没有可穿戴装备的己方单位`); return null; }
+            if (candidates.length === 0) { showToast(trText(`没有可穿戴装备的己方单位`, `no can equip equipment of your unit`)); return null; }
             const unitOptions = candidates.map(u => `${u.cardName}（${ROW_NAMES[u.row]}${COLS[u.col]}，❤️${u.life}）`);
             unitOptions.push('❌ 取消购买');
             const uChoice = await networkRequestPrompt({ kind: 'select', options: unitOptions, title: `选择为哪个单位穿戴 ${eqDef.name}` });
@@ -253,8 +253,8 @@
             target.equipmentId = eqId;
             if (eqDef.triggerType === 'permanent' && eqDef.apply) eqDef.apply(target);
             if (eqDef.onEquip) eqDef.onEquip(target);
-            addLog(`🛒 ${side === 0 ? '蓝方' : '红方'} 为 ${target.cardName} 购买了 ${eqDef.name}`);
-            showToast(`🛒 ${target.cardName} 穿戴了 ${eqDef.name}`);
+            addLog(trText(`🛒 ${side === 0 ? '蓝方' : '红方'} 为 ${target.cardName} 购买了 ${eqDef.name}`, `🛒 ${side === 0 ? '蓝方' : '红方'} is ${target.cardName} buy ${eqDef.name}`));
+            showToast(trText(`🛒 ${target.cardName} 穿戴了 ${eqDef.name}`, `🛒 ${target.cardName} equipped ${eqDef.name}`));
             renderUI();
             return null;
         }
@@ -278,11 +278,11 @@
             };
 
             const h2 = document.createElement('h2');
-            h2.textContent = `⚒️ 装备商店`;
+            h2.textContent = translateText(`⚒️ 装备商店`);
             panel.appendChild(h2);
 
             const manaP = document.createElement('p');
-            manaP.textContent = `💰 当前费用：${gameState.players[side].mana}`;
+            manaP.textContent = translateText(`💰 当前费用：${gameState.players[side].mana}`);
             manaP.style.cssText = 'margin:0 0 10px 0; font-size:13px;';
             panel.appendChild(manaP);
 
@@ -314,7 +314,7 @@
                 leftDiv.appendChild(iconLine);
 
                 const nameLine = document.createElement('div');
-                nameLine.textContent = eqDef.name;
+                nameLine.textContent = translateText(eqDef.name); // i18n：装备名
                 nameLine.style.cssText = 'font-size:12px; font-weight:bold; margin-top:1px;';
                 leftDiv.appendChild(nameLine);
 
@@ -324,7 +324,7 @@
                 leftDiv.appendChild(costLine);
 
                 const shortLine = document.createElement('div');
-                shortLine.textContent = eqDef.short || '';
+                shortLine.textContent = equipShortDisplay(eqDef);
                 shortLine.style.cssText = 'font-size:10px; color:#c8b48a; margin-top:2px;';
                 leftDiv.appendChild(shortLine);
 
@@ -335,7 +335,7 @@
                 rightDiv.style.cssText = 'flex:1; min-width:0; padding-left:8px; border-left:1px solid rgba(212,168,71,0.2);';
 
                 const descLine = document.createElement('div');
-                descLine.textContent = eqDef.desc;
+                descLine.textContent = equipDescDisplay(eqDef); // i18n：装备介绍
                 descLine.style.cssText = 'font-size:11px; color:#c8b48a; line-height:1.4;';
                 rightDiv.appendChild(descLine);
 
@@ -345,7 +345,7 @@
                 btn.onmouseleave = () => { btn.style.background = 'rgba(255,255,255,0.05)'; };
 
                 btn.onclick = () => {
-                    if (!canAfford) { showToast(`费用不足（需要${eqDef.cost}）`); return; }
+                    if (!canAfford) { showToast(trText(`费用不足（需要${eqDef.cost}）`, `not enough mana (needs ${eqDef.cost} )`)); return; }
                     closePanel(eqId);
                 };
 
@@ -357,7 +357,7 @@
             const cancelBtn = document.createElement('button');
             cancelBtn.type = 'button';
             cancelBtn.className = 'mode-btn';
-            cancelBtn.textContent = '取消 (ESC)';
+            cancelBtn.textContent = translateText('取消 (ESC)');
             cancelBtn.style.cssText = 'margin-top:8px; padding:8px 14px; cursor:pointer; font-size:13px;';
             cancelBtn.onclick = () => {
                 closePanel(null);
@@ -379,7 +379,7 @@
 
     // ========== 装备商店入口（玩家点击按钮） ==========
     async function openEquipmentShop() {
-        if (aiActing) { showToast('🤖 AI 正在行动，请稍候'); return; }
+        if (aiActing) { showToast(trText('🤖 AI 正在行动，请稍候', "🤖 AI is acting, please wait")); return; }
         // 新手教程：仅当前步骤允许打开装备商店时才放行
         if (typeof tutorialAllowAction === 'function' && !tutorialAllowAction('shop')) { tutorialBlock('装备商店'); return; }
         const side = gameState.turn;
@@ -423,11 +423,11 @@
             panel.style.maxWidth = '600px';
 
             const h2 = document.createElement('h2');
-            h2.textContent = `⚒️ ${playerLabel} 选择装备`;
+            h2.textContent = translateText(`⚒️ ${playerLabel} 选择装备`);
             panel.appendChild(h2);
 
             const p = document.createElement('p');
-            p.textContent = `从装备池中选择 ${EQUIPMENT_SELECT_MIN}~${EQUIPMENT_SELECT_MAX} 种装备加入本局商店`;
+            p.textContent = translateText(`从装备池中选择 ${EQUIPMENT_SELECT_MIN}~${EQUIPMENT_SELECT_MAX} 种装备加入本局商店`);
             panel.appendChild(p);
 
             const selected = new Set();
@@ -439,12 +439,12 @@
                 btn.style.cssText = 'text-align:left; margin:6px 0; padding:10px 14px; cursor:pointer; transition: background 0.2s;';
 
                 const main = document.createElement('div');
-                main.innerHTML = `${eqDef.icon} ${eqDef.name} <span style="color:#fbbf24;">💰${eqDef.cost}</span>`;
+                main.innerHTML = translateText(`${eqDef.icon} ${eqDef.name} <span style="color:#fbbf24;">💰${eqDef.cost}</span>`);
                 btn.appendChild(main);
 
                 const desc = document.createElement('small');
                 desc.style.cssText = 'display:block; color:#aaa; margin-top:4px;';
-                desc.textContent = eqDef.desc;
+                desc.textContent = equipDescDisplay(eqDef);
                 btn.appendChild(desc);
 
                 btn.onclick = () => {
@@ -453,7 +453,7 @@
                         btn.style.background = '';
                     } else {
                         if (selected.size >= EQUIPMENT_SELECT_MAX) {
-                            showToast(`最多选择${EQUIPMENT_SELECT_MAX}种装备`);
+                            showToast(trText(`最多选择${EQUIPMENT_SELECT_MAX}种装备`, `up to select ${EQUIPMENT_SELECT_MAX} kinds equipment`));
                             return;
                         }
                         selected.add(eqDef.id);
@@ -469,16 +469,16 @@
             const confirmBtn = document.createElement('button');
             confirmBtn.type = 'button';
             confirmBtn.className = 'mode-btn';
-            confirmBtn.textContent = `确认（${selected.size}/${EQUIPMENT_SELECT_MAX}）`;
+            confirmBtn.textContent = translateText(`确认（${selected.size}/${EQUIPMENT_SELECT_MAX}）`);
             confirmBtn.style.cssText = 'margin-top:10px; cursor:pointer;';
             const updateConfirm = () => {
-                confirmBtn.textContent = `确认（${selected.size}/${EQUIPMENT_SELECT_MAX}）`;
+                confirmBtn.textContent = translateText(`确认（${selected.size}/${EQUIPMENT_SELECT_MAX}）`);
                 confirmBtn.disabled = selected.size < EQUIPMENT_SELECT_MIN;
                 confirmBtn.style.opacity = selected.size < EQUIPMENT_SELECT_MIN ? '0.5' : '1';
             };
             confirmBtn.onclick = () => {
                 if (selected.size < EQUIPMENT_SELECT_MIN) {
-                    showToast(`至少选择${EQUIPMENT_SELECT_MIN}种装备`);
+                    showToast(trText(`至少选择${EQUIPMENT_SELECT_MIN}种装备`, `at least select ${EQUIPMENT_SELECT_MIN} kinds equipment`));
                     return;
                 }
                 overlay.remove();
@@ -497,7 +497,8 @@
     function getEquipmentDisplay(unit) {
         const eqDef = getUnitEquipment(unit);
         if (!eqDef) return null;
-        return { icon: eqDef.icon, name: eqDef.name, desc: eqDef.desc };
+        // i18n：返回翻译后的名称与介绍（zh 时返回原文）
+        return { icon: eqDef.icon, name: translateText(eqDef.name), desc: equipDescDisplay(eqDef) };
     }
 
     // ========== 碎镜主动激活 ==========
@@ -508,8 +509,8 @@
         if (!canActivatePureSky(unit)) return;
         unit.pureSkyUsed = true;
         unit.pureSkyDamageReduction = true;
-        addLog(`🌌 ${unit.cardName} 激活了碎镜，受到伤害永久减少30%`);
-        showToast(`🌌 ${unit.cardName} 碎镜激活！`);
+        addLog(trText(`🌌 ${unit.cardName} 激活了碎镜，受到伤害永久减少30%`, `🌌 ${unit.cardName} activated Shattered Mirror, takes damage permanently decreases 30%`));
+        showToast(trText(`🌌 ${unit.cardName} 碎镜激活！`, `🌌 ${unit.cardName} Shattered Mirror activated!`));
         renderUI();
     }
 
@@ -562,12 +563,25 @@
                 if (u.cardName === "枷锁猎手") {
                     u.shieldValue = 2;
                     u.nativeShieldValue = 2;
-                    addLog(`🔒 ${u.cardName} 复活重新获得 2 点自带护盾！`);
+                    addLog(trText(`🔒 ${u.cardName} 复活重新获得 2 点自带护盾！`, `🔒 ${u.cardName} revive re- gains 2 innate shield!`));
                 }
                 // 机车党：清除蓄力状态
                 u.motCharging = false;
                 u.motChargeTurns = 0;
                 u.motReleaseTurn = false;
+                // 炽炎射手：清除蓄力状态
+                u.blazeCharging = false;
+                u.blazeChargeTurns = 0;
+                u.blazeReleaseTurn = false;
+                u.blazeBonusDmg = 0;
+                // 琴魔：清除蓄力状态
+                u.qinmoCharging = false;
+                u.qinmoTargetRow = -1;
+                u.qinmoReleaseTurn = false;
+                // 风女：清除技能/移动状态（能量跨回合保存不重置）
+                u.windGirlSkillUsedThisTurn = false;
+                u.windGirlFreeMoveAvailable = false;
+                u.windGirlFreeMoveUsed = false;
                 u.magicShieldValue = 0;
                 u.invincibleTurns = 0;
                 u.absoluteImmunityTurns = 0;
@@ -653,8 +667,8 @@
                     }
                     u.cupidPair = null;
                 }
-                addLog(`💀 ${u.cardName} 的复活甲激活，满血复活！`);
-                showToast(`💀 ${u.cardName} 复活！`);
+                addLog(trText(`💀 ${u.cardName} 的复活甲激活，满血复活！`, `💀 ${u.cardName} of Revive Armor activated, full HP revive!`));
+                showToast(trText(`💀 ${u.cardName} 复活！`, `💀 ${u.cardName} revive!`));
             }
         }
     }
@@ -766,52 +780,71 @@
         });
         if (affordable.length === 0) return;
 
-        // 简单策略：选价值最高的装备，保留剩余费用出单位
-        // easy难度随机选，normal/hard按价值评估选择
-        let chosenEqId;
-        if (aiDifficulty === 'easy') {
-            chosenEqId = affordable[Math.floor(Math.random() * affordable.length)];
-        } else {
-            affordable.sort((a, b) => {
-                const va = aiEquipmentValue(getEquipmentDef(a));
-                const vb = aiEquipmentValue(getEquipmentDef(b));
-                // 价值相近时优先便宜的（保留费用出单位）
-                if (Math.abs(va - vb) <= 8) return getEquipmentDef(a).cost - getEquipmentDef(b).cost;
-                return vb - va;
+        // 大师难度允许多次购买（费用充足时），其他难度单次购买
+        const maxBuys = aiIsMaster() ? 3 : 1;
+        for (let buyIdx = 0; buyIdx < maxBuys; buyIdx++) {
+            // 每次重新查找可穿戴单位和可买装备
+            const curAvailable = gameState.units.filter(u => u.side === side && u.life > 0 && !hasEquipment(u));
+            if (curAvailable.length === 0) break;
+            const curShop = gameState.equipmentShop[side] || [];
+            const curAffordable = curShop.filter(eqId => {
+                const eqDef = getEquipmentDef(eqId);
+                return eqDef && gameState.players[side].mana >= eqDef.cost + 2; // 保留2费出单位
             });
-            chosenEqId = affordable[0];
+            if (curAffordable.length === 0) break;
+
+            let chosenEqId;
+            if (aiDifficulty === 'easy') {
+                chosenEqId = curAffordable[Math.floor(Math.random() * curAffordable.length)];
+            } else if (aiIsMaster()) {
+                curAffordable.sort((a, b) => {
+                    const va = aiMasterEquipmentValue(getEquipmentDef(a), side);
+                    const vb = aiMasterEquipmentValue(getEquipmentDef(b), side);
+                    if (Math.abs(va - vb) <= 8) return getEquipmentDef(a).cost - getEquipmentDef(b).cost;
+                    return vb - va;
+                });
+                chosenEqId = curAffordable[0];
+                // 大师：价值太低的装备不买（保留费用给单位）
+                if (aiMasterEquipmentValue(getEquipmentDef(chosenEqId), side) < 40) break;
+            } else {
+                curAffordable.sort((a, b) => {
+                    const va = aiEquipmentValue(getEquipmentDef(a));
+                    const vb = aiEquipmentValue(getEquipmentDef(b));
+                    if (Math.abs(va - vb) <= 8) return getEquipmentDef(a).cost - getEquipmentDef(b).cost;
+                    return vb - va;
+                });
+                chosenEqId = curAffordable[0];
+            }
+
+            const eqDef = getEquipmentDef(chosenEqId);
+            if (!eqDef) break;
+
+            // 同化者不能装配增益生命的装备
+            const candidates = eqDef.buffsMaxLife ? curAvailable.filter(u => !u.isAssimilator) : curAvailable;
+            if (candidates.length === 0) break;
+
+            let bestUnit;
+            if (aiDifficulty === 'easy') {
+                bestUnit = candidates[Math.floor(Math.random() * candidates.length)];
+            } else {
+                bestUnit = aiPickEquipmentUnit(eqDef, candidates, side);
+            }
+            if (!bestUnit) break;
+
+            // 扣费 + 穿戴
+            gameState.players[side].mana -= eqDef.cost;
+            bestUnit.equipmentId = chosenEqId;
+
+            // 永久生效类：立即应用
+            if (eqDef.triggerType === 'permanent' && eqDef.apply) {
+                eqDef.apply(bestUnit);
+            }
+
+            addLog(trText(`🤖 🛒 ${side === 0 ? '蓝方' : '红方'} AI 为 ${bestUnit.cardName} 购买了 ${eqDef.name}`, `🤖 🛒 ${side === 0 ? '蓝方' : '红方'} AI is ${bestUnit.cardName} buy ${eqDef.name}`));
+            showToast(trText(`🤖 AI 装备 ${eqDef.name}`, `🤖 AI equipment ${eqDef.name}`));
+            renderUI();
+            await aiSleep(300);
         }
-
-        const eqDef = getEquipmentDef(chosenEqId);
-        if (!eqDef) return;
-
-        // 同化者不能装配增益生命的装备
-        const candidates = eqDef.buffsMaxLife ? available.filter(u => !u.isAssimilator) : available;
-        if (candidates.length === 0) return;
-
-        // 选择最合适的单位穿戴（按装备类型匹配）
-        let bestUnit;
-        if (aiDifficulty === 'easy') {
-            bestUnit = candidates[Math.floor(Math.random() * candidates.length)];
-        } else {
-            bestUnit = aiPickEquipmentUnit(eqDef, candidates, side);
-        }
-
-        if (!bestUnit) return;
-
-        // 扣费 + 穿戴
-        gameState.players[side].mana -= eqDef.cost;
-        bestUnit.equipmentId = chosenEqId;
-
-        // 永久生效类：立即应用
-        if (eqDef.triggerType === 'permanent' && eqDef.apply) {
-            eqDef.apply(bestUnit);
-        }
-
-        addLog(`🤖 🛒 ${side === 0 ? '蓝方' : '红方'} AI 为 ${bestUnit.cardName} 购买了 ${eqDef.name}`);
-        showToast(`🤖 AI 装备 ${eqDef.name}`);
-        renderUI();
-        await aiSleep(300);
     }
 
     // ========== AI 自动激活装备主动技能（碎镜等） ==========

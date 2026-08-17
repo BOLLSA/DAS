@@ -107,7 +107,7 @@
         if (activeToast) { activeToast.classList.add('toast-out'); const old = activeToast; setTimeout(() => { if (old && old.parentNode) old.remove(); }, 300); activeToast = null; }
         const toast = document.createElement('div');
         toast.className = 'game-toast';
-        toast.innerText = msg;
+        toast.innerText = translateText(msg); // i18n：en 时显示层翻译，网络同步仍用原文
         document.body.appendChild(toast);
         activeToast = toast;
         setTimeout(() => {
@@ -123,15 +123,17 @@
 
     function showKillStreak(killerName, count) {
         // 索引对齐：labels[2]='二杀'（连杀从1起算，count=1不显示）
-        const labels = ['', '', '二杀', '三杀', '四杀', '五杀', '六杀', '七杀', '八杀', '九杀', '十杀'];
+        const labels = currentLang === 'en'
+            ? ['', '', 'Double Kill', 'Triple Kill', 'Quad Kill', 'Penta Kill', 'Hexa Kill', 'Legendary Kill', 'Legendary Kill', 'Legendary Kill', 'Legendary Kill']
+            : ['', '', '二杀', '三杀', '四杀', '五杀', '六杀', '七杀', '八杀', '九杀', '十杀'];
         if (count < 2) return;
-        const text = count <= 10 ? labels[count] : `${count}杀`;
+        const text = count <= 10 ? labels[count] : (currentLang === 'en' ? `${count} Kill Streak` : `${count}杀`);
         const el = document.createElement('div');
         let cls = 'kill-streak-toast';
         if (count >= 7) cls += ' legendary';
         else if (count >= 5) cls += ' penta';
         el.className = cls;
-        el.innerHTML = `${text}<br><span style="font-size:13px;font-weight:400;letter-spacing:2px;opacity:0.85">${killerName}</span>`;
+        el.innerHTML = `${text}<br><span style="font-size:13px;font-weight:400;letter-spacing:2px;opacity:0.85">${cardNameDisplay(killerName)}</span>`;
         document.body.appendChild(el);
         setTimeout(() => { if (el.parentNode) el.remove(); }, 3000);
         // 远程联机：连杀特效立即同步给客机（独立 fx 消息）
@@ -141,7 +143,7 @@
     function addLog(msg) {
         const logDiv = document.getElementById('log');
         const p = document.createElement('div');
-        p.innerText = msg;
+        p.innerText = translateText(msg); // i18n：en 时显示层翻译，事件记录/网络同步仍用原文
         logDiv.appendChild(p);
         logDiv.scrollTop = logDiv.scrollHeight;
         if (logDiv.children.length > 30) logDiv.removeChild(logDiv.children[0]);
@@ -171,30 +173,30 @@
 
     // 战术事件识别：从日志消息中识别具体的战术行为类型
     function detectTactic(msg) {
-        if (msg.includes('使用技能秒杀')) return 'knight_execute';
-        if (msg.includes('斩月斩杀') || msg.includes('斩月共斩杀')) return 'zhanyue_execute';
-        if (msg.includes('受武器商加持')) return 'weaponsmith_buff';
-        if ((msg.includes('纱琳将') && msg.includes('定身')) || msg.includes('纱琳对该格下咒') || msg.includes('被纱琳定身')) return 'shaLin_lockdown';
-        if (msg.includes('摔到')) return 'wrestler_throw';
-        if (msg.includes('拉至')) return 'pull';
-        if (msg.includes('共生死')) return 'cupid_bind';
-        if (msg.includes('替罪羊代替') || msg.includes('替罪羊绑定替死')) return 'scapegoat_save';
-        if (msg.includes('护盾') && (msg.includes('抵消') || msg.includes('抵挡'))) return 'shield_block';
-        if (msg.includes('自带护盾破碎') && msg.includes('绝对免疫')) return 'absolute_immunity';
-        if (msg.includes('鼓手鼓舞')) return 'drummer_buff';
-        if (msg.includes('酒类强化')) return 'alcohol_boost';
-        if (msg.includes('触发暴击')) return 'critical_hit';
-        if (msg.includes('鼠疫') && (msg.includes('扩散') || msg.includes('感染'))) return 'plague_spread';
-        if (msg.includes('复活') && !msg.includes('无法') && !msg.includes('失败') && !msg.includes('用完') && !msg.includes('次数')) return 'revive';
-        if (msg.includes('行动干扰生效') || msg.includes('启动行动干扰')) return 'nerd_jam';
-        if (msg.includes('禁卫禁用')) return 'jinwei_disable';
-        if (msg.includes('被眩晕')) return 'stun';
-        if (msg.includes('蓄力横扫') || msg.includes('横扫蓄力') || msg.includes('双剑延迟AOE对')) return 'sweep_charge';
-        if (msg.includes('血舞击杀')) return 'blood_dance_kill';
-        if (msg.includes('饥饿击杀')) return 'hunger_kill';
-        if (msg.includes('代为承受')) return 'guard_substitute';
-        if (msg.includes('爱妃庇护')) return 'aifei_aura';
-        if (msg.includes('旗手庇护')) return 'flag_bearer';
+        if (msg.includes('使用技能秒杀') || /Knight.*execut/.test(msg)) return 'knight_execute';
+        if (msg.includes('斩月斩杀') || msg.includes('斩月共斩杀') || /Crescent Blade.*execut|executed by Crescent/.test(msg)) return 'zhanyue_execute';
+        if (msg.includes('受武器商加持') || /boosted by the Arms Dealer/.test(msg)) return 'weaponsmith_buff';
+        if ((msg.includes('纱琳将') && msg.includes('定身')) || msg.includes('纱琳对该格下咒') || msg.includes('被纱琳定身') || /rooted by Shalin/.test(msg)) return 'shaLin_lockdown';
+        if (msg.includes('摔到') || /slam/.test(msg)) return 'wrestler_throw';
+        if (msg.includes('拉至') || /pull(ed|s)? /.test(msg)) return 'pull';
+        if (msg.includes('共生死') || /linked fate/i.test(msg)) return 'cupid_bind';
+        if (msg.includes('替罪羊代替') || msg.includes('替罪羊绑定替死') || /Scapegoat.*(instead|bound|Take the Fall|take the fall)/.test(msg)) return 'scapegoat_save';
+        if (msg.includes('护盾') && (msg.includes('抵消') || msg.includes('抵挡')) || /shield.*(negat|block|absorb)/.test(msg)) return 'shield_block';
+        if (msg.includes('自带护盾破碎') && msg.includes('绝对免疫') || /innate shield.*(break|shatter).*absolute/i.test(msg)) return 'absolute_immunity';
+        if (msg.includes('鼓手鼓舞') || /inspire/i.test(msg)) return 'drummer_buff';
+        if (msg.includes('酒类强化') || /wine/i.test(msg)) return 'alcohol_boost';
+        if (msg.includes('触发暴击') || /critical/i.test(msg)) return 'critical_hit';
+        if (msg.includes('鼠疫') && (msg.includes('扩散') || msg.includes('感染')) || /Plague.*(spread|infect)/.test(msg)) return 'plague_spread';
+        if ((msg.includes('复活') || /reviv/i.test(msg)) && !msg.includes('无法') && !msg.includes('失败') && !msg.includes('用完') && !msg.includes('次数') && !/cannot|fail|used up|exhausted/.test(msg)) return 'revive';
+        if (msg.includes('行动干扰生效') || msg.includes('启动行动干扰') || /Action Jam/.test(msg)) return 'nerd_jam';
+        if (msg.includes('禁卫禁用') || /disable.*hand|Disable Opponent/.test(msg)) return 'jinwei_disable';
+        if (msg.includes('被眩晕') || /stun/.test(msg)) return 'stun';
+        if (msg.includes('蓄力横扫') || msg.includes('横扫蓄力') || msg.includes('双剑延迟AOE对') || /sweep charge|charge sweep/i.test(msg)) return 'sweep_charge';
+        if (msg.includes('血舞击杀') || /Blood Dance.*kill/.test(msg)) return 'blood_dance_kill';
+        if (msg.includes('饥饿击杀') || /Glutton.*kill/.test(msg)) return 'hunger_kill';
+        if (msg.includes('代为承受') || /suffers instead/.test(msg)) return 'guard_substitute';
+        if (msg.includes('爱妃庇护') || /Consort shelter/.test(msg)) return 'aifei_aura';
+        if (msg.includes('旗手庇护') || /Banner Bearer shelter|flag.*shelter/.test(msg)) return 'flag_bearer';
         return null;
     }
 
@@ -203,18 +205,18 @@
         let category = 'other';
         const actingSide = gameState.turn;
 
-        if (msg.includes('游戏开始')) category = 'game_start';
-        else if (msg.includes('游戏结束')) category = 'game_end';
-        else if (msg.includes('回合开始')) category = 'turn';
-        else if (msg.includes('放置')) category = 'card_play';
-        else if (msg.includes('combo') || msg.includes('连携')) category = 'combo';
-        else if (msg.includes('攻击对方本体') || msg.includes('蓄力攻击敌方本体') || msg.includes('超级蓄力攻击敌方本体')) category = 'base_damage';
-        else if (msg.includes('被消灭')) category = 'unit_death';
-        else if (msg.includes('秒杀')) category = 'skill_kill';
-        else if (msg.includes('蓄力')) category = 'charge';
-        else if (msg.match(/技能|送酒|治疗|净化|定身|拉拽|弱化|致盲|眩晕|护盾|拉至|摔到|瞬移|标记|斩杀/)) category = 'skill';
-        else if (msg.includes('攻击造成') || msg.includes('AOE攻击')) category = 'damage';
-        else if (msg.includes('移动至')) category = 'move';
+        if (msg.includes('游戏开始') || /Game Start/.test(msg)) category = 'game_start';
+        else if (msg.includes('游戏结束') || /Game Over/.test(msg)) category = 'game_end';
+        else if (msg.includes('回合开始') || /start of turn/.test(msg)) category = 'turn';
+        else if (msg.includes('放置') || /place/.test(msg)) category = 'card_play';
+        else if (msg.includes('combo') || msg.includes('连携') || /combo/.test(msg)) category = 'combo';
+        else if (msg.includes('攻击对方本体') || msg.includes('蓄力攻击敌方本体') || msg.includes('超级蓄力攻击敌方本体') || /attack(s|ed)? (the |the enemy )?base/.test(msg)) category = 'base_damage';
+        else if (msg.includes('被消灭') || /was eliminated|died|fell/.test(msg)) category = 'unit_death';
+        else if (msg.includes('秒杀') || /execut/.test(msg)) category = 'skill_kill';
+        else if (msg.includes('蓄力') || /charge/.test(msg)) category = 'charge';
+        else if (msg.match(/技能|送酒|治疗|净化|定身|拉拽|弱化|致盲|眩晕|护盾|拉至|摔到|瞬移|标记|斩杀/) || /skill|heal|purif|root|pull|weaken|blind|stun|shield|mark/.test(msg)) category = 'skill';
+        else if (msg.includes('攻击造成') || msg.includes('AOE攻击') || /AOE/.test(msg)) category = 'damage';
+        else if (msg.includes('移动至') || /move/.test(msg)) category = 'move';
 
         return { category, side: actingSide };
     }
@@ -352,7 +354,7 @@
             if (mirror) {
                 const mIdx = gameState.units.findIndex(u => u.id === mirror.id);
                 if (mIdx !== -1) gameState.units.splice(mIdx, 1);
-                addLog(`🪞 ${unit.cardName} 被移除，镜像消失`);
+                addLog(trText(`🪞 ${unit.cardName} 被移除，镜像消失`, `🪞 ${unit.cardName} was removed, mirror vanished`));
             }
         }
         for (let u of gameState.units) {
@@ -367,8 +369,23 @@
             if (gameState.assimilatorHp[unit.side] <= 0) { killAllAssimilators(unit.side); }
             else { syncAssimilators(unit.side); }
         }
-        addLog(`爆牌：${unit.cardName} 被主动移除。`);
-        showToast(`💥 移除 ${unit.cardName}`);
+        // ── 卡牌闭环：爆牌单位回卡池（排除镜像/同化者/测试卡） ──
+        if (!unit._fromTestPanel && !unit.isMirror && !unit.isAssimilator) {
+            const cardDef = CARD_LIBRARY.find(c => c.name === unit.cardName);
+            if (cardDef) {
+                const cardCopy = { ...cardDef };
+                cardCopy.disabled = false;
+                cardCopy.disabledBy = null;
+                cardCopy.disabledTurns = 0;
+                gameState.players[unit.side].deck.push(cardCopy);
+                shuffleDeck(unit.side);
+                addLog(trText(`🔄 ${unit.cardName} 被爆牌，回到卡池`, `🔄 ${unit.cardName} was overdrawn, returned to pool`));
+            }
+        } else if (unit._fromTestPanel) {
+            addLog(trText(trText(`🧪 测试卡 ${unit.cardName} 已销毁（不进入卡池）`, `🧪 Test card ${unit.cardName} destroyed (no enters Card Pool)`), `🧪 Test card ${unit.cardName} destroyed (no enters Card Pool)`));
+        }
+        addLog(trText(`爆牌：${unit.cardName} 被主动移除。`, `overdraw: ${unit.cardName} was actively removed.`));
+        showToast(trText(`💥 移除 ${unit.cardName}`, `💥 remove ${unit.cardName}`));
         renderUI();
     }
 
@@ -377,7 +394,7 @@
         // AI 自动弃牌：丢弃价值最低的牌
         if (aiActing && side === aiSide && typeof aiSelectDiscard === 'function') {
             const idx = aiSelectDiscard(side, newCard);
-            if (idx >= 0) { addLog(`🤖 AI 弃掉了 ${gameState.players[side].hand[idx].name} 以腾出空间`); }
+            if (idx >= 0) { addLog(trText(trText(`🤖 AI 弃掉了 ${gameState.players[side].hand[idx].name} 以腾出空间`, `🤖 AI discard ${gameState.players[side].hand[idx].name} to make room empty`), `🤖 AI discard ${gameState.players[side].hand[idx].name} to make room empty`)); }
             return idx;
         }
         // 联机：满手牌弃牌由手牌拥有方（side）决定——主机端若决策方是远程玩家则转发弹窗给客机
@@ -395,7 +412,7 @@
         // AI 自动弃牌：丢弃价值最低的牌
         if (aiActing && side === aiSide && typeof aiSelectDiscard === 'function') {
             const idx = aiSelectDiscard(side, newCard);
-            if (idx >= 0) { addLog(`🤖 AI 弃掉了 ${gameState.players[side].hand[idx].name} 以腾出空间`); }
+            if (idx >= 0) { addLog(trText(trText(`🤖 AI 弃掉了 ${gameState.players[side].hand[idx].name} 以腾出空间`, `🤖 AI discard ${gameState.players[side].hand[idx].name} to make room empty`), `🤖 AI discard ${gameState.players[side].hand[idx].name} to make room empty`)); }
             return idx;
         }
         gameState.isModalOpen = true;
@@ -404,19 +421,19 @@
             overlay.className = 'discard-overlay';
             const panel = document.createElement('div');
             panel.className = 'discard-panel';
-            panel.innerHTML = `<h3>手牌已满 (${gameState.players[side].hand.length}/6)</h3><p>请选择一张手牌弃掉，以便获得新牌 ${newCard.name}</p>`;
+            panel.innerHTML = translateText(`<h3>手牌已满 (${gameState.players[side].hand.length}/6)</h3><p>请选择一张手牌弃掉，以便获得新牌 ${newCard.name}</p>`);
             const btnContainer = document.createElement('div');
             btnContainer.className = 'discard-buttons';
             const hand = gameState.players[side].hand;
             hand.forEach((card, idx) => {
                 const btn = document.createElement('button');
                 btn.className = 'discard-btn-choice';
-                btn.innerText = `${card.name} (费${card.cost})`;
+                btn.innerText = translateText(`${card.name} (费${card.cost})`);
                 btn.onclick = () => { overlay.remove(); gameState.isModalOpen = false; resolve(idx); };
                 btnContainer.appendChild(btn);
             });
             const cancelBtn = document.createElement('button');
-            cancelBtn.innerText = '放弃获得新牌';
+            cancelBtn.innerText = translateText('放弃获得新牌');
             cancelBtn.className = 'discard-btn-choice discard-cancel';
             cancelBtn.onclick = () => { overlay.remove(); gameState.isModalOpen = false; resolve(-1); };
             btnContainer.appendChild(cancelBtn);
@@ -426,14 +443,35 @@
         });
     }
 
+    function shuffleDeck(side) {
+        const deck = gameState.players[side].deck;
+        for (let i = deck.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [deck[i], deck[j]] = [deck[j], deck[i]];
+        }
+    }
+
     function discardCard(side, cardIndex) {
         const expectedSide = gameState.turn;
-        if (side !== expectedSide) { showToast("不是你的回合"); addLog("不是你的回合，不能弃牌"); return; }
+        if (side !== expectedSide) { showToast(trText("不是你的回合", 'Not your turn')); addLog(trText("不是你的回合，不能弃牌", 'Not your turn, cannot discard')); return; }
         const card = gameState.players[side].hand[cardIndex];
         if (!card) return;
-        gameState.players[side].hand.splice(cardIndex, 1);
-        addLog(`弃牌：${card.name} 从手牌中弃掉。`);
-        showToast(`🗑️ 弃掉 ${card.name}`);
+        const discarded = gameState.players[side].hand.splice(cardIndex, 1)[0];
+        if (discarded) {
+            if (!discarded._fromTestPanel) {
+                const cardCopy = { ...discarded };
+                delete cardCopy._fromTestPanel;
+                cardCopy.disabled = false;
+                cardCopy.disabledBy = null;
+                cardCopy.disabledTurns = 0;
+                gameState.players[side].deck.push(cardCopy);
+                shuffleDeck(side);
+                addLog(trText(`🔄 ${discarded.name} 被弃掉，回到卡池`, `🔄 ${discarded.name} was discarded, returned to pool`));
+            } else {
+                addLog(trText(trText(`🧪 测试卡 ${discarded.name} 已销毁（不进入卡池）`, `🧪 Test card ${discarded.name} destroyed (no enters Card Pool)`), `🧪 Test card ${discarded.name} destroyed (no enters Card Pool)`));
+            }
+        }
+        showToast(trText(`🗑️ 弃掉 ${card.name}`, `🗑️ discard ${card.name}`));
         if (gameState.selectedCardIdx === cardIndex) gameState.selectedCardIdx = -1;
         else if (gameState.selectedCardIdx > cardIndex) gameState.selectedCardIdx--;
         renderUI();

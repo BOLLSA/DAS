@@ -6,15 +6,15 @@
         if (aiActing) { return; }
         // 远程联机：非自己回合只读；客机回合转发给主机执行
         if (networkForward({ type: 'unitClick', id: unit.id, unitId: gameState.selectedUnitId })) return;
-        if (unit.isMirror) { showToast(`镜像无法被选中`); return; }
+        if (unit.isMirror) { showToast(trText(trText(`镜像无法被选中`, `mirror cannot is selected`), `mirror cannot is selected`)); return; }
         // ── 装备穿戴选择模式 ──
         if (gameState.awaitingEquipmentTarget) {
             if (unit.side === gameState.equipmentBuyerSide && !hasEquipment(unit) && unit.life > 0) {
                 equipUnit(unit);
             } else if (unit.side !== gameState.equipmentBuyerSide) {
-                showToast(`只能选择己方单位`);
+                showToast(trText(`只能选择己方单位`, `can only select your unit`));
             } else if (hasEquipment(unit)) {
-                showToast(`该单位已穿戴装备`);
+                showToast(trText(`该单位已穿戴装备`, `the unit equipped equipment`));
             }
             return;
         }
@@ -32,14 +32,14 @@
         if (unit.side === gameState.turn) {
             // 如果该单位已被选中，且同格有敌方单位，则攻击该敌方单位
             if (gameState.selectedUnitId === unit.id) {
-                if (unit.cardName === "镜中人") { showToast(`镜中人请使用攻击按钮`); return; }
+                if (unit.cardName === "镜中人") { showToast(trText(trText(`镜中人请使用攻击按钮`, `Mirror Mage please use attack button`), `Mirror Mage please use attack button`)); return; }
                 const enemiesOnSameCell = getUnitsAt(unit.row, unit.col).filter(u => u.side !== unit.side && u.life > 0);
                 if (enemiesOnSameCell.length > 0) {
                     const target = enemiesOnSameCell[0];
                     if (gameState.nerdJamPending[unit.side]) {
                         gameState.nerdJamPending[unit.side] = false;
-                        addLog(`👓 行动干扰生效！${unit.cardName} 的攻击被无效化！`);
-                        showToast(`👓 行动干扰！${unit.cardName} 的攻击被无效化`);
+                        addLog(trText(`👓 行动干扰生效！${unit.cardName} 的攻击被无效化！`, `👓 Action Jam takes effect! ${unit.cardName} 's attack was negated!`));
+                        showToast(trText(`👓 行动干扰！${unit.cardName} 的攻击被无效化`, `👓 Action Jam! ${unit.cardName} 's attack was negated`));
                         gameState.selectedUnitId = null;
                         renderUI();
                     } else {
@@ -52,18 +52,18 @@
                 }
             }
             gameState.selectedUnitId = unit.id;
-            showToast(`📌 已选中: ${unit.cardName}`);
+            showToast(trText(`📌 已选中: ${unit.cardName}`, `📌 Selected: ${unit.cardName}`));
             renderUI();
         } else {
             if (gameState.selectedUnitId !== null) {
                 const attacker = gameState.units.find(u => u.id === gameState.selectedUnitId);
                 if (attacker && attacker.side === gameState.turn) {
-                    if (attacker.cardName === "镜中人") { showToast(`镜中人请使用攻击按钮`); return; }
+                    if (attacker.cardName === "镜中人") { showToast(trText(trText(`镜中人请使用攻击按钮`, `Mirror Mage please use attack button`), `Mirror Mage please use attack button`)); return; }
                     // 四眼仔行动干扰：消耗本方第一次控制单位的攻击
                     if (gameState.nerdJamPending[attacker.side]) {
                         gameState.nerdJamPending[attacker.side] = false;
-                        addLog(`👓 行动干扰生效！${attacker.cardName} 的攻击被无效化！`);
-                        showToast(`👓 行动干扰！${attacker.cardName} 的攻击被无效化`);
+                        addLog(trText(`👓 行动干扰生效！${attacker.cardName} 的攻击被无效化！`, `👓 Action Jam takes effect! ${attacker.cardName} 's attack was negated!`));
+                        showToast(trText(`👓 行动干扰！${attacker.cardName} 的攻击被无效化`, `👓 Action Jam! ${attacker.cardName} 's attack was negated`));
                         gameState.selectedUnitId = null;
                         renderUI();
                     } else {
@@ -72,8 +72,8 @@
                         gameState.selectedUnitId = null;
                         renderUI();
                     }
-                } else { addLog(`选中的单位无效`); gameState.selectedUnitId = null; renderUI(); }
-            } else { showToast(`请先选中己方单位再攻击`); }
+                } else { addLog(trText(`选中的单位无效`, `selected of unit invalid`)); gameState.selectedUnitId = null; renderUI(); }
+            } else { showToast(trText(`请先选中己方单位再攻击`, `please selected your unit then attack`)); }
         }
     }
 
@@ -244,6 +244,14 @@
                         if (unit.superCharging) chargeTag = `<span class="charge-tag charge-super">超蓄${unit.superChargeTurnsLeft}</span>`;
                         if (unit.isSweepCharging) chargeTag = '<span class="charge-tag charge-sweep">横扫</span>';
                         if (unit.motCharging) chargeTag = `<span class="charge-tag charge-sweep">🏍️蓄力${unit.motChargeTurns || 1}/3</span>`;
+                        if (unit.blazeCharging) chargeTag = `<span class="charge-tag charge-sweep">🔥蓄力${unit.blazeChargeTurns || 1}/3</span>`;
+                        if (unit.qinmoCharging) chargeTag = `<span class="charge-tag charge-sweep">🎵蓄力中</span>`;
+                        if (unit.cardName === "风女") {
+                            let windTags = [];
+                            if ((unit.windGirlEnergy || 0) > 0) windTags.push(`<span class="charge-tag charge-sweep">🌪️${unit.windGirlEnergy}</span>`);
+                            if (unit.windGirlFreeMoveAvailable && !unit.windGirlFreeMoveUsed) windTags.push('<span class="charge-tag charge-sweep">💨可移动</span>');
+                            if (windTags.length > 0) chargeTag = windTags.join(' ');
+                        }
                         if (unit.braceActive) chargeTag = '<span class="charge-tag charge-sweep">蓄势</span>';
                         if (unit.isMirror) chargeTag = '<span class="charge-tag charge-sweep">镜像</span>';
                         if (unit.isAssimilator) chargeTag = '<span class="charge-tag charge-sweep">同化</span>';
@@ -251,7 +259,7 @@
                         const bountyTag = (unit.bountyLevel || 0) > 0 ? `<span class="bounty-tag" title="${unit.bountyLevel}级悬赏：被移除时对方获得${unit.bountyLevel}费">💰x${unit.bountyLevel}</span>` : '';
                         // 移动次数
                         const moveCount = (unit.cardName === "骑士" || unit.movesLeftThisTurn > 1) && unit.movesLeftThisTurn > 0 ? `<span class="move-count">${parseFloat(unit.movesLeftThisTurn.toFixed(2))}</span>` : '';
-                        unitDiv.innerHTML = `<div class="unit-top"><span class="unit-name">${unit.cardName}</span>${chargeTag}${bountyTag}</div><div class="hp-bar"><div class="hp-fill" style="width:${hpPct}%;background:${hpColor};"></div><span class="hp-text">❤${unit.life}</span></div>${shieldDisplay}<div class="unit-mid"><span class="dmg-stat">${unit.dmgType}${unit.dmgValue}</span><span class="range-stat">📏${unit.range}</span></div><div class="unit-bot"><span class="act-move">${moveIcon}</span>${moveCount}${atkIcon}</div>${statusIcons ? `<div class="status-bar">${statusIcons}</div>` : ''}`;
+                        unitDiv.innerHTML = translateText(`<div class="unit-top"><span class="unit-name">${unit.cardName}</span>${chargeTag}${bountyTag}</div><div class="hp-bar"><div class="hp-fill" style="width:${hpPct}%;background:${hpColor};"></div><span class="hp-text">❤${unit.life}</span></div>${shieldDisplay}<div class="unit-mid"><span class="dmg-stat">${unit.dmgType}${unit.dmgValue}</span><span class="range-stat">📏${unit.range}</span></div><div class="unit-bot"><span class="act-move">${moveIcon}</span>${moveCount}${atkIcon}</div>${statusIcons ? `<div class="status-bar">${statusIcons}</div>` : ''}`);
                         unitDiv.onclick = (e) => { e.stopPropagation(); handleUnitClick(unit); };
                         unitDiv.oncontextmenu = (e) => {
                             e.preventDefault(); e.stopPropagation();
@@ -259,7 +267,7 @@
                             if (cardDef) {
                                 showPokedexDetail(cardDef, null);
                             } else {
-                                showToast(`图鉴中没有「${unit.cardName}」`);
+                                showToast(trText(`图鉴中没有「${unit.cardName}」`, `Codex no " ${unit.cardName} "`));
                             }
                         };
                         cell.appendChild(unitDiv);
@@ -295,15 +303,18 @@
             const costExtra = empMod !== 0 ? (empMod > 0 ? `<span class="cost-up">+${empMod}</span>` : `<span class="cost-down">${empMod}</span>`) : '';
             const canAfford = infiniteManaEnabled || gameState.players[gameState.turn].mana >= displayCost;
             const costColor = canAfford ? '#22c55e' : '#6b7280';
-            // 被动名缩略（只取名称不取描述）
+            // 被动名缩略（只取名称不取描述）；i18n：en 时使用人工翻译的英文被动名
             let passiveName = '';
-            if (card.passive) {
-                passiveName = card.passive.split(/[：:，,。]/)[0].slice(0, 8);
-                if (card.passive.length > passiveName.length) passiveName += '…';
+            const passiveSrc = cardPassiveText(card);
+            if (passiveSrc) {
+                passiveName = currentLang === 'en'
+                    ? passiveSrc.split(/[：:，,。]/)[0].slice(0, 16)
+                    : passiveSrc.split(/[：:，,。]/)[0].slice(0, 8);
+                if (passiveSrc.length > passiveName.length) passiveName += '…';
             }
-            cardEl.innerHTML = `<div class="card-cost-badge" style="background:${costColor};">${displayCost}${costExtra}</div><div class="card-key-hint">${idx + 1}</div><div class="card-name">${card.name}</div><div class="card-stats"><span class="cs-hp">❤${card.life}</span><span class="cs-dmg">${card.dmgType}${card.dmgValue}</span><span class="cs-range">📏${card.range}</span></div>${passiveName ? `<div class="card-passive">${passiveName}</div>` : ''}${card.disabled ? '<div class="card-disabled-overlay">🔒</div>' : ''}`;
+            cardEl.innerHTML = translateText(`<div class="card-cost-badge" style="background:${costColor};">${displayCost}${costExtra}</div><div class="card-key-hint">${idx + 1}</div><div class="card-name">${card.name}</div><div class="card-stats"><span class="cs-hp">❤${card.life}</span><span class="cs-dmg">${card.dmgType}${card.dmgValue}</span><span class="cs-range">📏${card.range}</span></div>${passiveName ? `<div class="card-passive">${passiveName}</div>` : ''}${card.disabled ? '<div class="card-disabled-overlay">🔒</div>' : ''}`);
             const discardBtn = document.createElement('button');
-            discardBtn.innerText = '弃';
+            discardBtn.innerText = translateText('弃');
             discardBtn.className = 'discard-btn';
             discardBtn.onclick = (e) => { e.stopPropagation(); if (aiActing) return; if (networkForward({ type: 'discard', idx })) return; discardCard(gameState.turn, idx); };
             // 新手教程中隐藏弃牌按钮，降低自由度
@@ -311,7 +322,7 @@
             // 无中生有：添加使用按钮（教程中隐藏）
             if (card.name === "无中生有" && !card.disabled && !(tutorialState && tutorialState.active)) {
                 const useBtn = document.createElement('button');
-                useBtn.innerText = '用';
+                useBtn.innerText = translateText('用');
                 useBtn.className = 'discard-btn';
                 useBtn.style.right = '28px';
                 useBtn.style.background = '#2c6e6e';
@@ -320,7 +331,7 @@
             }
             if (card.name === "鼠疫" && !card.disabled && !(tutorialState && tutorialState.active)) {
                 const useBtn = document.createElement('button');
-                useBtn.innerText = '用';
+                useBtn.innerText = translateText('用');
                 useBtn.className = 'discard-btn';
                 useBtn.style.right = '28px';
                 useBtn.style.background = '#2c6e2c';
@@ -332,16 +343,16 @@
                 if (e.target === discardBtn || (e.target && e.target.className === 'discard-btn')) return; 
                 // 技能选择目标期间，禁止点击手牌
                 if (gameState.awaitingSkillTarget) { 
-                    showToast(`请先完成技能目标选择或取消技能`); 
+                    showToast(trText(`请先完成技能目标选择或取消技能`, `please complete skill target select or cancel skill`)); 
                     return; 
                 } 
                 if (gameState.selectedCardIdx === idx) { 
                     gameState.selectedCardIdx = -1; 
-                    addLog("已取消手牌选中"); 
-                    showToast('取消手牌选中');
+                    addLog(trText("已取消手牌选中", 'Hand selection cancelled')); 
+                    showToast(trText('取消手牌选中', "Deselect hand card"));
                 } else { 
                     gameState.selectedCardIdx = idx; 
-                    showToast(`📌 已选手牌: ${card.name}`);
+                    showToast(trText(trText(`📌 已选手牌: ${card.name}`, `📌 pick hand: ${card.name}`), `📌 pick hand: ${card.name}`));
                 } 
                 renderUI(); 
             };
@@ -357,7 +368,7 @@
             const cardEl = document.createElement('div');
             const gradeClass = `grade-${card.grade || 3}`;
             cardEl.className = `card enemy-card ${gradeClass}`;
-            cardEl.innerHTML = `<div class="card-name">${card.name}</div>`;
+            cardEl.innerHTML = translateText(`<div class="card-name">${card.name}</div>`);
             cardEl.oncontextmenu = (e) => { e.preventDefault(); showPokedexDetail(card, null); };
             enemyHandDiv.appendChild(cardEl);
         });
@@ -368,7 +379,7 @@
         (gameState.players[gameState.turn]?.prepool || []).forEach(card => {
             const p = document.createElement('div');
             p.className = 'prepool-card';
-            p.innerText = `${card.name}(${card.cost}费)`;
+            p.innerText = translateText(`${card.name}(${card.cost}费)`);
             p.oncontextmenu = (e) => { e.preventDefault(); showPokedexDetail(card, null); };
             prepoolDiv.appendChild(p);
         });
@@ -383,7 +394,7 @@
                     const popBtn = document.createElement('button');
                     popBtn.id = 'dynamicPopBtn';
                     popBtn.className = 'pop-btn';
-                    popBtn.innerText = `💥 爆牌 (移除${selectedUnit.cardName})`;
+                    popBtn.innerText = translateText(`💥 爆牌 (移除${selectedUnit.cardName})`);
                     popBtn.style.position = 'fixed';
                     popBtn.style.bottom = '16px';
                     popBtn.style.left = '16px';
@@ -412,7 +423,7 @@
                     const returnBtn = document.createElement('button');
                     returnBtn.id = 'riluoReturnBtn';
                     returnBtn.className = 'skill-btn';
-                    returnBtn.innerText = `🧵 回绫罗`;
+                    returnBtn.innerText = translateText(`🧵 回绫罗`);
                     returnBtn.onclick = () => { if (networkForward({ type: 'riluoReturn', id: selectedUnit.id })) return; performRiluoReturn(selectedUnit); };
                     returnBtn.style.position = 'fixed';
                     returnBtn.style.bottom = '16px';
@@ -425,8 +436,8 @@
                     const atkBtn = document.createElement('button');
                     atkBtn.id = 'mirrorAtkBtn';
                     atkBtn.className = 'skill-btn';
-                    atkBtn.innerText = `⚔️ 攻击`;
-                    atkBtn.onclick = () => { if (networkForward({ type: 'mirrorAttack', id: selectedUnit.id })) return; gameState.awaitingMirrorAttack = true; gameState.mirrorAttackUnitId = selectedUnit.id; addLog(`请选择要攻击的格子（自身格或相邻格）`); renderUI(); };
+                    atkBtn.innerText = translateText(`⚔️ 攻击`);
+                    atkBtn.onclick = () => { if (networkForward({ type: 'mirrorAttack', id: selectedUnit.id })) return; gameState.awaitingMirrorAttack = true; gameState.mirrorAttackUnitId = selectedUnit.id; addLog(trText(trText(`请选择要攻击的格子（自身格或相邻格）`, `please choose to attack of tile (itself tile or adjacent tile)`), `please choose to attack of tile (itself tile or adjacent tile)`)); renderUI(); };
                     atkBtn.style.position = 'fixed';
                     atkBtn.style.bottom = '60px';
                     atkBtn.style.right = '16px';
@@ -437,7 +448,7 @@
                         const swapBtn = document.createElement('button');
                         swapBtn.id = 'mirrorSwapBtn';
                         swapBtn.className = 'skill-btn';
-                        swapBtn.innerText = selectedUnit.mirrorSwappedThisTurn ? '🪞 换位(已用)' : '🪞 换位';
+                        swapBtn.innerText = translateText(selectedUnit.mirrorSwappedThisTurn ? '🪞 换位(已用)' : '🪞 换位');
                         swapBtn.onclick = () => { if (networkForward({ type: 'mirrorSwap', id: selectedUnit.id })) return; performMirrorSwap(selectedUnit); };
                         swapBtn.style.position = 'fixed';
                         swapBtn.style.bottom = '104px';
@@ -487,7 +498,7 @@
                 confirmBtn.className = 'skill-btn';
                 const selectedCount = (gameState.declarativeSelected || []).length;
                 const maxSel = gameState.declarativeMaxSelect || 1;
-                confirmBtn.innerText = `✅ 确认 (${selectedCount}/${maxSel === 99 ? '∞' : maxSel})`;
+                confirmBtn.innerText = translateText(`✅ 确认 (${selectedCount}/${maxSel === 99 ? '∞' : maxSel})`);
                 confirmBtn.style.position = 'fixed';
                 confirmBtn.style.bottom = '160px';
                 confirmBtn.style.right = '20px';
@@ -500,7 +511,7 @@
                 confirmBtn.id = 'confirmDeclarativeBtn';
                 confirmBtn.className = 'skill-btn';
                 const cnt = (gameState.dualswordAOEHighlight || []).length;
-                confirmBtn.innerText = `✅ 确认${cnt > 0 ? ` (${cnt}格)` : ''}`;
+                confirmBtn.innerText = translateText(`✅ 确认${cnt > 0 ? ` (${cnt}格)` : ''}`);
                 confirmBtn.style.position = 'fixed';
                 confirmBtn.style.bottom = '160px';
                 confirmBtn.style.right = '20px';
@@ -513,7 +524,7 @@
             const cancelBtn = document.createElement('button');
             cancelBtn.id = 'cancelSkillBtn';
             cancelBtn.className = 'cancel-btn';
-            cancelBtn.innerText = `❌ 取消技能`;
+            cancelBtn.innerText = translateText(`❌ 取消技能`);
             cancelBtn.style.position = 'fixed';
             cancelBtn.style.bottom = '80px';
             cancelBtn.style.right = '20px';
@@ -522,7 +533,7 @@
                 if (networkForward({ type: 'cancelSkill' })) return;
                 const caster = gameState.units.find(u => u.id === gameState.skillCasterId);
                 if (caster) caster.skillUsedThisTurn = false;
-                clearSkillTarget(); renderUI(); addLog("已取消技能释放。");
+                clearSkillTarget(); renderUI(); addLog(trText("已取消技能释放。", 'Skill release cancelled.'));
             };
             document.body.appendChild(cancelBtn);
         }
@@ -530,7 +541,7 @@
             const glideBtn = document.createElement('button');
             glideBtn.id = 'skipGlideBtn';
             glideBtn.className = 'cancel-btn';
-            glideBtn.innerText = `⏭️ 跳过滑步`;
+            glideBtn.innerText = translateText(`⏭️ 跳过滑步`);
             glideBtn.style.position = 'fixed';
             glideBtn.style.bottom = '80px';
             glideBtn.style.left = '20px';
@@ -539,7 +550,7 @@
                 if (networkForward({ type: 'skipGlide' })) return;
                 gameState.awaitingGlide = false;
                 gameState.glideUnitId = null;
-                addLog("跳过滑步。");
+                addLog(trText("跳过滑步。", 'Glide skipped.'));
                 renderUI();
             };
             document.body.appendChild(glideBtn);
@@ -548,7 +559,7 @@
             const cancelAtkBtn = document.createElement('button');
             cancelAtkBtn.id = 'cancelMirrorAtkBtn';
             cancelAtkBtn.className = 'cancel-btn';
-            cancelAtkBtn.innerText = `❌ 取消攻击`;
+            cancelAtkBtn.innerText = translateText(`❌ 取消攻击`);
             cancelAtkBtn.style.position = 'fixed';
             cancelAtkBtn.style.bottom = '80px';
             cancelAtkBtn.style.left = '20px';
@@ -561,7 +572,7 @@
             console.error('[RENDER_UI] Error:', err.message, err.stack);
             // 在页面上显示渲染错误，方便诊断
             const errDiv = document.getElementById('renderError');
-            if (errDiv) errDiv.innerText = '渲染错误: ' + err.message;
+            if (errDiv) errDiv.innerText = translateText('渲染错误: ') + err.message;
             else { const d = document.createElement('div'); d.id = 'renderError'; d.style.cssText = 'position:fixed;top:50%;left:50%;background:rgba(255,0,0,0.8);color:white;padding:20px;z-index:99999;font-size:16px;'; d.innerText = '渲染错误: ' + err.message; document.body.appendChild(d); }
         }
         document.getElementById('p0Hp').innerText = gameState.players[0].hp;
@@ -572,17 +583,20 @@
         document.getElementById('p1HandCount').innerText = gameState.players[1].hand.length;
         const enemySide = gameState.turn === 0 ? 1 : 0;
         document.getElementById('enemyHandCount').innerText = gameState.players[enemySide].hand.length;
-        document.getElementById('turnText').innerHTML = gameState.turn === 0 ? "🔽 蓝方回合" : "🔴 红方回合";
+        const bigRound = Math.max(1, Math.ceil((gameState.matchStats?.turnCount || 0) / 2));
+        const phaseIcon = bigRound >= 25 ? '💀' : (bigRound >= 13 ? '⚡' : '');
+        const phaseClass = bigRound >= 25 ? 'big-round-death' : (bigRound >= 13 ? 'big-round-extreme' : '');
+        document.getElementById('turnText').innerHTML = `<span class="big-round-badge ${phaseClass}">${phaseIcon} ${t('turn.bigRound', { n: bigRound })}</span> ${gameState.turn === 0 ? t('turn.blue') : t('turn.red')}`;
         // AI 回合指示
         if (aiActing) {
-            document.getElementById('turnText').innerHTML += ' <span style="color:#9c6cff">🤖思考中...</span>';
+            document.getElementById('turnText').innerHTML += ' <span style="color:#9c6cff">' + t('turn.thinking') + '</span>';
         } else if (aiSide >= 0 && gameState.turn === aiSide) {
             document.getElementById('turnText').innerHTML += ' <span style="color:#9c6cff">🤖</span>';
         }
                         const testBtn = document.getElementById('testModeBtn');
         if (gameMode === 'custom' || gameMode === 'ai') {
             testBtn.style.opacity = '0.4';
-            testBtn.title = gameMode === 'ai' ? '人机对战模式下不可用' : '自定义卡组模式下不可用';
+            testBtn.title = translateText(gameMode === 'ai' ? '人机对战模式下不可用' : '自定义卡组模式下不可用');
         } else {
             testBtn.style.opacity = '1';
             testBtn.title = '';
@@ -599,7 +613,7 @@
                 const exitBtn = document.createElement('button');
                 exitBtn.id = 'networkExitBtn';
                 exitBtn.className = 'cancel-btn';
-                exitBtn.innerText = `🌐 退出联机`;
+                exitBtn.innerText = translateText(`🌐 退出联机`);
                 exitBtn.style.cssText = 'position:fixed;top:8px;right:16px;z-index:950;cursor:pointer;';
                 exitBtn.onclick = () => { if (typeof networkExitGame === 'function') networkExitGame(); };
                 document.body.appendChild(exitBtn);
@@ -611,16 +625,34 @@
     }
 
     document.getElementById('endTurnBtn').onclick = async () => {
-        if (aiActing) { showToast('🤖 AI 正在行动，请稍候'); return; }
+        if (aiActing) { showToast(trText('🤖 AI 正在行动，请稍候', "🤖 AI is acting, please wait")); return; }
         // 远程联机客机：乐观弹窗（确认+预牌+满手牌弃牌本地完成），选择随指令一次直达主机，避免多次往返
         if (networkIsGuest() && gameState.turn === networkMySide()) {
-            const confirmed = await showConfirmLocal("是否结束当前回合？");
-            if (!confirmed) { addLog("结束回合已取消。"); return; }
+            const confirmed = await showConfirmLocal(trText("是否结束当前回合？", 'End the current turn?'));
+            if (!confirmed) { addLog(trText("结束回合已取消。", 'End turn cancelled.')); return; }
             const prepool = gameState.players[gameState.turn].prepool;
             const action = { type: 'endTurn', confirmed: true };
-            if (prepool.length > 0) {
+            const currentBigRound = Math.ceil((gameState.matchStats?.turnCount || 0) / 2);
+            const isExtremeSpeed = currentBigRound >= 13;
+            if (isExtremeSpeed && prepool.length >= 2) {
+                // 极速回合：选2张预牌
+                const prepick2 = await showPrepickPanel2Local(prepool);
+                if (prepick2[0] === -1 || prepick2[1] === -1) { addLog(trText("结束回合已取消。", 'End turn cancelled.')); return; }
+                action.prepick2 = prepick2;
+                // 计算溢出，本地先选弃牌
+                const hand = gameState.players[gameState.turn].hand;
+                const newCards = prepick2.map(i => prepool[i]);
+                const overflow = hand.length + newCards.length - gameState.players[gameState.turn].handMax;
+                if (overflow === 1) {
+                    const discardIdx = await discardForNewCardLocal(gameState.turn, newCards[0]);
+                    action.discardIdx = discardIdx;
+                } else if (overflow >= 2) {
+                    const discardIdx2 = await discardForNewCards2Local(gameState.turn, newCards);
+                    action.discardIdx2 = discardIdx2;
+                }
+            } else if (prepool.length > 0) {
                 const prepick = await showPrepickPanelLocal(prepool);
-                if (prepick === -1) { addLog("结束回合已取消。"); return; }
+                if (prepick === -1) { addLog(trText("结束回合已取消。", 'End turn cancelled.')); return; }
                 action.prepick = prepick;
                 // 手牌已满时（预牌将补入手牌触发弃牌），本地先选弃牌，随指令发送给主机（避免弃牌弹窗开在主机端）
                 if (gameState.players[gameState.turn].hand.length >= gameState.players[gameState.turn].handMax) {
@@ -638,23 +670,23 @@
         try { await endTurn(); } catch(e) { console.error(e); }
     };
     document.getElementById('resetGameBtn').onclick = async () => {
-        if (aiActing) { showToast('🤖 AI 正在行动，请稍候'); return; }
+        if (aiActing) { showToast(trText('🤖 AI 正在行动，请稍候', "🤖 AI is acting, please wait")); return; }
         // 新手教程：拦截重新开局
         if (tutorialState && tutorialState.active) { tutorialBlock('重新开局'); return; }
         // 远程联机：拦截重新开局（请使用「退出联机」回到模式选择）
-        if (networkActive()) { showToast('🌐 联机中无法重新开局，请退出联机后重开'); return; }
-        const confirmed = await showConfirm('确定要重新开局吗？当前对局进度将丢失！');
+        if (networkActive()) { showToast(trText('🌐 联机中无法重新开局，请退出联机后重开', "🌐 Cannot restart during online play, exit online first")); return; }
+        const confirmed = await showConfirm(trText('确定要重新开局吗？当前对局进度将丢失！', "Restart the game? All match progress will be lost!"));
         if (confirmed) {
             await startGame();
         }
     };
-    document.getElementById('clearHandBtn').onclick = () => { gameState.selectedCardIdx = -1; addLog("已取消手牌选中"); renderUI(); };
+    document.getElementById('clearHandBtn').onclick = () => { gameState.selectedCardIdx = -1; addLog(trText("已取消手牌选中", 'Hand selection cancelled')); renderUI(); };
     document.getElementById('pokedexBtn').onclick = () => showPokedex();
     document.getElementById('poolBtn').onclick = () => showCardPool();
     document.getElementById('tutorialBtn').onclick = () => showTutorial();
     document.getElementById('testModeBtn').onclick = () => openTestPanel();
     document.getElementById('equipmentShopBtn').onclick = () => {
-        if (aiActing) { showToast('🤖 AI 正在行动，请稍候'); return; }
+        if (aiActing) { showToast(trText('🤖 AI 正在行动，请稍候', "🤖 AI is acting, please wait")); return; }
         // 远程联机：非自己回合只读；客机回合转发给主机执行
         if (networkForward({ type: 'shop' })) return;
         openEquipmentShop();
